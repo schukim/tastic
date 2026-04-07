@@ -1,0 +1,139 @@
+{
+  "app": {
+    "name": "Critiq"
+  },
+  "auth": {
+    "login": "로그인",
+    "signUp": "회원가입",
+    "email": "이메일",
+    "password": "비밀번호",
+    "passwordConfirm": "비밀번호 확인",
+    "loginButton": "로그인",
+    "signUpButton": "회원가입",
+    "orDivider": "또는",
+    "noAccount": "계정이 없으신가요?",
+    "hasAccount": "이미 계정이 있으신가요?",
+    "socialApple": "Apple로 계속하기",
+    "socialGoogle": "Google로 계속하기",
+    "nickname": "닉네임",
+    "profileImage": "프로필 이미지",
+    "selectCategories": "관심 카테고리 선택 (최소 1개)",
+    "startButton": "시작하기",
+    "next": "다음",
+    "step1Title": "계정 정보",
+    "step2Title": "프로필 설정",
+    "passwordMinLength": "비밀번호는 최소 8자여야 합니다",
+    "emailInvalid": "올바른 이메일 형식이 아닙니다",
+    "nicknameDuplicate": "이미 사용 중인 닉네임입니다",
+    "loginError": "이메일 또는 비밀번호가 올바르지 않습니다",
+    "networkError": "네트워크 연결을 확인해주세요",
+    "sessionExpired": "세션이 만료되었습니다. 다시 로그인해주세요"
+  },
+  "tabs": {
+    "history": "히스토리",
+    "recommend": "추천",
+    "review": "평론",
+    "analysis": "분석",
+    "my": "마이"
+  },
+  "category": {
+    "movie": "영화",
+    "music": "음악",
+    "book": "책",
+    "art": "미술",
+    "exhibition": "전시",
+    "performance": "공연"
+  },
+  "review": {
+    "greeting": "{{name}}님, 오늘은 무엇을 감상하셨나요?",
+    "titlePlaceholder": "작품 제목을 입력하세요",
+    "experienceDate": "감상 일자",
+    "next": "다음",
+    "confirm": {
+      "title": "이 작품이 맞나요?",
+      "manualInput": "작품을 찾지 못했어요. 직접 입력할게요",
+      "manualInputFirst": "직접 입력하기",
+      "loading": "작품을 찾고 있어요..."
+    },
+    "interview": {
+      "questionCount": "질문 {{count}}",
+      "answerPlaceholder": "답변을 입력하세요...",
+      "previewButton": "평론 미리보기",
+      "finishButton": "답변 종료하기",
+      "exitConfirmTitle": "인터뷰 나가기",
+      "exitConfirmMessage": "진행 중인 인터뷰를 저장하고 나갈까요?",
+      "exitConfirmSave": "저장하고 나가기",
+      "exitConfirmDiscard": "저장하지 않고 나가기",
+      "exitConfirmCancel": "계속하기",
+      "errorLoad": "질문을 불러오지 못했어요",
+      "retry": "다시 시도",
+      "errorPersist": "네트워크 상태를 확인해주세요. 진행 중인 내용은 자동 저장되어 있습니다.",
+      "continueLater": "나중에 이어하기"
+    },
+    "complete": {
+      "title": "평론 작성",
+      "regenerate": "다시 생성",
+      "save": "저장하기",
+      "saved": "평론이 저장되었습니다!",
+      "saveFailed": "저장에 실패했습니다. 다시 시도해주세요",
+      "generateFailed": "평론을 생성하지 못했어요. 다시 시도할까요?",
+      "backToInterview": "인터뷰로 돌아가기"
+    },
+    "draft": {
+      "title": "이전 인터뷰",
+      "message": "이전에 진행 중이던 '{{title}}' 인터뷰가 있습니다.",
+      "continue": "이어서 하기",
+      "startNew": "새로 시작"
+    }
+  },
+  "history": {
+    "empty": "아직 작성한 평론이 없어요",
+    "goToReview": "평론 작성하러 가기"
+  },
+  "recommend": {
+    "title": "어떤 콘텐츠를 찾고 있나요?",
+    "placeholder": "예: 몽환적인 분위기의 영화 추천해줘",
+    "needMore": "추천을 위해 평론이 더 필요해요. 최소 3개의 평론을 작성해주세요.",
+    "error": "추천을 불러오지 못했어요. 다시 시도해주세요.",
+    "chipMovie": "영화 추천",
+    "chipBook": "책 추천",
+    "chipMusic": "음악 추천",
+    "chipNew": "새로운 장르 도전"
+  },
+  "analysis": {
+    "empty": "아직 분석된 취향이 없어요. 취향을 분석해볼까요?",
+    "needMore": "취향 분석을 위해 평론이 더 필요해요. (현재 {{current}}개 / 최소 3개)",
+    "analyzeButton": "취향 분석하기",
+    "reanalyze": "취향 다시 분석하기",
+    "profileTitle": "{{name}}님의 감상 프로파일",
+    "loading1": "평론을 읽고 있어요...",
+    "loading2": "패턴을 찾고 있어요...",
+    "loading3": "취향을 정리하고 있어요...",
+    "error": "분석을 완료하지 못했어요",
+    "newReviewBadge": "새 평론 {{count}}개 반영 가능"
+  },
+  "my": {
+    "profile": "프로필",
+    "categories": "관심 카테고리",
+    "settings": "설정",
+    "darkMode": "다크모드",
+    "language": "언어 설정",
+    "subscription": "구독",
+    "freePlan": "무료 플랜",
+    "logout": "로그아웃",
+    "logoutConfirm": "로그아웃 하시겠습니까?",
+    "deleteAccount": "계정 삭제",
+    "deleteConfirm": "모든 데이터가 삭제됩니다. 정말 삭제하시겠습니까?"
+  },
+  "common": {
+    "cancel": "취소",
+    "confirm": "확인",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "수정",
+    "close": "닫기",
+    "copied": "복사되었습니다",
+    "networkOffline": "인터넷 연결이 없습니다",
+    "serverError": "잠시 서비스를 이용할 수 없습니다"
+  }
+}

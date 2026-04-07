@@ -1,0 +1,139 @@
+{
+  "app": {
+    "name": "Critiq"
+  },
+  "auth": {
+    "login": "Log In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "passwordConfirm": "Confirm Password",
+    "loginButton": "Log In",
+    "signUpButton": "Sign Up",
+    "orDivider": "or",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "socialApple": "Continue with Apple",
+    "socialGoogle": "Continue with Google",
+    "nickname": "Nickname",
+    "profileImage": "Profile Image",
+    "selectCategories": "Select interests (at least 1)",
+    "startButton": "Get Started",
+    "next": "Next",
+    "step1Title": "Account Info",
+    "step2Title": "Profile Setup",
+    "passwordMinLength": "Password must be at least 8 characters",
+    "emailInvalid": "Invalid email format",
+    "nicknameDuplicate": "Nickname already taken",
+    "loginError": "Invalid email or password",
+    "networkError": "Please check your network connection",
+    "sessionExpired": "Session expired. Please log in again"
+  },
+  "tabs": {
+    "history": "History",
+    "recommend": "Discover",
+    "review": "Review",
+    "analysis": "Analysis",
+    "my": "My"
+  },
+  "category": {
+    "movie": "Movie",
+    "music": "Music",
+    "book": "Book",
+    "art": "Art",
+    "exhibition": "Exhibition",
+    "performance": "Performance"
+  },
+  "review": {
+    "greeting": "{{name}}, what did you experience today?",
+    "titlePlaceholder": "Enter the title",
+    "experienceDate": "Date experienced",
+    "next": "Next",
+    "confirm": {
+      "title": "Is this the right one?",
+      "manualInput": "Can't find it. I'll enter it manually",
+      "manualInputFirst": "Enter manually",
+      "loading": "Searching for the work..."
+    },
+    "interview": {
+      "questionCount": "Question {{count}}",
+      "answerPlaceholder": "Type your answer...",
+      "previewButton": "Preview Review",
+      "finishButton": "Finish Interview",
+      "exitConfirmTitle": "Leave Interview",
+      "exitConfirmMessage": "Save progress and leave?",
+      "exitConfirmSave": "Save & Leave",
+      "exitConfirmDiscard": "Discard & Leave",
+      "exitConfirmCancel": "Continue",
+      "errorLoad": "Couldn't load the question",
+      "retry": "Try Again",
+      "errorPersist": "Please check your connection. Your progress has been saved.",
+      "continueLater": "Continue Later"
+    },
+    "complete": {
+      "title": "Your Review",
+      "regenerate": "Regenerate",
+      "save": "Save",
+      "saved": "Review saved!",
+      "saveFailed": "Save failed. Please try again",
+      "generateFailed": "Couldn't generate the review. Try again?",
+      "backToInterview": "Back to Interview"
+    },
+    "draft": {
+      "title": "Previous Interview",
+      "message": "You have an unfinished interview for '{{title}}'.",
+      "continue": "Continue",
+      "startNew": "Start New"
+    }
+  },
+  "history": {
+    "empty": "No reviews yet",
+    "goToReview": "Write a Review"
+  },
+  "recommend": {
+    "title": "What are you looking for?",
+    "placeholder": "e.g., Recommend a dreamy atmospheric movie",
+    "needMore": "Need more reviews for recommendations. Write at least 3 reviews.",
+    "error": "Couldn't load recommendations. Please try again.",
+    "chipMovie": "Movie",
+    "chipBook": "Book",
+    "chipMusic": "Music",
+    "chipNew": "New Genre"
+  },
+  "analysis": {
+    "empty": "No taste analysis yet. Shall we analyze your taste?",
+    "needMore": "Need more reviews for analysis. (Current {{current}} / Min 3)",
+    "analyzeButton": "Analyze My Taste",
+    "reanalyze": "Re-analyze",
+    "profileTitle": "{{name}}'s Taste Profile",
+    "loading1": "Reading your reviews...",
+    "loading2": "Finding patterns...",
+    "loading3": "Composing your profile...",
+    "error": "Analysis failed",
+    "newReviewBadge": "{{count}} new reviews available"
+  },
+  "my": {
+    "profile": "Profile",
+    "categories": "Interests",
+    "settings": "Settings",
+    "darkMode": "Dark Mode",
+    "language": "Language",
+    "subscription": "Subscription",
+    "freePlan": "Free Plan",
+    "logout": "Log Out",
+    "logoutConfirm": "Are you sure you want to log out?",
+    "deleteAccount": "Delete Account",
+    "deleteConfirm": "All data will be deleted. Are you sure?"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "OK",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "copied": "Copied",
+    "networkOffline": "No internet connection",
+    "serverError": "Service temporarily unavailable"
+  }
+}

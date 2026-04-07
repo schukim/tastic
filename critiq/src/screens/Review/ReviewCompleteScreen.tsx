@@ -1,0 +1,216 @@
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RouteProp } from "@react-navigation/native";
+import type { ReviewStackParamList } from "../../types/navigation";
+import { generateReview } from "../../services/claude";
+import { createReview, linkInterviewToReview } from "../../services/review";
+import { saveUnsavedReview } from "../../utils/storage";
+import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
+import { useAuthStore } from "../../stores/authStore";
+
+type Nav = NativeStackNavigationProp<ReviewStackParamList, "ReviewComplete">;
+type Route = RouteProp<ReviewStackParamList, "ReviewComplete">;
+
+export function ReviewCompleteScreen() {
+  const { t } = useTranslation();
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<Route>();
+  const user = useAuthStore((s) => s.user);
+
+  const { content, conversation, interviewId } = route.params;
+
+  const [reviewText, setReviewText] = useState("");
+  const [reviewTitle, setReviewTitle] = useState("");
+  const [isGenerating, setIsGenerating] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [generateError, setGenerateError] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    handleGenerate();
+  }, []);
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setGenerateError(false);
+    try {
+      const result = await generateReview({
+        content: {
+          title: content.title,
+          category: content.category,
+          creator: content.creator,
+          year: content.year,
+        },
+        conversation_history: conversation,
+        language: user?.language ?? "ko",
+      });
+      if (result) {
+        setReviewText(result.review_text);
+        setReviewTitle(result.suggested_title);
+      } else {
+        setGenerateError(true);
+      }
+    } catch {
+      setGenerateError(true);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user || !reviewText.trim()) return;
+    setIsSaving(true);
+    try {
+      const review = await createReview({
+        userId: user.id,
+        contentId: content.id,
+        title: reviewTitle || null,
+        body: reviewText,
+        experienceDate: null,
+      });
+
+      if (interviewId) {
+        await linkInterviewToReview(interviewId, review.id);
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => navigation.popToTop(), 1500);
+    } catch {
+      // Save to local storage for retry
+      await saveUnsavedReview({
+        contentId: content.id,
+        title: reviewTitle || null,
+        body: reviewText,
+        experienceDate: null,
+        interviewId,
+        savedAt: new Date().toISOString(),
+      });
+      setSaveSuccess(true);
+      setTimeout(() => navigation.popToTop(), 1500);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Loading state
+  if (isGenerating) {
+    return (
+      <SafeAreaView className="flex-1 bg-surface justify-center items-center">
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text className="text-text-secondary text-base mt-4">
+          {t("analysis.loading3")}
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (generateError) {
+    return (
+      <SafeAreaView className="flex-1 bg-surface justify-center items-center px-6">
+        <Text className="text-text-secondary text-base text-center mb-4">
+          {t("review.complete.generateFailed")}
+        </Text>
+        <View className="flex-row gap-3">
+          <Pressable
+            className="bg-primary rounded-xl px-6 py-3"
+            onPress={handleGenerate}
+          >
+            <Text className="text-white font-medium">{t("review.complete.regenerate")}</Text>
+          </Pressable>
+          <Pressable
+            className="bg-surface-tertiary rounded-xl px-6 py-3"
+            onPress={() => navigation.goBack()}
+          >
+            <Text className="text-text font-medium">{t("review.complete.backToInterview")}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Success toast
+  if (saveSuccess) {
+    return (
+      <SafeAreaView className="flex-1 bg-surface justify-center items-center">
+        <View className="bg-success/10 rounded-2xl p-8 items-center">
+          <Text className="text-success text-4xl mb-4">✓</Text>
+          <Text className="text-text text-lg font-semibold">{t("review.complete.saved")}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-surface">
+      <ScrollView className="flex-1 px-6 pt-6" contentContainerClassName="pb-8">
+        {/* Header */}
+        <View className="flex-row items-center mb-6">
+          <Text className="text-lg mr-2">{CATEGORY_ICONS[content.category]}</Text>
+          <Text className="text-text font-semibold text-base flex-1" numberOfLines={1}>
+            {content.title}
+          </Text>
+          <Text className="text-text-secondary text-sm">{t("review.complete.title")}</Text>
+        </View>
+
+        {/* Review title */}
+        <TextInput
+          className="text-text text-xl font-bold mb-4"
+          value={reviewTitle}
+          onChangeText={setReviewTitle}
+          placeholder="Title"
+          placeholderTextColor="#94A3B8"
+        />
+
+        {/* Review body */}
+        <TextInput
+          className="text-text text-base leading-7 min-h-[300px]"
+          value={reviewText}
+          onChangeText={setReviewText}
+          multiline
+          textAlignVertical="top"
+        />
+
+        {/* Character count */}
+        <Text className="text-text-tertiary text-xs text-right mt-2">
+          {reviewText.length}
+        </Text>
+      </ScrollView>
+
+      {/* Bottom buttons */}
+      <View className="px-6 pb-6 flex-row gap-3">
+        <Pressable
+          className="flex-1 bg-surface-tertiary rounded-xl py-4 items-center"
+          onPress={handleGenerate}
+          disabled={isGenerating}
+        >
+          <Text className="text-text font-semibold text-base">
+            {t("review.complete.regenerate")}
+          </Text>
+        </Pressable>
+        <Pressable
+          className={`flex-1 rounded-xl py-4 items-center ${
+            reviewText.trim() && !isSaving ? "bg-primary" : "bg-primary/40"
+          }`}
+          onPress={handleSave}
+          disabled={!reviewText.trim() || isSaving}
+        >
+          <Text className="text-white font-semibold text-base">
+            {isSaving ? "..." : t("review.complete.save")}
+          </Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
