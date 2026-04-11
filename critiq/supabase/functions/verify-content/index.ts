@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const MODEL = "claude-sonnet-4-20250514";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const MODEL = "gemini-1.5-pro";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
 
     const { title, category, language } = await req.json();
 
-    const systemPrompt = `너는 문화 콘텐츠 식별 전문가다.
+    const prompt = `너는 문화 콘텐츠 식별 전문가다.
 사용자가 입력한 제목과 카테고리를 바탕으로 실제 존재하는 작품을 찾아라.
 
 규칙:
@@ -57,27 +57,40 @@ Deno.serve(async (req) => {
       "confidence": "high | medium | low"
     }
   ]
-}`;
+}
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+제목: ${title}
+카테고리: ${category}`;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [
-          { role: "user", content: `제목: ${title}\n카테고리: ${category}` },
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
         ],
+        generationConfig: {
+          maxOutputTokens: 1024,
+          temperature: 0.1,
+        }
       }),
     });
 
     const result = await response.json();
-    const text = result.content[0].text;
+
+    if (!result.candidates || result.candidates.length === 0) {
+      throw new Error("No response from Gemini API");
+    }
+
+    const text = result.candidates[0].content.parts[0].text;
 
     // JSON 파싱 (```json 래핑 제거)
     const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
