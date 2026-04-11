@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const MODEL = "claude-sonnet-4-20250514";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const MODEL = "gemini-1.5-pro";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -33,7 +33,11 @@ Deno.serve(async (req) => {
 
     const { taste_profile, user_prompt, review_history, language } = await req.json();
 
-    const systemPrompt = `너는 문화 콘텐츠 큐레이터다. 사용자의 취향 프로파일과 요청을 바탕으로 콘텐츠를 추천하라.
+    const historyText = review_history
+      .map((r: { content_title: string; category: string }) => `- [${r.category}] ${r.content_title}`)
+      .join("\n");
+
+    const prompt = `너는 문화 콘텐츠 큐레이터다. 사용자의 취향 프로파일과 요청을 바탕으로 콘텐츠를 추천하라.
 
 ## 추천 원칙
 
@@ -60,31 +64,45 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
       "reason_short": "string (1줄 요약)"
     }
   ]
-}`;
+}
 
-    const historyText = review_history
-      .map((r: { content_title: string; category: string }) => `- [${r.category}] ${r.content_title}`)
-      .join("\n");
+취향 프로파일:
+${taste_profile.join("\n")}
 
-    const userMessage = `취향 프로파일:\n${taste_profile.join("\n")}\n\n사용자 요청: ${user_prompt}\n\n이미 감상한 작품:\n${historyText}`;
+사용자 요청: ${user_prompt}
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+이미 감상한 작품:
+${historyText}`;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          maxOutputTokens: 2048,
+          temperature: 0.5,
+        }
       }),
     });
 
     const result = await response.json();
-    const text = result.content[0].text;
+
+    if (!result.candidates || result.candidates.length === 0) {
+      throw new Error("No response from Gemini API");
+    }
+
+    const text = result.candidates[0].content.parts[0].text;
     const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const parsed = JSON.parse(jsonStr);
 

@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const MODEL = "claude-sonnet-4-20250514";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const MODEL = "gemini-1.5-pro";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -33,7 +33,13 @@ Deno.serve(async (req) => {
 
     const { content, conversation_history, language } = await req.json();
 
-    const systemPrompt = `너는 개인 평론 작성자다. 인터뷰 대화를 바탕으로 사용자의 감상을 하나의 평론 글로 구성하라.
+    const conversationText = conversation_history
+      .map((e: { role: string; text: string }) =>
+        `${e.role === "interviewer" ? "인터뷰어" : "사용자"}: ${e.text}`
+      )
+      .join("\n");
+
+    const prompt = `너는 개인 평론 작성자다. 인터뷰 대화를 바탕으로 사용자의 감상을 하나의 평론 글로 구성하라.
 
 ## 평론 작성 원칙
 
@@ -59,15 +65,9 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 {
   "review_text": "string",
   "suggested_title": "string"
-}`;
+}
 
-    const conversationText = conversation_history
-      .map((e: { role: string; text: string }) =>
-        `${e.role === "interviewer" ? "인터뷰어" : "사용자"}: ${e.text}`
-      )
-      .join("\n");
-
-    const userMessage = `작품 정보:
+작품 정보:
 - 제목: ${content.title}
 - 카테고리: ${content.category}
 - 창작자: ${content.creator ?? "정보 없음"}
@@ -76,23 +76,35 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 인터뷰 대화:
 ${conversationText}`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          maxOutputTokens: 2048,
+          temperature: 0.4,
+        }
       }),
     });
 
     const result = await response.json();
-    const text = result.content[0].text;
+
+    if (!result.candidates || result.candidates.length === 0) {
+      throw new Error("No response from Gemini API");
+    }
+
+    const text = result.candidates[0].content.parts[0].text;
     const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const parsed = JSON.parse(jsonStr);
 
