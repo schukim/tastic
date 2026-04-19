@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const MODEL = "gemini-1.5-pro";
+const MODEL = "gemini-2.5-flash-lite";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -15,22 +15,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
-    }
-
     const { reviews, previous_profile, language } = await req.json();
 
     const reviewsText = reviews
@@ -85,6 +69,7 @@ ${reviewsText}
         generationConfig: {
           maxOutputTokens: 1024,
           temperature: 0.2,
+          thinkingConfig: { thinkingBudget: 0 },
         }
       }),
     });
