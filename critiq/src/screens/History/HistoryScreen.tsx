@@ -346,7 +346,7 @@ export function HistoryScreen() {
                       className="flex-1 bg-surface-tertiary rounded-xl py-3 items-center flex-row justify-center"
                       onPress={handleCopy}
                     >
-                      <Text className="text-text font-medium">{t("common.copied").replace("습니다", "")}</Text>
+                      <Text className="text-text font-medium">복사</Text>
                     </Pressable>
                   </>
                 )}
