@@ -115,7 +115,7 @@ export function ReviewHomeScreen() {
             <TextInput
               className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base"
               placeholder={t("review.titlePlaceholder")}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor="#9C9589"
               value={title}
               onChangeText={setTitle}
               onFocus={expandForm}

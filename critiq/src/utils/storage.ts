@@ -1,8 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Content, ConversationEntry } from "../types/database";
 
-const DRAFT_KEY = "critiq_interview_draft";
-const UNSAVED_REVIEWS_KEY = "critiq_unsaved_reviews";
+const DRAFT_KEY = "tastic_interview_draft";
+const UNSAVED_REVIEWS_KEY = "tastic_unsaved_reviews";
 const DRAFT_EXPIRY_DAYS = 7;
 
 export interface StoredDraft {

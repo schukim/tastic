@@ -10,7 +10,7 @@ interface QuestionCardProps {
 
 export function QuestionCard({ question, topicLabel, questionNumber, isNewTopic }: QuestionCardProps) {
   return (
-    <View className="bg-surface rounded-2xl p-5 shadow-sm border border-surface-tertiary">
+    <View className="bg-surface-secondary rounded-2xl p-5 shadow-sm border border-surface-tertiary">
       {isNewTopic && (
         <View className="bg-primary/10 self-start px-3 py-1 rounded-full mb-3">
           <Text className="text-primary text-xs font-semibold">{topicLabel}</Text>

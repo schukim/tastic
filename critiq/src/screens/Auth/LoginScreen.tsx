@@ -64,7 +64,7 @@ export function LoginScreen() {
             <TextInput
               className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base"
               placeholder={t("auth.email")}
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor="#9C9589"
               value={email}
               onChangeText={(text) => { setEmail(text); setError(null); }}
               keyboardType="email-address"
@@ -79,7 +79,7 @@ export function LoginScreen() {
               <TextInput
                 className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base pr-16"
                 placeholder={t("auth.password")}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor="#9C9589"
                 value={password}
                 onChangeText={(text) => { setPassword(text); setError(null); }}
                 secureTextEntry={!showPassword}
