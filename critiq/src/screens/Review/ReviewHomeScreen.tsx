@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Pressable,
   Platform,
   KeyboardAvoidingView,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -31,38 +32,61 @@ const ALL_CATEGORIES: ContentCategory[] = [
   "movie", "music", "book", "art", "exhibition", "performance",
 ];
 
+const CREATOR_LABEL: Record<ContentCategory, string> = {
+  movie: "감독",
+  music: "아티스트",
+  book: "작가",
+  art: "아티스트",
+  exhibition: "장소",
+  performance: "장소",
+};
+
 export function ReviewHomeScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
   const user = useAuthStore((s) => s.user);
+  const { height } = useWindowDimensions();
 
-  const [title, setTitle] = useState("");
   const [category, setCategory] = useState<ContentCategory | null>(null);
-  const [experienceDate, setExperienceDate] = useState(toISODateString(new Date()));
+  const [title, setTitle] = useState("");
+  const [creator, setCreator] = useState("");
+  const [experienceDate] = useState(toISODateString(new Date()));
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDraftDialog, setShowDraftDialog] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
 
-  // Animation
-  const greetingTop = useSharedValue(0.4);
-  const fieldsOpacity = useSharedValue(0);
+  const titleRef = useRef<TextInput>(null);
 
-  const greetingStyle = useAnimatedStyle(() => ({
-    top: `${greetingTop.value * 100}%`,
+  // Animate the top padding of the whole content block
+  const paddingTop = useSharedValue(height * 0.32);
+  const fieldsOpacity = useSharedValue(0);
+  const fieldsTranslateY = useSharedValue(16);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    paddingTop: paddingTop.value,
   }));
 
   const fieldsStyle = useAnimatedStyle(() => ({
     opacity: fieldsOpacity.value,
+    transform: [{ translateY: fieldsTranslateY.value }],
   }));
 
   const expandForm = useCallback(() => {
     if (isExpanded) return;
     setIsExpanded(true);
-    greetingTop.value = withTiming(0.08, { duration: 300, easing: Easing.out(Easing.cubic) });
-    fieldsOpacity.value = withTiming(1, { duration: 300 });
-  }, [isExpanded, greetingTop, fieldsOpacity]);
+    paddingTop.value = withTiming(64, { duration: 350, easing: Easing.out(Easing.cubic) });
+    fieldsOpacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.cubic) });
+    fieldsTranslateY.value = withTiming(0, { duration: 350, easing: Easing.out(Easing.cubic) });
+  }, [isExpanded, paddingTop, fieldsOpacity, fieldsTranslateY]);
 
-  // Check for draft on mount
+  const handleSelectCategory = useCallback((cat: ContentCategory) => {
+    setCategory(cat);
+    setTitle("");
+    setCreator("");
+    expandForm();
+    setTimeout(() => titleRef.current?.focus(), 400);
+  }, [expandForm]);
+
   useEffect(() => {
     loadDraft().then((draft) => {
       if (draft) {
@@ -76,7 +100,6 @@ export function ReviewHomeScreen() {
     const draft = await loadDraft();
     if (!draft) return;
     setShowDraftDialog(false);
-    // Navigate to interview with restored draft
     navigation.navigate("Interview", { content: draft.content });
   };
 
@@ -91,6 +114,7 @@ export function ReviewHomeScreen() {
     if (!isValid || !category) return;
     navigation.navigate("ContentConfirm", {
       title: title.trim(),
+      creator: creator.trim(),
       category,
       experienceDate,
     });
@@ -102,50 +126,62 @@ export function ReviewHomeScreen() {
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View className="flex-1 px-6">
-          {/* Greeting */}
-          <Animated.View style={[{ position: "absolute", left: 24, right: 24 }, greetingStyle]}>
-            <Text className="text-text text-2xl font-bold leading-9">
-              {t("review.greeting", { name: user?.nickname ?? "" })}
-            </Text>
-          </Animated.View>
+        <Animated.ScrollView
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
+          style={containerStyle}
+        >
+          {/* Greeting — in normal flow, moves with everything */}
+          <Text className="text-text text-2xl font-bold leading-9 mb-6">
+            {t("review.greeting", { name: user?.nickname ?? "" })}
+          </Text>
 
-          {/* Title Input */}
-          <View style={{ marginTop: isExpanded ? 140 : "55%" }}>
+          {/* Category chips — always visible */}
+          {!isExpanded && (
+            <Text className="text-text-secondary text-sm mb-3">카테고리를 선택하세요</Text>
+          )}
+          <View className="flex-row flex-wrap mb-4">
+            {ALL_CATEGORIES.map((cat) => (
+              <CategoryChip
+                key={cat}
+                category={cat}
+                selected={category === cat}
+                onPress={() => {
+                  if (isExpanded) {
+                    setCategory(cat);
+                    setTitle("");
+                    setCreator("");
+                    setTimeout(() => titleRef.current?.focus(), 100);
+                  } else {
+                    handleSelectCategory(cat);
+                  }
+                }}
+              />
+            ))}
+          </View>
+
+          {/* Form fields — fade in after category selected */}
+          <Animated.View style={fieldsStyle}>
             <TextInput
-              className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base"
-              placeholder={t("review.titlePlaceholder")}
+              ref={titleRef}
+              className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base mb-3"
+              placeholder="제목"
               placeholderTextColor="#9C9589"
               value={title}
               onChangeText={setTitle}
-              onFocus={expandForm}
             />
-          </View>
 
-          {/* Expandable Fields */}
-          <Animated.View style={fieldsStyle} className="mt-6">
-            {/* Category */}
-            <Text className="text-text-secondary text-sm mb-3">
-              {t("category.movie").charAt(0) === "영" ? "카테고리" : "Category"}
-            </Text>
-            <View className="flex-row flex-wrap mb-6">
-              {ALL_CATEGORIES.map((cat) => (
-                <CategoryChip
-                  key={cat}
-                  category={cat}
-                  selected={category === cat}
-                  onPress={() => setCategory(cat)}
-                />
-              ))}
-            </View>
+            {category && (
+              <TextInput
+                className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base mb-6"
+                placeholder={CREATOR_LABEL[category]}
+                placeholderTextColor="#9C9589"
+                value={creator}
+                onChangeText={setCreator}
+              />
+            )}
 
-            {/* Experience Date */}
-            <Text className="text-text-secondary text-sm mb-2">{t("review.experienceDate")}</Text>
-            <Pressable className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 mb-8">
-              <Text className="text-text text-base">{experienceDate}</Text>
-            </Pressable>
-
-            {/* Next Button */}
             <Pressable
               className={`rounded-xl py-4 items-center ${isValid ? "bg-primary" : "bg-primary/40"}`}
               onPress={handleNext}
@@ -154,10 +190,9 @@ export function ReviewHomeScreen() {
               <Text className="text-white font-semibold text-base">{t("review.next")}</Text>
             </Pressable>
           </Animated.View>
-        </View>
+        </Animated.ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Draft Dialog */}
       <ConfirmDialog
         visible={showDraftDialog}
         title={t("review.draft.title")}

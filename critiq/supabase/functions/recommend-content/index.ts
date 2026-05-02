@@ -1,17 +1,36 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const MODEL = "gemini-2.5-flash-lite";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const MODEL = "gpt-4o-mini";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+async function callOpenAI(prompt: string, temperature = 0.5, maxTokens = 2048) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
+  return JSON.parse(data.choices[0].message.content);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
+    return new Response("ok", { headers: { ...CORS } });
   }
 
   try {
@@ -25,11 +44,11 @@ Deno.serve(async (req) => {
 
 ## 추천 원칙
 
-1. 크로스 카테고리: 사용자가 특정 카테고리를 요청하지 않았다면, 카테고리 경계를 넘는 추천을 포함하라 (예: 영화 취향 기반 → 책 추천).
+1. 크로스 카테고리: 사용자가 특정 카테고리를 요청하지 않았다면, 카테고리 경계를 넘는 추천을 포함하라.
 2. 추천 이유 필수: 사용자의 취향 프로파일과 어떻게 연결되는지 1~2문장으로 설명.
 3. 다양성: 같은 작가/감독의 작품을 2개 이상 추천하지 않는다.
 4. 중복 제거: review_history에 있는 작품은 추천하지 않는다.
-5. 실존 작품: 실제 존재하는 작품만 추천. 확신할 수 없으면 추천하지 않는다.
+5. 실존 작품: 실제 존재하는 작품만 추천.
 
 ## 추천 수
 - 3~5개
@@ -58,47 +77,16 @@ ${taste_profile.join("\n")}
 이미 감상한 작품:
 ${historyText}`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          maxOutputTokens: 2048,
-          temperature: 0.5,
-          thinkingConfig: { thinkingBudget: 0 },
-        }
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!result.candidates || result.candidates.length === 0) {
-      throw new Error("No response from Gemini API");
-    }
-
-    const text = result.candidates[0].content.parts[0].text;
-    const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const parsed = JSON.parse(jsonStr);
+    const parsed = await callOpenAI(prompt, 0.5);
 
     return new Response(JSON.stringify(parsed), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("recommend-content error:", error);
     return new Response(
       JSON.stringify({ error: "generation_failed", message: "추천을 생성하지 못했습니다." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
     );
   }
 });

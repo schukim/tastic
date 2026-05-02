@@ -1,0 +1,577 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      contents: {
+        Row: {
+          category: string
+          created_at: string
+          creator: string | null
+          genre: string | null
+          id: string
+          metadata: Json | null
+          original_title: string | null
+          title: string
+          user_id: string
+          year: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          creator?: string | null
+          genre?: string | null
+          id?: string
+          metadata?: Json | null
+          original_title?: string | null
+          title: string
+          user_id: string
+          year?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          creator?: string | null
+          genre?: string | null
+          id?: string
+          metadata?: Json | null
+          original_title?: string | null
+          title?: string
+          user_id?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
+      ingestion_runs: {
+        Row: {
+          completed_at: string | null
+          cursor_position: string | null
+          error: string | null
+          id: string
+          job_type: string
+          records_failed: number | null
+          records_processed: number | null
+          records_updated: number | null
+          retry_count: number | null
+          source: string
+          started_at: string | null
+          stats: Json | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          cursor_position?: string | null
+          error?: string | null
+          id?: string
+          job_type?: string
+          records_failed?: number | null
+          records_processed?: number | null
+          records_updated?: number | null
+          retry_count?: number | null
+          source: string
+          started_at?: string | null
+          stats?: Json | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          cursor_position?: string | null
+          error?: string | null
+          id?: string
+          job_type?: string
+          records_failed?: number | null
+          records_processed?: number | null
+          records_updated?: number | null
+          retry_count?: number | null
+          source?: string
+          started_at?: string | null
+          stats?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
+      interviews: {
+        Row: {
+          content_id: string
+          conversation: Json
+          created_at: string
+          id: string
+          question_count: number
+          review_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content_id: string
+          conversation?: Json
+          created_at?: string
+          id?: string
+          question_count?: number
+          review_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content_id?: string
+          conversation?: Json
+          created_at?: string
+          id?: string
+          question_count?: number
+          review_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      recommendations: {
+        Row: {
+          created_at: string
+          id: string
+          prompt: string | null
+          results: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          prompt?: string | null
+          results?: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          prompt?: string | null
+          results?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          body: string
+          content_id: string
+          created_at: string
+          experience_date: string | null
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          content_id: string
+          created_at?: string
+          experience_date?: string | null
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          content_id?: string
+          created_at?: string
+          experience_date?: string | null
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      taste_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          profile_sentences: string[]
+          recommendation_hook: string | null
+          review_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_sentences: string[]
+          recommendation_hook?: string | null
+          review_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_sentences?: string[]
+          recommendation_hook?: string | null
+          review_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          language: string | null
+          nickname: string
+          preferred_categories: string[] | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id: string
+          language?: string | null
+          nickname: string
+          preferred_categories?: string[] | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          nickname?: string
+          preferred_categories?: string[] | null
+        }
+        Relationships: []
+      }
+      works: {
+        Row: {
+          category: Database["public"]["Enums"]["work_category"]
+          contributing_sources: string[] | null
+          created_at: string | null
+          end_date: string | null
+          external_ids: Json | null
+          id: string
+          is_verified: boolean | null
+          last_synced_at: string | null
+          metadata: Json
+          primary_source: string | null
+          start_date: string | null
+          sync_status: string | null
+          title: string
+          title_embedding: string | null
+          title_normalized: string | null
+          updated_at: string | null
+          user_id: string
+          venue: string | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["work_category"]
+          contributing_sources?: string[] | null
+          created_at?: string | null
+          end_date?: string | null
+          external_ids?: Json | null
+          id?: string
+          is_verified?: boolean | null
+          last_synced_at?: string | null
+          metadata?: Json
+          primary_source?: string | null
+          start_date?: string | null
+          sync_status?: string | null
+          title: string
+          title_embedding?: string | null
+          title_normalized?: string | null
+          updated_at?: string | null
+          user_id: string
+          venue?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["work_category"]
+          contributing_sources?: string[] | null
+          created_at?: string | null
+          end_date?: string | null
+          external_ids?: Json | null
+          id?: string
+          is_verified?: boolean | null
+          last_synced_at?: string | null
+          metadata?: Json
+          primary_source?: string | null
+          start_date?: string | null
+          sync_status?: string | null
+          title?: string
+          title_embedding?: string | null
+          title_normalized?: string | null
+          updated_at?: string | null
+          user_id?: string
+          venue?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      recent_ingestion_status: {
+        Row: {
+          completed_at: string | null
+          duration: string | null
+          error: string | null
+          job_type: string | null
+          records_failed: number | null
+          records_processed: number | null
+          records_updated: number | null
+          source: string | null
+          started_at: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
+      works_by_source_stats: {
+        Row: {
+          category: Database["public"]["Enums"]["work_category"] | null
+          embedded_works: number | null
+          first_created: string | null
+          last_sync: string | null
+          last_updated: string | null
+          source: string | null
+          total_works: number | null
+          verified_works: number | null
+        }
+        Relationships: []
+      }
+    }
+    Functions: {
+      find_potential_duplicates: {
+        Args: {
+          check_category: Database["public"]["Enums"]["work_category"]
+          check_start_date?: string
+          check_title: string
+          check_venue?: string
+          threshold?: number
+        }
+        Returns: {
+          id: string
+          match_type: string
+          similarity_score: number
+          title: string
+          venue: string
+        }[]
+      }
+      get_cron_jobs_status: {
+        Args: never
+        Returns: {
+          active: boolean
+          command: string
+          jobid: number
+          jobname: string
+          last_run: string
+          next_run: string
+          schedule: string
+        }[]
+      }
+      get_recent_ingestion_status: {
+        Args: never
+        Returns: {
+          completed_at: string
+          duration: string
+          error: string
+          job_type: string
+          records_failed: number
+          records_processed: number
+          records_updated: number
+          source: string
+          started_at: string
+          stats: Json
+          status: string
+        }[]
+      }
+      get_works_stats: {
+        Args: never
+        Returns: {
+          category: Database["public"]["Enums"]["work_category"]
+          embedded_works: number
+          first_created: string
+          last_sync: string
+          last_updated: string
+          source: string
+          total_works: number
+          verified_works: number
+        }[]
+      }
+      search_works: {
+        Args: {
+          embedding_weight?: number
+          limit_count?: number
+          query_embedding?: string
+          query_text: string
+          target_category?: Database["public"]["Enums"]["work_category"]
+          trigram_weight?: number
+        }
+        Returns: {
+          category: Database["public"]["Enums"]["work_category"]
+          embedding_score: number
+          end_date: string
+          external_ids: Json
+          id: string
+          is_verified: boolean
+          match_reason: string
+          metadata: Json
+          primary_source: string
+          similarity_score: number
+          start_date: string
+          title: string
+          trigram_score: number
+          venue: string
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+    }
+    Enums: {
+      work_category:
+        | "movie"
+        | "music"
+        | "book"
+        | "art"
+        | "exhibition"
+        | "performance"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      work_category: [
+        "movie",
+        "music",
+        "book",
+        "art",
+        "exhibition",
+        "performance",
+      ],
+    },
+  },
+} as const

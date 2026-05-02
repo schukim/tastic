@@ -26,6 +26,7 @@ export type ReviewStackParamList = {
   ReviewHome: undefined;
   ContentConfirm: {
     title: string;
+    creator: string;
     category: ContentCategory;
     experienceDate: string;
   };

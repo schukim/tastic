@@ -1,17 +1,36 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const MODEL = "gemini-2.5-flash-lite";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const MODEL = "gpt-4o-mini";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+async function callOpenAI(prompt: string, temperature = 0.2, maxTokens = 1024) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
+  return JSON.parse(data.choices[0].message.content);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
+    return new Response("ok", { headers: { ...CORS } });
   }
 
   try {
@@ -51,47 +70,16 @@ ${reviewsText}
 
 이전 분석 결과: ${previous_profile ?? "없음"}`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          maxOutputTokens: 1024,
-          temperature: 0.2,
-          thinkingConfig: { thinkingBudget: 0 },
-        }
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!result.candidates || result.candidates.length === 0) {
-      throw new Error("No response from Gemini API");
-    }
-
-    const text = result.candidates[0].content.parts[0].text;
-    const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const parsed = JSON.parse(jsonStr);
+    const parsed = await callOpenAI(prompt, 0.2);
 
     return new Response(JSON.stringify(parsed), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("analyze-taste error:", error);
     return new Response(
       JSON.stringify({ error: "generation_failed", message: "취향 분석에 실패했습니다." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
     );
   }
 });

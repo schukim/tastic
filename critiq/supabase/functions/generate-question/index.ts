@@ -1,17 +1,36 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
-const MODEL = "gemini-2.5-flash-lite";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
+const MODEL = "gpt-4o-mini";
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+async function callOpenAI(prompt: string, temperature = 0.3, maxTokens = 1024) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature,
+      max_tokens: maxTokens,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
+  return JSON.parse(data.choices[0].message.content);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
+    return new Response("ok", { headers: { ...CORS } });
   }
 
   try {
@@ -42,10 +61,7 @@ Deno.serve(async (req) => {
 매 질문마다 다음 중 하나를 선택하고, question_type 필드로 명시:
 
 - drill_down: 이전 답변에서 흥미로운 지점을 깊이 파고든다.
-  사용 기준: 사용자의 답변이 구체적이거나 감정이 담겨있어서 더 탐색할 가치가 있을 때.
-
 - pivot: 새로운 관점/주제로 전환한다.
-  사용 기준: 이전 주제가 충분히 탐색되었거나, 답변이 짧고 건조하여 다른 각도가 필요할 때.
 
 첫 번째 질문은 question_type을 "initial"로 설정하라.
 
@@ -79,47 +95,16 @@ ${conversationText}
 
 현재 질문 번호: ${question_count + 1}`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          maxOutputTokens: 2048,
-          temperature: 0.3,
-          thinkingConfig: { thinkingBudget: 0 },
-        }
-      }),
-    });
-
-    const result = await response.json();
-
-    if (!result.candidates || result.candidates.length === 0) {
-      throw new Error("No response from Gemini API");
-    }
-
-    const text = result.candidates[0].content.parts[0].text;
-    const jsonStr = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const parsed = JSON.parse(jsonStr);
+    const parsed = await callOpenAI(prompt, 0.3);
 
     return new Response(JSON.stringify(parsed), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("generate-question error:", error);
     return new Response(
       JSON.stringify({ error: "generation_failed", message: "질문을 생성하지 못했습니다." }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
     );
   }
 });

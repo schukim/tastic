@@ -3,6 +3,7 @@ import type { ContentCategory, ConversationEntry } from "./database";
 // ── verify-content ──
 export interface VerifyContentRequest {
   title: string;
+  creator?: string;
   category: ContentCategory;
   language: "ko" | "en";
 }

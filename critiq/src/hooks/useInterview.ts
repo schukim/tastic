@@ -5,6 +5,7 @@ import { generateQuestion, generateReview } from "../services/claude";
 import { createInterview, updateInterview } from "../services/review";
 import { saveDraft, clearDraft } from "../utils/storage";
 import { useAuthStore } from "../stores/authStore";
+import { getFirstQuestion } from "../prompts/firstQuestions";
 
 const MAX_RETRIES = 3;
 
@@ -34,24 +35,36 @@ export function useInterview(content: Content) {
     }
   }, [user, content.id]);
 
-  // Fetch next question
+  // Fetch next question — first question is always from the predefined list
   const fetchQuestion = useCallback(async (conv: ConversationEntry[], qCount: number) => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await generateQuestion({
-        content: {
-          title: content.title,
-          category: content.category,
-          creator: content.creator,
-          year: content.year,
-          genre: content.genre,
-          metadata: content.metadata,
-        },
-        conversation_history: conv,
-        question_count: qCount,
-        language: user?.language ?? "ko",
-      });
+      let response: GenerateQuestionResponse;
+
+      if (qCount === 0) {
+        // First question: pick from predefined category-specific list
+        const question = getFirstQuestion(content.category);
+        response = {
+          question,
+          question_type: "initial",
+          topic_label: "첫인상",
+        };
+      } else {
+        response = await generateQuestion({
+          content: {
+            title: content.title,
+            category: content.category,
+            creator: content.creator,
+            year: content.year,
+            genre: content.genre,
+            metadata: content.metadata,
+          },
+          conversation_history: conv,
+          question_count: qCount,
+          language: user?.language ?? "ko",
+        });
+      }
 
       setCurrentQuestion(response);
       setRetryCount(0);

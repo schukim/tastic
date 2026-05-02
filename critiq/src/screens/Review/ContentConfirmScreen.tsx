@@ -31,13 +31,16 @@ export function ContentConfirmScreen() {
   const route = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
 
-  const { title, category, experienceDate } = route.params;
+  const { title, creator: inputCreator, category, experienceDate } = route.params;
 
   const [candidates, setCandidates] = useState<ContentCandidate[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isManualMode, setIsManualMode] = useState(false);
-  const [manualCreator, setManualCreator] = useState("");
+  const [manualCreator, setManualCreator] = useState(inputCreator);
   const [manualYear, setManualYear] = useState("");
 
   // Show manual input first for exhibition/performance
@@ -49,9 +52,11 @@ export function ContentConfirmScreen() {
 
   const fetchCandidates = async () => {
     setIsLoading(true);
+    setFetchError(null);
     try {
       const response = await verifyContent({
         title,
+        creator: inputCreator || undefined,
         category,
         language: user?.language ?? "ko",
       });
@@ -61,7 +66,9 @@ export function ContentConfirmScreen() {
       if (response.candidates.length === 1 && response.candidates[0].confidence === "high") {
         setSelectedIndex(0);
       }
-    } catch {
+    } catch (e) {
+      console.error("verifyContent error:", e);
+      setFetchError(e instanceof Error ? e.message : "작품 검색 중 오류가 발생했습니다.");
       setCandidates([]);
     } finally {
       setIsLoading(false);
@@ -70,33 +77,40 @@ export function ContentConfirmScreen() {
 
   const handleNext = async () => {
     if (!user) return;
-
-    let contentData;
-    if (isManualMode) {
-      contentData = await createContent({
-        userId: user.id,
-        title,
-        category,
-        creator: manualCreator || undefined,
-        year: manualYear ? parseInt(manualYear, 10) : undefined,
-      });
-    } else if (selectedIndex !== null) {
-      const candidate = candidates[selectedIndex];
-      contentData = await createContent({
-        userId: user.id,
-        title: candidate.title,
-        originalTitle: candidate.original_title ?? undefined,
-        category,
-        creator: candidate.creator ?? undefined,
-        year: candidate.year ?? undefined,
-        genre: candidate.genre ?? undefined,
-        metadata: candidate.metadata,
-      });
-    } else {
-      return;
+    setSaveError(null);
+    setIsSaving(true);
+    try {
+      let contentData;
+      if (isManualMode) {
+        contentData = await createContent({
+          userId: user.id,
+          title,
+          category,
+          creator: manualCreator || undefined,
+          year: manualYear ? parseInt(manualYear, 10) : undefined,
+        });
+      } else if (selectedIndex !== null) {
+        const candidate = candidates[selectedIndex];
+        contentData = await createContent({
+          userId: user.id,
+          title: candidate.title,
+          originalTitle: candidate.original_title ?? undefined,
+          category,
+          creator: candidate.creator ?? undefined,
+          year: candidate.year ?? undefined,
+          genre: candidate.genre ?? undefined,
+          metadata: candidate.metadata,
+        });
+      } else {
+        return;
+      }
+      navigation.navigate("Interview", { content: contentData });
+    } catch (e) {
+      console.error("handleNext error:", e);
+      setSaveError(e instanceof Error ? e.message : "작품 저장에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
     }
-
-    navigation.navigate("Interview", { content: contentData });
   };
 
   const isValid = isManualMode || selectedIndex !== null;
@@ -126,6 +140,16 @@ export function ContentConfirmScreen() {
           >
             <Text className="text-text font-medium">{t("review.confirm.manualInputFirst")}</Text>
           </Pressable>
+        )}
+
+        {/* Fetch error */}
+        {fetchError && !isLoading && (
+          <View className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-3">
+            <Text className="text-red-600 text-sm mb-2">{fetchError}</Text>
+            <Pressable onPress={fetchCandidates}>
+              <Text className="text-primary text-sm font-medium">다시 시도</Text>
+            </Pressable>
+          </View>
         )}
 
         {/* Loading */}
@@ -214,12 +238,17 @@ export function ContentConfirmScreen() {
 
       {/* Bottom button */}
       <View className="px-6 pb-6">
+        {saveError && (
+          <Text className="text-red-500 text-sm text-center mb-3">{saveError}</Text>
+        )}
         <Pressable
-          className={`rounded-xl py-4 items-center ${isValid ? "bg-primary" : "bg-primary/40"}`}
+          className={`rounded-xl py-4 items-center ${isValid && !isSaving ? "bg-primary" : "bg-primary/40"}`}
           onPress={handleNext}
-          disabled={!isValid}
+          disabled={!isValid || isSaving}
         >
-          <Text className="text-white font-semibold text-base">{t("review.next")}</Text>
+          <Text className="text-white font-semibold text-base">
+            {isSaving ? "저장 중..." : t("review.next")}
+          </Text>
         </Pressable>
       </View>
     </SafeAreaView>

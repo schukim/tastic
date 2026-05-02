@@ -18,21 +18,27 @@ async function invokeFunction<TReq, TRes>(
   body: TReq,
   timeoutMs: number
 ): Promise<TRes> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const { data, error } = await supabase.functions.invoke(functionName, {
+    body: body as Record<string, unknown>,
+  });
 
-  try {
-    const { data, error } = await supabase.functions.invoke(functionName, {
-      body: body as Record<string, unknown>,
-    });
-
-    if (error) throw new Error(error.message);
-    if (data?.error) throw new Error((data as LLMErrorResponse).message);
-
-    return data as TRes;
-  } finally {
-    clearTimeout(timeoutId);
+  if (error) {
+    // FunctionsHttpError carries the actual Response in .context — read it
+    const ctx = (error as { context?: Response }).context;
+    if (ctx?.json) {
+      try {
+        const errorBody = await ctx.json() as LLMErrorResponse;
+        throw new Error(errorBody.message ?? error.message);
+      } catch (parseErr) {
+        if (parseErr instanceof Error && parseErr.message !== error.message) throw parseErr;
+      }
+    }
+    throw new Error(error.message);
   }
+
+  if (data?.error) throw new Error((data as LLMErrorResponse).message);
+
+  return data as TRes;
 }
 
 export async function verifyContent(
