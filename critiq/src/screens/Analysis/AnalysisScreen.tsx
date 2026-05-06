@@ -10,7 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import type { MainTabParamList } from "../../types/navigation";
 import type { TasteProfile, ContentCategory } from "../../types/database";
 import { useAuthStore } from "../../stores/authStore";
@@ -32,6 +32,15 @@ const LOADING_MESSAGES_EN = [
 ];
 
 const MIN_REVIEWS = 3;
+
+const CATEGORY_LABELS: Record<string, string> = {
+  movie: "영화",
+  music: "음악",
+  book: "책",
+  art: "미술",
+  exhibition: "전시",
+  performance: "공연",
+};
 
 export function AnalysisScreen() {
   const { t } = useTranslation();
@@ -72,7 +81,6 @@ export function AnalysisScreen() {
     }, [loadData])
   );
 
-  // Loading message rotation
   useEffect(() => {
     if (!isAnalyzing) return;
     const interval = setInterval(() => {
@@ -124,133 +132,216 @@ export function AnalysisScreen() {
 
   const handleRecommendHook = () => {
     if (!profile?.recommendation_hook) return;
-    // Navigate to recommend tab with auto-prompt
     navigation.navigate("RecommendTab", {
       autoPrompt: profile.recommendation_hook,
     } as any);
   };
 
+  // ── Loading ──
   if (!isLoaded) {
     return (
-      <SafeAreaView className="flex-1 bg-surface justify-center items-center">
-        <ActivityIndicator size="large" color="#6366F1" />
+      <SafeAreaView className="flex-1 bg-surface dark:bg-surface-dark justify-center items-center">
+        <ActivityIndicator size="large" color="#6B6560" />
       </SafeAreaView>
     );
   }
 
-  // ── State 2: Analyzing ──
+  // ── Analyzing ──
   if (isAnalyzing) {
     const messages = lang === "ko" ? LOADING_MESSAGES_KO : LOADING_MESSAGES_EN;
     return (
-      <SafeAreaView className="flex-1 bg-surface justify-center items-center px-6">
-        <ActivityIndicator size="large" color="#6366F1" />
-        <Animated.Text
-          key={loadingMessageIdx}
-          entering={FadeIn}
-          className="text-text-secondary text-base mt-6"
-        >
-          {messages[loadingMessageIdx]}
-        </Animated.Text>
+      <SafeAreaView className="flex-1 bg-surface dark:bg-surface-dark justify-center items-center px-8">
+        <View className="items-center">
+          <ActivityIndicator size="large" color="#6B6560" />
+          <Animated.Text
+            key={loadingMessageIdx}
+            entering={FadeIn.duration(400)}
+            className="text-text-secondary dark:text-text-dark-secondary text-base mt-8 text-center"
+          >
+            {messages[loadingMessageIdx]}
+          </Animated.Text>
+          <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs mt-3 text-center">
+            {lang === "ko" ? "잠시만 기다려 주세요" : "This may take a moment"}
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
 
-  // ── State 1: No analysis yet ──
+  // ── No profile yet ──
   if (!profile) {
     const canAnalyze = reviewCount >= MIN_REVIEWS;
+    const progress = Math.min(reviewCount / MIN_REVIEWS, 1);
+
     return (
-      <SafeAreaView className="flex-1 bg-surface justify-center items-center px-6">
-        <Text className="text-4xl mb-6">🔍</Text>
-        {canAnalyze ? (
-          <>
-            <Text className="text-text text-base text-center mb-6">
-              {t("analysis.empty")}
-            </Text>
-            <Pressable className="bg-primary rounded-xl px-8 py-4" onPress={handleAnalyze}>
-              <Text className="text-white font-semibold text-base">
-                {t("analysis.analyzeButton")}
-              </Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Text className="text-text-secondary text-base text-center mb-4">
-              {t("analysis.needMore", { current: reviewCount })}
-            </Text>
-            <Pressable
-              className="bg-surface-tertiary rounded-xl px-6 py-3"
-              onPress={() => navigation.navigate("ReviewTab" as any)}
-            >
-              <Text className="text-primary font-medium">{t("history.goToReview")}</Text>
-            </Pressable>
-          </>
-        )}
-        {error && (
-          <Text className="text-error text-sm mt-4">{t("analysis.error")}</Text>
-        )}
+      <SafeAreaView className="flex-1 bg-surface dark:bg-surface-dark">
+        <ScrollView className="flex-1" contentContainerClassName="flex-1 justify-center px-8 pb-12">
+          <View className="items-center">
+            {/* Icon */}
+            <View className="w-20 h-20 rounded-full bg-surface-tertiary dark:bg-surface-dark-secondary items-center justify-center mb-8">
+              <Text className="text-4xl">{canAnalyze ? "✨" : "📖"}</Text>
+            </View>
+
+            {canAnalyze ? (
+              <>
+                <Text className="text-text dark:text-text-dark text-2xl font-bold text-center mb-3">
+                  {lang === "ko" ? "준비가 됐어요" : "Ready to analyze"}
+                </Text>
+                <Text className="text-text-secondary dark:text-text-dark-secondary text-base text-center leading-6 mb-10">
+                  {t("analysis.empty")}
+                </Text>
+                <Pressable
+                  className="bg-text dark:bg-primary-dm rounded-2xl px-10 py-4"
+                  onPress={handleAnalyze}
+                >
+                  <Text className="text-surface dark:text-surface-dark font-semibold text-base">
+                    {t("analysis.analyzeButton")}
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text className="text-text dark:text-text-dark text-2xl font-bold text-center mb-3">
+                  {lang === "ko" ? "조금만 더" : "Almost there"}
+                </Text>
+                <Text className="text-text-secondary dark:text-text-dark-secondary text-base text-center leading-6 mb-8">
+                  {t("analysis.needMore", { current: reviewCount })}
+                </Text>
+
+                {/* Progress bar */}
+                <View className="w-full mb-2">
+                  <View className="h-1.5 bg-surface-tertiary dark:bg-surface-dark-tertiary rounded-full overflow-hidden">
+                    <View
+                      className="h-full bg-text dark:bg-primary-dm rounded-full"
+                      style={{ width: `${progress * 100}%` }}
+                    />
+                  </View>
+                </View>
+                <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs mb-10">
+                  {reviewCount} / {MIN_REVIEWS}
+                </Text>
+
+                <Pressable
+                  className="border border-text dark:border-primary-dm rounded-2xl px-8 py-3.5"
+                  onPress={() => navigation.navigate("ReviewTab" as any)}
+                >
+                  <Text className="text-text dark:text-primary-dm font-medium">
+                    {t("history.goToReview")}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+
+            {error && (
+              <Text className="text-error text-sm mt-6 text-center">{t("analysis.error")}</Text>
+            )}
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // ── State 3: Analysis complete ──
+  // ── Analysis complete ──
+  const updatedAt = new Date(profile.created_at).toLocaleDateString(
+    lang === "ko" ? "ko-KR" : "en-US",
+    { year: "numeric", month: "long", day: "numeric" }
+  );
+
   return (
-    <SafeAreaView className="flex-1 bg-surface">
-      <ScrollView className="flex-1" contentContainerClassName="px-6 pt-6 pb-12">
-        {/* Re-analyze button */}
-        <View className="flex-row justify-end items-center mb-6">
-          {newReviewCount > 0 && (
-            <View className="bg-primary/10 px-2.5 py-1 rounded-full mr-2">
-              <Text className="text-primary text-xs font-medium">
-                {t("analysis.newReviewBadge", { count: newReviewCount })}
-              </Text>
-            </View>
-          )}
-          <Pressable onPress={handleAnalyze}>
-            <Text className="text-primary text-sm font-medium">
-              {t("analysis.reanalyze")}
+    <SafeAreaView className="flex-1 bg-surface dark:bg-surface-dark">
+      <ScrollView className="flex-1" contentContainerClassName="pb-12">
+
+        {/* ── Page Header ── */}
+        <View className="px-6 pt-6 pb-4 flex-row items-start justify-between">
+          <View className="flex-1 mr-4">
+            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-widest mb-1">
+              {lang === "ko" ? "취향 분석" : "Taste Profile"}
             </Text>
-          </Pressable>
+            <Text className="text-text dark:text-text-dark text-2xl font-bold">
+              {user?.nickname ?? ""}
+            </Text>
+          </View>
+          <View className="items-end">
+            {newReviewCount > 0 && (
+              <Animated.View entering={FadeIn} className="bg-surface-tertiary dark:bg-surface-dark-tertiary px-2.5 py-1 rounded-full mb-2">
+                <Text className="text-text-secondary dark:text-text-dark-secondary text-xs font-medium">
+                  {lang === "ko" ? `+${newReviewCount}편 반영 가능` : `+${newReviewCount} new`}
+                </Text>
+              </Animated.View>
+            )}
+            <Pressable onPress={handleAnalyze} className="py-1">
+              <Text className="text-text-secondary dark:text-text-dark-secondary text-sm">
+                {t("analysis.reanalyze")}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
-        {/* Profile card */}
-        <Animated.View entering={FadeIn} className="bg-surface-secondary rounded-2xl p-6 mb-6">
-          <Text className="text-text text-lg font-bold mb-4">
-            {t("analysis.profileTitle", { name: user?.nickname ?? "" })}
-          </Text>
+        {/* ── Divider ── */}
+        <View className="h-px bg-surface-tertiary dark:bg-surface-dark-tertiary mx-6 mb-6" />
 
+        {/* ── Profile Sentences ── */}
+        <View className="px-6 mb-6">
           {profile.profile_sentences.map((sentence, idx) => (
-            <View key={idx} className="flex-row mb-3">
-              <Text className="text-primary mr-2">·</Text>
-              <Text className="text-text text-base leading-6 flex-1">{sentence}</Text>
-            </View>
+            <Animated.View
+              key={idx}
+              entering={FadeInDown.delay(idx * 80).duration(400)}
+              className="mb-5"
+            >
+              <View className="flex-row">
+                <Text className="text-text-tertiary dark:text-text-dark-tertiary text-base mr-3 mt-0.5">
+                  {String(idx + 1).padStart(2, "0")}
+                </Text>
+                <Text className="text-text dark:text-text-dark text-base leading-7 flex-1">
+                  {sentence}
+                </Text>
+              </View>
+            </Animated.View>
           ))}
+        </View>
 
-          <Text className="text-text-tertiary text-xs mt-4">
-            {new Date(profile.created_at).toLocaleDateString(lang === "ko" ? "ko-KR" : "en-US")}
-            {" · "}
-            {lang === "ko" ? `평론 ${profile.review_count}개 반영` : `Based on ${profile.review_count} reviews`}
+        {/* ── Meta ── */}
+        <View className="mx-6 mb-8 flex-row items-center">
+          <View className="h-px flex-1 bg-surface-tertiary dark:bg-surface-dark-tertiary" />
+          <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs mx-3">
+            {lang === "ko"
+              ? `평론 ${profile.review_count}편 · ${updatedAt}`
+              : `${profile.review_count} reviews · ${updatedAt}`}
           </Text>
-        </Animated.View>
+          <View className="h-px flex-1 bg-surface-tertiary dark:bg-surface-dark-tertiary" />
+        </View>
 
-        {/* Error */}
+        {/* ── Error ── */}
         {error && (
-          <Text className="text-error text-sm text-center mb-4">{t("analysis.error")}</Text>
+          <Text className="text-error text-sm text-center mx-6 mb-4">
+            {t("analysis.error")}
+          </Text>
         )}
 
-        {/* Recommendation hook */}
+        {/* ── Recommendation Hook ── */}
         {profile.recommendation_hook && (
-          <>
-            <View className="h-px bg-surface-tertiary mb-6" />
+          <Animated.View
+            entering={FadeInDown.delay(400).duration(400)}
+            className="mx-6"
+          >
+            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-widest mb-3">
+              {lang === "ko" ? "이런 건 어때요" : "You might enjoy"}
+            </Text>
             <Pressable
-              className="bg-primary/5 border border-primary/20 rounded-2xl p-5"
+              className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-border dark:border-surface-dark-border rounded-2xl p-5"
               onPress={handleRecommendHook}
             >
-              <Text className="text-text text-base leading-6">
+              <Text className="text-text dark:text-text-dark text-base leading-6 mb-3">
                 {profile.recommendation_hook}
               </Text>
-              <Text className="text-primary text-sm font-medium mt-2">→</Text>
+              <View className="flex-row items-center">
+                <Text className="text-text-secondary dark:text-text-dark-secondary text-sm">
+                  {lang === "ko" ? "추천 받기" : "Get recommendations"}
+                </Text>
+                <Text className="text-text-secondary dark:text-text-dark-secondary text-sm ml-1.5">→</Text>
+              </View>
             </Pressable>
-          </>
+          </Animated.View>
         )}
       </ScrollView>
     </SafeAreaView>

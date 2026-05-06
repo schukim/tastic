@@ -23,15 +23,13 @@ import { useAuthStore } from "../../stores/authStore";
 type Nav = NativeStackNavigationProp<ReviewStackParamList, "ContentConfirm">;
 type Route = RouteProp<ReviewStackParamList, "ContentConfirm">;
 
-const EXHIBITION_PERFORMANCE: ContentCategory[] = ["exhibition", "performance"];
-
 export function ContentConfirmScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
 
-  const { title, creator: inputCreator, category, experienceDate } = route.params;
+  const { title, creator: inputCreator, category, experienceDate, musicType } = route.params;
 
   const [candidates, setCandidates] = useState<ContentCandidate[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -42,9 +40,6 @@ export function ContentConfirmScreen() {
   const [isManualMode, setIsManualMode] = useState(false);
   const [manualCreator, setManualCreator] = useState(inputCreator);
   const [manualYear, setManualYear] = useState("");
-
-  // Show manual input first for exhibition/performance
-  const showManualFirst = EXHIBITION_PERFORMANCE.includes(category);
 
   useEffect(() => {
     fetchCandidates();
@@ -81,6 +76,7 @@ export function ContentConfirmScreen() {
     setIsSaving(true);
     try {
       let contentData;
+      const musicMeta = musicType ? { music_type: musicType } : {};
       if (isManualMode) {
         contentData = await createContent({
           userId: user.id,
@@ -88,6 +84,7 @@ export function ContentConfirmScreen() {
           category,
           creator: manualCreator || undefined,
           year: manualYear ? parseInt(manualYear, 10) : undefined,
+          metadata: musicMeta,
         });
       } else if (selectedIndex !== null) {
         const candidate = candidates[selectedIndex];
@@ -99,7 +96,7 @@ export function ContentConfirmScreen() {
           creator: candidate.creator ?? undefined,
           year: candidate.year ?? undefined,
           genre: candidate.genre ?? undefined,
-          metadata: candidate.metadata,
+          metadata: { ...candidate.metadata, ...musicMeta },
         });
       } else {
         return;
@@ -129,18 +126,6 @@ export function ContentConfirmScreen() {
         <Text className="text-text-secondary text-sm mb-6">
           {CATEGORY_ICONS[category]} {title}
         </Text>
-
-        {/* Manual input option (first for exhibition/performance) */}
-        {showManualFirst && !isLoading && (
-          <Pressable
-            className={`border rounded-2xl p-4 mb-3 ${
-              isManualMode ? "border-primary bg-primary/5" : "border-surface-tertiary"
-            }`}
-            onPress={() => { setIsManualMode(true); setSelectedIndex(null); }}
-          >
-            <Text className="text-text font-medium">{t("review.confirm.manualInputFirst")}</Text>
-          </Pressable>
-        )}
 
         {/* Fetch error */}
         {fetchError && !isLoading && (
@@ -193,7 +178,7 @@ export function ContentConfirmScreen() {
         ))}
 
         {/* No results or manual input */}
-        {!isLoading && candidates.length === 0 && !showManualFirst && (
+        {!isLoading && candidates.length === 0 && (
           <Pressable
             className="border border-dashed border-text-tertiary rounded-2xl p-4 mb-3 items-center"
             onPress={() => setIsManualMode(true)}
@@ -202,8 +187,8 @@ export function ContentConfirmScreen() {
           </Pressable>
         )}
 
-        {/* Manual input bottom option (for non-exhibition) */}
-        {!isLoading && candidates.length > 0 && !showManualFirst && (
+        {/* Manual input */}
+        {!isLoading && candidates.length > 0 && (
           <Pressable
             className={`border border-dashed rounded-2xl p-4 mb-3 items-center ${
               isManualMode ? "border-primary" : "border-text-tertiary"

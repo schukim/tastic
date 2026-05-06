@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { useAuthStore } from "./src/stores/authStore";
+import { useThemeStore } from "./src/stores/themeStore";
 import { supabase } from "./src/services/supabase";
 import "./src/i18n";
 
@@ -15,8 +16,10 @@ function AppContent() {
   const setUser = useAuthStore((s) => s.setUser);
   const setSession = useAuthStore((s) => s.setSession);
   const setLoading = useAuthStore((s) => s.setLoading);
+  const initTheme = useThemeStore((s) => s.init);
 
   useEffect(() => {
+    initTheme();
     initializeMockUser();
   }, [setUser, setSession, setLoading]);
 

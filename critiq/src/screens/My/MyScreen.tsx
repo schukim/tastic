@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore } from "../../stores/authStore";
+import { useThemeStore } from "../../stores/themeStore";
 import { supabase } from "../../services/supabase";
 import { getReviewCount } from "../../services/taste";
 import { CategoryChip } from "../../components/common/CategoryChip";
@@ -21,13 +22,14 @@ import type { ContentCategory, Language } from "../../types/database";
 import i18n from "../../i18n";
 
 const ALL_CATEGORIES: ContentCategory[] = [
-  "movie", "music", "book", "art", "exhibition", "performance",
+  "movie", "music", "book", "art",
 ];
 
 export function MyScreen() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  const { isDark, setDark } = useThemeStore();
 
   const [reviewCount, setReviewCount] = useState(0);
   const [isEditingNickname, setIsEditingNickname] = useState(false);
@@ -35,7 +37,6 @@ export function MyScreen() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showLanguageSheet, setShowLanguageSheet] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,7 +87,6 @@ export function MyScreen() {
 
   const handleDeleteAccount = async () => {
     setShowDeleteDialog(false);
-    // Delete user data then sign out
     if (user) {
       await supabase.from("users").delete().eq("id", user.id);
     }
@@ -96,11 +96,12 @@ export function MyScreen() {
   if (!user) return null;
 
   return (
-    <SafeAreaView className="flex-1 bg-surface">
+    <SafeAreaView className="flex-1 bg-surface dark:bg-surface-dark">
       <ScrollView className="flex-1" contentContainerClassName="px-6 pt-6 pb-12">
+
         {/* ── Profile Section ── */}
-        <View className="items-center mb-8">
-          <View className="w-20 h-20 rounded-full bg-primary/10 items-center justify-center mb-3">
+        <View className="items-center mb-10">
+          <View className="w-20 h-20 rounded-full bg-surface-tertiary dark:bg-surface-dark-secondary items-center justify-center mb-4 border border-surface-border dark:border-surface-dark-border">
             {user.avatar_url ? (
               <Image
                 source={{ uri: user.avatar_url }}
@@ -114,7 +115,7 @@ export function MyScreen() {
           {isEditingNickname ? (
             <View className="flex-row items-center">
               <TextInput
-                className="text-text text-xl font-bold text-center border-b border-primary px-2 py-1"
+                className="text-text dark:text-text-dark text-xl font-bold text-center border-b border-text-secondary dark:border-text-dark-secondary px-2 py-1"
                 value={nicknameInput}
                 onChangeText={setNicknameInput}
                 autoFocus
@@ -124,18 +125,18 @@ export function MyScreen() {
             </View>
           ) : (
             <Pressable onPress={() => { setNicknameInput(user.nickname); setIsEditingNickname(true); }}>
-              <Text className="text-text text-xl font-bold">{user.nickname}</Text>
+              <Text className="text-text dark:text-text-dark text-xl font-bold">{user.nickname}</Text>
             </Pressable>
           )}
 
-          <Text className="text-text-tertiary text-sm mt-1">
-            {t("tabs.review")} {reviewCount}
+          <Text className="text-text-tertiary dark:text-text-dark-tertiary text-sm mt-1.5">
+            평론 {reviewCount}개
           </Text>
         </View>
 
         {/* ── Interest Categories ── */}
         <View className="mb-8">
-          <Text className="text-text text-base font-semibold mb-3">
+          <Text className="text-text dark:text-text-dark text-sm font-semibold mb-3 uppercase tracking-widest opacity-50">
             {t("my.categories")}
           </Text>
           <View className="flex-row flex-wrap">
@@ -152,56 +153,58 @@ export function MyScreen() {
 
         {/* ── Settings ── */}
         <View className="mb-8">
-          <Text className="text-text text-base font-semibold mb-3">
+          <Text className="text-text dark:text-text-dark text-sm font-semibold mb-3 uppercase tracking-widest opacity-50">
             {t("my.settings")}
           </Text>
 
-          {/* Dark mode */}
-          <View className="flex-row items-center justify-between py-3 border-b border-surface-tertiary">
-            <Text className="text-text text-base">{t("my.darkMode")}</Text>
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              trackColor={{ true: "#6366F1" }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
+          <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl overflow-hidden border border-surface-border dark:border-surface-dark-border">
+            {/* Dark mode */}
+            <View className="flex-row items-center justify-between px-4 py-3.5 border-b border-surface-tertiary dark:border-surface-dark-tertiary">
+              <Text className="text-text dark:text-text-dark text-base">{t("my.darkMode")}</Text>
+              <Switch
+                value={isDark}
+                onValueChange={setDark}
+                trackColor={{ false: "#D1C9C0", true: "#221F1A" }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
 
-          {/* Language */}
-          <Pressable
-            className="flex-row items-center justify-between py-3 border-b border-surface-tertiary"
-            onPress={() => setShowLanguageSheet(true)}
-          >
-            <Text className="text-text text-base">{t("my.language")}</Text>
-            <Text className="text-text-secondary text-base">
-              {user.language === "ko" ? "한국어" : "English"}
-            </Text>
-          </Pressable>
+            {/* Language */}
+            <Pressable
+              className="flex-row items-center justify-between px-4 py-3.5"
+              onPress={() => setShowLanguageSheet(true)}
+            >
+              <Text className="text-text dark:text-text-dark text-base">{t("my.language")}</Text>
+              <Text className="text-text-secondary dark:text-text-dark-secondary text-base">
+                {user.language === "ko" ? "한국어" : "English"}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* ── Subscription ── */}
         <View className="mb-8">
-          <Text className="text-text text-base font-semibold mb-3">
+          <Text className="text-text dark:text-text-dark text-sm font-semibold mb-3 uppercase tracking-widest opacity-50">
             {t("my.subscription")}
           </Text>
-          <View className="bg-surface-secondary rounded-xl p-4">
-            <Text className="text-text text-base">{t("my.freePlan")}</Text>
+          <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl px-4 py-3.5 border border-surface-border dark:border-surface-dark-border">
+            <Text className="text-text dark:text-text-dark text-base">{t("my.freePlan")}</Text>
           </View>
         </View>
 
         {/* ── Account ── */}
-        <View>
+        <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl overflow-hidden border border-surface-border dark:border-surface-dark-border">
           <Pressable
-            className="py-4 border-b border-surface-tertiary"
+            className="px-4 py-3.5 border-b border-surface-tertiary dark:border-surface-dark-tertiary"
             onPress={() => setShowLogoutDialog(true)}
           >
             <Text className="text-error text-base">{t("my.logout")}</Text>
           </Pressable>
           <Pressable
-            className="py-4"
+            className="px-4 py-3.5"
             onPress={() => setShowDeleteDialog(true)}
           >
-            <Text className="text-text-tertiary text-base">{t("my.deleteAccount")}</Text>
+            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-base">{t("my.deleteAccount")}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -215,21 +218,21 @@ export function MyScreen() {
       >
         <Pressable className="flex-1 bg-dim" onPress={() => setShowLanguageSheet(false)}>
           <View className="flex-1" />
-          <Pressable className="bg-surface rounded-t-3xl p-6" onPress={(e) => e.stopPropagation()}>
-            <View className="w-10 h-1 bg-surface-tertiary rounded-full self-center mb-6" />
+          <Pressable className="bg-surface dark:bg-surface-dark rounded-t-3xl p-6" onPress={(e) => e.stopPropagation()}>
+            <View className="w-10 h-1 bg-surface-tertiary dark:bg-surface-dark-tertiary rounded-full self-center mb-6" />
             <Pressable
-              className={`py-4 border-b border-surface-tertiary flex-row justify-between ${user.language === "ko" ? "" : ""}`}
+              className="py-4 border-b border-surface-tertiary dark:border-surface-dark-tertiary flex-row justify-between"
               onPress={() => handleLanguageChange("ko")}
             >
-              <Text className="text-text text-base">한국어</Text>
-              {user.language === "ko" && <Text className="text-primary">✓</Text>}
+              <Text className="text-text dark:text-text-dark text-base">한국어</Text>
+              {user.language === "ko" && <Text className="text-text dark:text-text-dark">✓</Text>}
             </Pressable>
             <Pressable
               className="py-4 flex-row justify-between"
               onPress={() => handleLanguageChange("en")}
             >
-              <Text className="text-text text-base">English</Text>
-              {user.language === "en" && <Text className="text-primary">✓</Text>}
+              <Text className="text-text dark:text-text-dark text-base">English</Text>
+              {user.language === "en" && <Text className="text-text dark:text-text-dark">✓</Text>}
             </Pressable>
           </Pressable>
         </Pressable>

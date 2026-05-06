@@ -29,7 +29,7 @@ import { toISODateString } from "../../utils/formatDate";
 type Nav = NativeStackNavigationProp<ReviewStackParamList, "ReviewHome">;
 
 const ALL_CATEGORIES: ContentCategory[] = [
-  "movie", "music", "book", "art", "exhibition", "performance",
+  "movie", "music", "book", "art",
 ];
 
 const CREATOR_LABEL: Record<ContentCategory, string> = {
@@ -37,8 +37,6 @@ const CREATOR_LABEL: Record<ContentCategory, string> = {
   music: "아티스트",
   book: "작가",
   art: "아티스트",
-  exhibition: "장소",
-  performance: "장소",
 };
 
 export function ReviewHomeScreen() {
@@ -48,6 +46,7 @@ export function ReviewHomeScreen() {
   const { height } = useWindowDimensions();
 
   const [category, setCategory] = useState<ContentCategory | null>(null);
+  const [musicType, setMusicType] = useState<"album" | "song">("album");
   const [title, setTitle] = useState("");
   const [creator, setCreator] = useState("");
   const [experienceDate] = useState(toISODateString(new Date()));
@@ -81,6 +80,7 @@ export function ReviewHomeScreen() {
 
   const handleSelectCategory = useCallback((cat: ContentCategory) => {
     setCategory(cat);
+    setMusicType("album");
     setTitle("");
     setCreator("");
     expandForm();
@@ -117,6 +117,7 @@ export function ReviewHomeScreen() {
       creator: creator.trim(),
       category,
       experienceDate,
+      musicType: category === "music" ? musicType : undefined,
     });
   };
 
@@ -150,6 +151,7 @@ export function ReviewHomeScreen() {
                 onPress={() => {
                   if (isExpanded) {
                     setCategory(cat);
+                    setMusicType("album");
                     setTitle("");
                     setCreator("");
                     setTimeout(() => titleRef.current?.focus(), 100);
@@ -171,6 +173,27 @@ export function ReviewHomeScreen() {
               value={title}
               onChangeText={setTitle}
             />
+
+            {category === "music" && (
+              <View className="flex-row mb-3 rounded-xl overflow-hidden border border-surface-tertiary">
+                <Pressable
+                  className={`flex-1 py-3 items-center ${musicType === "album" ? "bg-primary" : "bg-surface-secondary"}`}
+                  onPress={() => setMusicType("album")}
+                >
+                  <Text className={`text-sm font-medium ${musicType === "album" ? "text-white" : "text-text-secondary"}`}>
+                    앨범
+                  </Text>
+                </Pressable>
+                <Pressable
+                  className={`flex-1 py-3 items-center ${musicType === "song" ? "bg-primary" : "bg-surface-secondary"}`}
+                  onPress={() => setMusicType("song")}
+                >
+                  <Text className={`text-sm font-medium ${musicType === "song" ? "text-white" : "text-text-secondary"}`}>
+                    곡
+                  </Text>
+                </Pressable>
+              </View>
+            )}
 
             {category && (
               <TextInput

@@ -8,8 +8,6 @@ const CATEGORY_ICONS: Record<ContentCategory, string> = {
   music: "\uD83C\uDFB5",
   book: "\uD83D\uDCDA",
   art: "\uD83C\uDFA8",
-  exhibition: "\uD83C\uDFDB\uFE0F",
-  performance: "\uD83C\uDFAD",
 };
 
 interface CategoryChipProps {

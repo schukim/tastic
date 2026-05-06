@@ -32,7 +32,7 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
   "recommendations": [
     {
       "title": "string",
-      "category": "movie | music | book | art | exhibition | performance",
+      "category": "movie | music | book | art",
       "creator": "string",
       "year": number | null,
       "reason": "string",

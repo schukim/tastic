@@ -40,9 +40,7 @@
     "movie": "영화",
     "music": "음악",
     "book": "책",
-    "art": "미술",
-    "exhibition": "전시",
-    "performance": "공연"
+    "art": "미술"
   },
   "review": {
     "greeting": "{{name}}님, 오늘은 무엇을 감상하셨나요?",

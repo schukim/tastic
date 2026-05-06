@@ -20,7 +20,7 @@ import { signUp } from "../../services/auth";
 type Nav = NativeStackNavigationProp<AuthStackParamList, "SignUp">;
 
 const ALL_CATEGORIES: ContentCategory[] = [
-  "movie", "music", "book", "art", "exhibition", "performance",
+  "movie", "music", "book", "art",
 ];
 
 export function SignUpScreen() {

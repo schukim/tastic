@@ -5,6 +5,7 @@
 module.exports = {
   content: ["./App.{js,jsx,ts,tsx}", "./src/**/*.{js,jsx,ts,tsx}"],
   presets: [require("nativewind/preset")],
+  darkMode: "media",
   theme: {
     extend: {
       fontFamily: {
@@ -16,6 +17,8 @@ module.exports = {
           DEFAULT: "#221F1A",   // deep warm ink
           light:   "#6B6560",   // muted warm gray
           dark:    "#0F0D0A",   // near-black pressed
+          dm:      "#D4CFC8",   // dark mode primary — warm cream
+          "dm-sub":"#9C9589",   // dark mode primary muted
         },
 
         // ── Category colors — desaturated ink tones ──────

@@ -29,6 +29,7 @@ export type ReviewStackParamList = {
     creator: string;
     category: ContentCategory;
     experienceDate: string;
+    musicType?: "album" | "song";
   };
   Interview: {
     content: Content;

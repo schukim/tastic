@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useRoute } from "@react-navigation/native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import type { ContentCategory } from "../../types/database";
 import type { RecommendContentResponse } from "../../types/llm";
 import { useAuthStore } from "../../stores/authStore";
@@ -33,11 +33,20 @@ interface RecommendItem {
 }
 
 const QUICK_CHIPS = [
-  { key: "chipMovie", prompt: "영화 추천해줘" },
-  { key: "chipBook", prompt: "책 추천해줘" },
-  { key: "chipMusic", prompt: "음악 추천해줘" },
-  { key: "chipNew", prompt: "새로운 장르 도전하고 싶어" },
+  { key: "chipMovie", prompt: "영화 추천해줘", icon: "🎬" },
+  { key: "chipBook", prompt: "책 추천해줘", icon: "📚" },
+  { key: "chipMusic", prompt: "음악 추천해줘", icon: "🎵" },
+  { key: "chipNew", prompt: "새로운 장르 도전하고 싶어", icon: "✦" },
 ];
+
+const CATEGORY_ACCENT: Record<string, string> = {
+  movie:       "#5C2E2E",
+  music:       "#2E3D4F",
+  book:        "#3D4A2E",
+  art:         "#5C4A2E",
+  exhibition:  "#3D2E4A",
+  performance: "#5C3D2E",
+};
 
 export function RecommendScreen() {
   const { t } = useTranslation();
@@ -52,7 +61,6 @@ export function RecommendScreen() {
   const [error, setError] = useState(false);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
 
-  // Check auto-prompt from analysis tab
   useEffect(() => {
     const params = route.params as { autoPrompt?: string } | undefined;
     if (params?.autoPrompt) {
@@ -93,8 +101,6 @@ export function RecommendScreen() {
       });
 
       setResults(response.recommendations as RecommendItem[]);
-
-      // Save to DB
       saveRecommendation(user.id, queryPrompt.trim(), response.recommendations).catch(() => {});
     } catch {
       setError(true);
@@ -106,131 +112,187 @@ export function RecommendScreen() {
   const notEnoughReviews = reviewCount !== null && reviewCount < 3;
 
   return (
-    <SafeAreaView className="flex-1 bg-surface">
+    <SafeAreaView className="flex-1 bg-surface dark:bg-surface-dark">
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
           className="flex-1"
-          contentContainerClassName="px-6 pt-8 pb-6"
+          contentContainerClassName="pb-8"
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
-          <Text className="text-text text-2xl font-bold mb-6">
-            {t("recommend.title")}
-          </Text>
-
-          {/* Prompt input */}
-          <View className="flex-row mb-4">
-            <TextInput
-              className="flex-1 bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-base mr-3"
-              placeholder={t("recommend.placeholder")}
-              placeholderTextColor="#94A3B8"
-              value={prompt}
-              onChangeText={setPrompt}
-              editable={!isLoading}
-            />
-            <Pressable
-              className={`rounded-xl px-5 justify-center ${
-                prompt.trim() && !isLoading ? "bg-primary" : "bg-primary/40"
-              }`}
-              onPress={() => handleSubmit()}
-              disabled={!prompt.trim() || isLoading}
-            >
-              <Text className="text-white font-semibold">→</Text>
-            </Pressable>
+          {/* ── Header ── */}
+          <View className="px-6 pt-6 pb-5">
+            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-widest mb-1">
+              {lang === "ko" ? "콘텐츠 추천" : "Recommendations"}
+            </Text>
+            <Text className="text-text dark:text-text-dark text-2xl font-bold">
+              {t("recommend.title")}
+            </Text>
           </View>
 
-          {/* Quick chips */}
-          {results.length === 0 && !isLoading && (
-            <View className="flex-row flex-wrap mb-6">
-              {QUICK_CHIPS.map((chip) => (
+          {/* ── Input area ── */}
+          <View className="px-6 mb-5">
+            <View className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-border dark:border-surface-dark-border rounded-2xl overflow-hidden">
+              <TextInput
+                className="px-4 pt-4 pb-3 text-text dark:text-text-dark text-base leading-6"
+                placeholder={t("recommend.placeholder")}
+                placeholderTextColor="#9C9589"
+                value={prompt}
+                onChangeText={setPrompt}
+                editable={!isLoading}
+                multiline
+                textAlignVertical="top"
+                style={{ minHeight: 56 }}
+              />
+              <View className="flex-row justify-end px-3 pb-3">
                 <Pressable
-                  key={chip.key}
-                  className="bg-surface-tertiary rounded-full px-4 py-2 mr-2 mb-2"
-                  onPress={() => {
-                    setPrompt(chip.prompt);
-                    handleSubmit(chip.prompt);
-                  }}
+                  className={`rounded-xl px-5 py-2.5 ${
+                    prompt.trim() && !isLoading
+                      ? "bg-text dark:bg-primary-dm"
+                      : "bg-surface-tertiary dark:bg-surface-dark-tertiary"
+                  }`}
+                  onPress={() => handleSubmit()}
+                  disabled={!prompt.trim() || isLoading}
                 >
-                  <Text className="text-text text-sm">{t(`recommend.${chip.key}`)}</Text>
+                  <Text className={`font-semibold text-sm ${
+                    prompt.trim() && !isLoading
+                      ? "text-surface dark:text-surface-dark"
+                      : "text-text-tertiary dark:text-text-dark-tertiary"
+                  }`}>
+                    {lang === "ko" ? "추천받기" : "Ask"}
+                  </Text>
                 </Pressable>
-              ))}
+              </View>
+            </View>
+          </View>
+
+          {/* ── Quick chips ── */}
+          {results.length === 0 && !isLoading && (
+            <View className="px-6 mb-6">
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs mb-3">
+                {lang === "ko" ? "빠른 선택" : "Quick pick"}
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {QUICK_CHIPS.map((chip) => (
+                  <Pressable
+                    key={chip.key}
+                    className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-border dark:border-surface-dark-border rounded-full px-4 py-2 flex-row items-center"
+                    onPress={() => {
+                      setPrompt(chip.prompt);
+                      handleSubmit(chip.prompt);
+                    }}
+                  >
+                    <Text className="text-sm mr-1.5">{chip.icon}</Text>
+                    <Text className="text-text-secondary dark:text-text-dark-secondary text-sm">
+                      {t(`recommend.${chip.key}`)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
           )}
 
-          {/* Not enough reviews */}
+          {/* ── Not enough reviews ── */}
           {notEnoughReviews && (
-            <View className="bg-surface-secondary rounded-2xl p-6 items-center">
-              <Text className="text-text-secondary text-base text-center">
+            <View className="mx-6 bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl p-6 border border-surface-border dark:border-surface-dark-border">
+              <Text className="text-text-secondary dark:text-text-dark-secondary text-base text-center leading-6">
                 {t("recommend.needMore")}
               </Text>
             </View>
           )}
 
-          {/* Loading */}
+          {/* ── Loading ── */}
           {isLoading && (
-            <View>
+            <View className="px-6">
               <SkeletonCard />
               <SkeletonCard />
               <SkeletonCard />
             </View>
           )}
 
-          {/* Error */}
+          {/* ── Error ── */}
           {error && (
-            <View className="bg-surface-secondary rounded-2xl p-6 items-center">
-              <Text className="text-text-secondary text-base text-center">
+            <View className="mx-6 bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl p-6 border border-surface-border dark:border-surface-dark-border">
+              <Text className="text-text-secondary dark:text-text-dark-secondary text-base text-center">
                 {t("recommend.error")}
               </Text>
             </View>
           )}
 
-          {/* Results */}
-          {results.map((item, idx) => {
-            const isExpanded = expandedIdx === idx;
-            return (
-              <Animated.View
-                key={idx}
-                entering={FadeInDown.delay(idx * 100).duration(300)}
-              >
-                <Pressable
-                  className="bg-surface-secondary rounded-2xl p-4 mb-3 border border-surface-tertiary"
-                  onPress={() => setExpandedIdx(isExpanded ? null : idx)}
-                >
-                  {/* Category badge */}
-                  <View className="flex-row items-center mb-2">
-                    <View className="bg-primary/10 px-2.5 py-0.5 rounded-full flex-row items-center">
-                      <Text className="text-sm mr-1">
-                        {CATEGORY_ICONS[item.category] ?? "📋"}
-                      </Text>
-                      <Text className="text-primary text-xs font-medium">{item.category}</Text>
-                    </View>
-                  </View>
+          {/* ── Results ── */}
+          {results.length > 0 && (
+            <View className="px-6">
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-widest mb-4">
+                {lang === "ko" ? `추천 ${results.length}편` : `${results.length} picks`}
+              </Text>
 
-                  {/* Title */}
-                  <Text className="text-text text-base font-semibold mb-1">{item.title}</Text>
+              {results.map((item, idx) => {
+                const isExpanded = expandedIdx === idx;
+                const accentColor = CATEGORY_ACCENT[item.category] ?? "#6B6560";
 
-                  {/* Creator + year */}
-                  <Text className="text-text-secondary text-sm mb-2">
-                    {item.creator}
-                    {item.year ? ` · ${item.year}` : ""}
-                  </Text>
+                return (
+                  <Animated.View
+                    key={idx}
+                    entering={FadeInDown.delay(idx * 80).duration(350)}
+                    className="mb-3"
+                  >
+                    <Pressable
+                      className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl overflow-hidden border border-surface-border dark:border-surface-dark-border"
+                      onPress={() => setExpandedIdx(isExpanded ? null : idx)}
+                    >
+                      {/* Category accent strip */}
+                      <View
+                        className="h-0.5 w-full"
+                        style={{ backgroundColor: accentColor }}
+                      />
 
-                  {/* Reason */}
-                  <Text className="text-text-secondary text-sm leading-5">
-                    {isExpanded ? item.reason : item.reason_short}
-                  </Text>
+                      <View className="p-4">
+                        {/* Category + expand toggle */}
+                        <View className="flex-row items-center justify-between mb-2.5">
+                          <View className="flex-row items-center">
+                            <Text className="text-sm mr-1.5">
+                              {CATEGORY_ICONS[item.category] ?? "📋"}
+                            </Text>
+                            <Text
+                              className="text-xs font-medium"
+                              style={{ color: accentColor }}
+                            >
+                              {item.category.toUpperCase()}
+                            </Text>
+                          </View>
+                          <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs">
+                            {isExpanded ? "▲" : "▼"}
+                          </Text>
+                        </View>
 
-                  {/* Expand indicator */}
-                  <Text className="text-text-tertiary text-xs mt-2 text-right">
-                    {isExpanded ? "△" : "▽"}
-                  </Text>
-                </Pressable>
-              </Animated.View>
-            );
-          })}
+                        {/* Title */}
+                        <Text className="text-text dark:text-text-dark text-lg font-bold leading-6 mb-1">
+                          {item.title}
+                        </Text>
+
+                        {/* Creator + year */}
+                        <Text className="text-text-tertiary dark:text-text-dark-tertiary text-sm mb-3">
+                          {item.creator}
+                          {item.year ? ` · ${item.year}` : ""}
+                        </Text>
+
+                        {/* Reason */}
+                        <Animated.Text
+                          key={isExpanded ? "expanded" : "collapsed"}
+                          entering={FadeIn.duration(250)}
+                          className="text-text-secondary dark:text-text-dark-secondary text-sm leading-6"
+                        >
+                          {isExpanded ? item.reason : item.reason_short}
+                        </Animated.Text>
+                      </View>
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

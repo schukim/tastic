@@ -44,7 +44,7 @@ export function useInterview(content: Content) {
 
       if (qCount === 0) {
         // First question: pick from predefined category-specific list
-        const question = getFirstQuestion(content.category);
+        const question = getFirstQuestion(content.category, content.metadata);
         response = {
           question,
           question_type: "initial",

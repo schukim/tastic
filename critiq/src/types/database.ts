@@ -2,9 +2,7 @@ export type ContentCategory =
   | "movie"
   | "music"
   | "book"
-  | "art"
-  | "exhibition"
-  | "performance";
+  | "art";
 
 export type InterviewStatus = "in_progress" | "completed" | "abandoned";
 

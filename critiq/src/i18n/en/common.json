@@ -40,9 +40,7 @@
     "movie": "Movie",
     "music": "Music",
     "book": "Book",
-    "art": "Art",
-    "exhibition": "Exhibition",
-    "performance": "Performance"
+    "art": "Art"
   },
   "review": {
     "greeting": "{{name}}, what did you experience today?",
