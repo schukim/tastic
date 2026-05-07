@@ -15,7 +15,6 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   isDark: false,
   setDark: (isDark) => {
     set({ isDark });
-    Appearance.setColorScheme(isDark ? "dark" : "light");
     AsyncStorage.setItem(THEME_KEY, isDark ? "dark" : "light").catch(() => {});
   },
   toggle: () => get().setDark(!get().isDark),
@@ -23,13 +22,9 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     try {
       const saved = await AsyncStorage.getItem(THEME_KEY);
       if (saved) {
-        const isDark = saved === "dark";
-        set({ isDark });
-        Appearance.setColorScheme(isDark ? "dark" : "light");
+        set({ isDark: saved === "dark" });
       } else {
-        const isDark = Appearance.getColorScheme() === "dark";
-        set({ isDark });
-        Appearance.setColorScheme(isDark ? "dark" : "light");
+        set({ isDark: Appearance.getColorScheme() === "dark" });
       }
     } catch {
       // ignore — default to light

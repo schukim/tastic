@@ -6,7 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { useAuthStore } from "./src/stores/authStore";
-import { useThemeStore } from "./src/stores/themeStore";
+import { useTheme } from "./src/hooks/useTheme";
 import { supabase } from "./src/services/supabase";
 import "./src/i18n";
 
@@ -16,10 +16,9 @@ function AppContent() {
   const setUser = useAuthStore((s) => s.setUser);
   const setSession = useAuthStore((s) => s.setSession);
   const setLoading = useAuthStore((s) => s.setLoading);
-  const initTheme = useThemeStore((s) => s.init);
+  const { isDark } = useTheme(); // This handles theme initialization and NativeWind integration
 
   useEffect(() => {
-    initTheme();
     initializeMockUser();
   }, [setUser, setSession, setLoading]);
 
@@ -90,7 +89,12 @@ function AppContent() {
     }
   };
 
-  return <RootNavigator />;
+  return (
+    <>
+      <StatusBar style={isDark ? "light" : "dark"} backgroundColor={isDark ? "#1A1814" : "#F8F6F1"} />
+      <RootNavigator />
+    </>
+  );
 }
 
 export default function App() {
@@ -98,7 +102,6 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer>
-          <StatusBar style="auto" />
           <AppContent />
         </NavigationContainer>
       </SafeAreaProvider>

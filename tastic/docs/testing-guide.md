@@ -1,4 +1,4 @@
-# Critiq 테스트 가이드
+# Tastic 테스트 가이드
 
 ## 사전 준비
 
@@ -16,7 +16,7 @@
 ## 1단계: Supabase 로컬 환경 구성
 
 ```bash
-cd /home/sangwoo/artlog/critiq
+cd /home/sangwoo/tastic
 
 # Docker가 실행 중인지 확인
 docker info
@@ -80,7 +80,7 @@ npx supabase functions serve --env-file .env
 
 ```bash
 # 새 터미널에서
-cd /home/sangwoo/artlog/critiq
+cd /home/sangwoo/tastic
 npx expo start
 ```
 

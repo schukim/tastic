@@ -1,11 +1,11 @@
-# Critiq — Claude Code 프로젝트 설정
+# Tastic — Claude Code 프로젝트 설정
 
 문화 콘텐츠 감상 → LLM 인터뷰 → 개인 평론 작성 앱의 Claude Code 설정 파일입니다.
 
 ## 파일 구조
 
 ```
-critiq-claude-config/
+tastic-claude-config/
 ├── CLAUDE.md                          # 프로젝트 루트 설정 (기본 컨텍스트)
 ├── .env.example                       # 환경변수 템플릿
 ├── docs/
@@ -70,11 +70,11 @@ CLAUDE.md (항상 로드, 간결)
 
 ### 1. 프로젝트 루트에 복사
 ```bash
-mkdir critiq && cd critiq
-cp path/to/critiq-claude-config/CLAUDE.md .
-cp path/to/critiq-claude-config/.env.example .
-cp -r path/to/critiq-claude-config/.claude .
-cp -r path/to/critiq-claude-config/docs .
+mkdir tastic && cd tastic
+cp path/to/tastic-claude-config/CLAUDE.md .
+cp path/to/tastic-claude-config/.env.example .
+cp -r path/to/tastic-claude-config/.claude .
+cp -r path/to/tastic-claude-config/docs .
 ```
 
 ### 2. Claude Code 시작 → 초기 셋업

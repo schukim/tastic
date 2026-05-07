@@ -23,6 +23,7 @@ import type { ContentCategory } from "../../types/database";
 import { CategoryChip } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { useAuthStore } from "../../stores/authStore";
+import { useTheme } from "../../hooks/useTheme";
 import { loadDraft, clearDraft } from "../../utils/storage";
 import { toISODateString } from "../../utils/formatDate";
 
@@ -43,6 +44,7 @@ export function ReviewHomeScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
   const user = useAuthStore((s) => s.user);
+  const { isDark } = useTheme();
   const { height } = useWindowDimensions();
 
   const [category, setCategory] = useState<ContentCategory | null>(null);
@@ -122,7 +124,10 @@ export function ReviewHomeScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-surface">
+    <SafeAreaView
+      className={`flex-1 ${isDark ? 'dark' : ''}`}
+      style={{ backgroundColor: isDark ? '#1A1814' : '#F8F6F1' }}
+    >
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -133,14 +138,14 @@ export function ReviewHomeScreen() {
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
           style={containerStyle}
         >
-          {/* Greeting — in normal flow, moves with everything */}
-          <Text className="text-text text-2xl font-bold leading-9 mb-6">
+          {/* Greeting */}
+          <Text className="text-text dark:text-text-dark text-2xl font-bold leading-9 mb-6">
             {t("review.greeting", { name: user?.nickname ?? "" })}
           </Text>
 
-          {/* Category chips — always visible */}
+          {/* Category chips */}
           {!isExpanded && (
-            <Text className="text-text-secondary text-sm mb-3">카테고리를 선택하세요</Text>
+            <Text className="text-text-secondary dark:text-text-dark-secondary text-sm mb-3">카테고리를 선택하세요</Text>
           )}
           <View className="flex-row flex-wrap mb-4">
             {ALL_CATEGORIES.map((cat) => (
@@ -163,32 +168,32 @@ export function ReviewHomeScreen() {
             ))}
           </View>
 
-          {/* Form fields — fade in after category selected */}
+          {/* Form fields */}
           <Animated.View style={fieldsStyle}>
             <TextInput
               ref={titleRef}
-              className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base mb-3"
+              className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-tertiary dark:border-surface-dark-border rounded-xl px-4 py-3.5 text-text dark:text-text-dark text-base mb-3"
               placeholder="제목"
-              placeholderTextColor="#9C9589"
+              placeholderTextColor={isDark ? '#7A7268' : '#9C9589'}
               value={title}
               onChangeText={setTitle}
             />
 
             {category === "music" && (
-              <View className="flex-row mb-3 rounded-xl overflow-hidden border border-surface-tertiary">
+              <View className="flex-row mb-3 rounded-xl overflow-hidden border border-surface-tertiary dark:border-surface-dark-border">
                 <Pressable
-                  className={`flex-1 py-3 items-center ${musicType === "album" ? "bg-primary" : "bg-surface-secondary"}`}
+                  className={`flex-1 py-3 items-center ${musicType === "album" ? "bg-primary dark:bg-primary-dm" : "bg-surface-secondary dark:bg-surface-dark-secondary"}`}
                   onPress={() => setMusicType("album")}
                 >
-                  <Text className={`text-sm font-medium ${musicType === "album" ? "text-white" : "text-text-secondary"}`}>
+                  <Text className={`text-sm font-medium ${musicType === "album" ? "text-white" : "text-text-secondary dark:text-text-dark-secondary"}`}>
                     앨범
                   </Text>
                 </Pressable>
                 <Pressable
-                  className={`flex-1 py-3 items-center ${musicType === "song" ? "bg-primary" : "bg-surface-secondary"}`}
+                  className={`flex-1 py-3 items-center ${musicType === "song" ? "bg-primary dark:bg-primary-dm" : "bg-surface-secondary dark:bg-surface-dark-secondary"}`}
                   onPress={() => setMusicType("song")}
                 >
-                  <Text className={`text-sm font-medium ${musicType === "song" ? "text-white" : "text-text-secondary"}`}>
+                  <Text className={`text-sm font-medium ${musicType === "song" ? "text-white" : "text-text-secondary dark:text-text-dark-secondary"}`}>
                     곡
                   </Text>
                 </Pressable>
@@ -197,16 +202,16 @@ export function ReviewHomeScreen() {
 
             {category && (
               <TextInput
-                className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base mb-6"
+                className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-tertiary dark:border-surface-dark-border rounded-xl px-4 py-3.5 text-text dark:text-text-dark text-base mb-6"
                 placeholder={CREATOR_LABEL[category]}
-                placeholderTextColor="#9C9589"
+                placeholderTextColor={isDark ? '#7A7268' : '#9C9589'}
                 value={creator}
                 onChangeText={setCreator}
               />
             )}
 
             <Pressable
-              className={`rounded-xl py-4 items-center ${isValid ? "bg-primary" : "bg-primary/40"}`}
+              className={`rounded-xl py-4 items-center ${isValid ? "bg-primary dark:bg-primary-dm" : "bg-primary/40 dark:bg-primary-dm/40"}`}
               onPress={handleNext}
               disabled={!isValid}
             >

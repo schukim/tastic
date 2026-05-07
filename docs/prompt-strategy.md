@@ -2,7 +2,7 @@
 
 ## 개요
 
-Critiq의 모든 LLM 호출은 Supabase Edge Function을 경유하며, 프롬프트 템플릿은 `src/prompts/`에서 관리한다.
+Tastic의 모든 LLM 호출은 Supabase Edge Function을 경유하며, 프롬프트 템플릿은 `src/prompts/`에서 관리한다.
 모델: `claude-sonnet-4-20250514`. 모든 프롬프트는 사용자 설정 언어(ko/en)에 따라 응답 언어를 동적으로 지정한다.
 
 ---

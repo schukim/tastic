@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore } from "../../stores/authStore";
-import { useThemeStore } from "../../stores/themeStore";
+import { useTheme } from "../../hooks/useTheme";
 import { supabase } from "../../services/supabase";
 import { getReviewCount } from "../../services/taste";
 import { CategoryChip } from "../../components/common/CategoryChip";
@@ -29,7 +29,7 @@ export function MyScreen() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
-  const { isDark, setDark } = useThemeStore();
+  const { isDark, setDark } = useTheme();
 
   const [reviewCount, setReviewCount] = useState(0);
   const [isEditingNickname, setIsEditingNickname] = useState(false);
@@ -96,8 +96,8 @@ export function MyScreen() {
   if (!user) return null;
 
   return (
-    <SafeAreaView className="flex-1 bg-surface dark:bg-surface-dark">
-      <ScrollView className="flex-1" contentContainerClassName="px-6 pt-6 pb-12">
+    <SafeAreaView className={`flex-1 ${isDark ? 'dark' : ''}`} style={{ backgroundColor: isDark ? '#1A1814' : '#F8F6F1' }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 28, paddingTop: 32, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Profile Section ── */}
         <View className="items-center mb-10">
@@ -158,14 +158,21 @@ export function MyScreen() {
           </Text>
 
           <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl overflow-hidden border border-surface-border dark:border-surface-dark-border">
-            {/* Dark mode */}
-            <View className="flex-row items-center justify-between px-4 py-3.5 border-b border-surface-tertiary dark:border-surface-dark-tertiary">
-              <Text className="text-text dark:text-text-dark text-base">{t("my.darkMode")}</Text>
+            {/* Enhanced Dark mode */}
+            <View className="flex-row items-center justify-between px-5 py-4 border-b border-surface-tertiary/50 dark:border-surface-dark-tertiary/50">
+              <View className="flex-row items-center">
+                <Text className="text-base mr-3">{isDark ? "🌙" : "☀️"}</Text>
+                <Text className="text-text dark:text-text-dark text-base font-medium">{t("my.darkMode")}</Text>
+              </View>
               <Switch
                 value={isDark}
                 onValueChange={setDark}
-                trackColor={{ false: "#D1C9C0", true: "#221F1A" }}
-                thumbColor="#FFFFFF"
+                trackColor={{
+                  false: isDark ? "#333028" : "#EAE7E0",
+                  true: isDark ? "#D4CFC8" : "#221F1A"
+                }}
+                thumbColor={isDark ? "#1A1814" : "#F8F6F1"}
+                style={{ transform: [{ scale: 1.1 }] }}
               />
             </View>
 
