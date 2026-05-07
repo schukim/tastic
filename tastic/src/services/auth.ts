@@ -1,5 +1,9 @@
 import { supabase } from "./supabase";
 import type { ContentCategory } from "../types/database";
+import { makeRedirectUri } from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface SignUpParams {
   email: string;
@@ -52,18 +56,101 @@ export async function signOut() {
   if (error) throw error;
 }
 
-export async function signInWithGoogle() {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
+export async function resendConfirmation(email: string) {
+  const { data, error } = await supabase.auth.resend({
+    type: 'signup',
+    email: email,
   });
   if (error) throw error;
   return data;
 }
 
+export async function signInWithGoogle() {
+  const redirectTo = makeRedirectUri({
+    path: "/auth/callback",
+  });
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
+    },
+  });
+
+  if (error) throw error;
+
+  // Open the OAuth provider's authentication URL
+  if (data.url) {
+    const result = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      redirectTo
+    );
+
+    if (result.type === "success") {
+      const url = result.url;
+      // Extract the session from the URL
+      const urlObj = new URL(url);
+      const access_token = urlObj.searchParams.get("access_token");
+      const refresh_token = urlObj.searchParams.get("refresh_token");
+
+      if (access_token) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token,
+          refresh_token: refresh_token || "",
+        });
+
+        if (sessionError) throw sessionError;
+        return sessionData;
+      }
+    }
+  }
+
+  return data;
+}
+
 export async function signInWithApple() {
+  const redirectTo = makeRedirectUri({
+    path: "/auth/callback",
+  });
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "apple",
+    options: {
+      redirectTo,
+    },
   });
+
   if (error) throw error;
+
+  // Open the OAuth provider's authentication URL
+  if (data.url) {
+    const result = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      redirectTo
+    );
+
+    if (result.type === "success") {
+      const url = result.url;
+      // Extract the session from the URL
+      const urlObj = new URL(url);
+      const access_token = urlObj.searchParams.get("access_token");
+      const refresh_token = urlObj.searchParams.get("refresh_token");
+
+      if (access_token) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token,
+          refresh_token: refresh_token || "",
+        });
+
+        if (sessionError) throw sessionError;
+        return sessionData;
+      }
+    }
+  }
+
   return data;
 }

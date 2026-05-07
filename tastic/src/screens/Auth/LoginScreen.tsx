@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../types/navigation";
-import { signIn } from "../../services/auth";
+import { signIn, signInWithGoogle, signInWithApple } from "../../services/auth";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "Login">;
 
@@ -38,6 +38,32 @@ export function LoginScreen() {
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : t("auth.loginError");
       setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: "google" | "apple") => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log(`Attempting ${provider} login...`);
+      if (provider === "google") {
+        const result = await signInWithGoogle();
+        console.log("Google login result:", result);
+      } else {
+        const result = await signInWithApple();
+        console.log("Apple login result:", result);
+      }
+    } catch (e: unknown) {
+      console.error(`${provider} login error:`, e);
+      const message = e instanceof Error ? e.message : `${provider} 로그인에 실패했습니다`;
+      setError(message);
+      Alert.alert(
+        "로그인 오류",
+        `${provider === "google" ? "Google" : "Apple"} 로그인이 현재 설정되지 않았습니다. 이메일로 로그인해주세요.`,
+        [{ text: "확인" }]
+      );
     } finally {
       setLoading(false);
     }
@@ -122,11 +148,19 @@ export function LoginScreen() {
           </View>
 
           {/* Social Login */}
-          <Pressable className="border border-surface-tertiary rounded-xl py-3.5 items-center mb-3">
-            <Text className="text-text font-medium text-base">{t("auth.socialApple")}</Text>
-          </Pressable>
-          <Pressable className="border border-surface-tertiary rounded-xl py-3.5 items-center mb-8">
+          <Pressable
+            className="border border-surface-tertiary rounded-xl py-3.5 items-center mb-3"
+            onPress={() => handleSocialLogin("google")}
+            disabled={loading}
+          >
             <Text className="text-text font-medium text-base">{t("auth.socialGoogle")}</Text>
+          </Pressable>
+          <Pressable
+            className="border border-surface-tertiary rounded-xl py-3.5 items-center mb-8"
+            onPress={() => handleSocialLogin("apple")}
+            disabled={loading}
+          >
+            <Text className="text-text font-medium text-base">{t("auth.socialApple")}</Text>
           </Pressable>
 
           {/* Sign Up Link */}

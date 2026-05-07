@@ -24,10 +24,12 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
       if (saved) {
         set({ isDark: saved === "dark" });
       } else {
-        set({ isDark: Appearance.getColorScheme() === "dark" });
+        // 기본값: 라이트모드 (시스템 설정 무시)
+        set({ isDark: false });
       }
     } catch {
       // ignore — default to light
+      set({ isDark: false });
     }
   },
 }));

@@ -27,7 +27,19 @@
     "nicknameDuplicate": "이미 사용 중인 닉네임입니다",
     "loginError": "이메일 또는 비밀번호가 올바르지 않습니다",
     "networkError": "네트워크 연결을 확인해주세요",
-    "sessionExpired": "세션이 만료되었습니다. 다시 로그인해주세요"
+    "sessionExpired": "세션이 만료되었습니다. 다시 로그인해주세요",
+    "step3Title": "이메일 확인",
+    "emailVerificationTitle": "이메일을 확인해주세요",
+    "emailVerificationMessage": "{{email}}로 인증 이메일을 보냈습니다.\n이메일의 링크를 클릭하여 가입을 완료해주세요.",
+    "emailVerificationTip": "💡 이메일이 보이지 않나요?\n스팸함을 확인하거나 몇 분 후 다시 확인해보세요.",
+    "resendEmail": "이메일 다시 보내기",
+    "resendEmailTitle": "이메일 재전송",
+    "resendEmailConfirm": "이메일을 다시 전송하시겠습니까?",
+    "resendEmailSuccess": "인증 이메일을 다시 보냈습니다.",
+    "resendEmailSuccessTitle": "전송 완료",
+    "resendEmailFailed": "이메일 전송에 실패했습니다",
+    "resendEmailFailedTitle": "전송 실패",
+    "goToLogin": "로그인 화면으로 이동"
   },
   "tabs": {
     "history": "히스토리",

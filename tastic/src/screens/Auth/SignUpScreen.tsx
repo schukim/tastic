@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -15,7 +16,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../types/navigation";
 import type { ContentCategory } from "../../types/database";
 import { CategoryChip } from "../../components/common/CategoryChip";
-import { signUp } from "../../services/auth";
+import { signUp, resendConfirmation } from "../../services/auth";
+import { supabase } from "../../services/supabase";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "SignUp">;
 
@@ -27,8 +29,8 @@ export function SignUpScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
 
-  // Step 1 state
-  const [step, setStep] = useState<1 | 2>(1);
+  // Step state
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -36,6 +38,9 @@ export function SignUpScreen() {
   // Step 2 state
   const [nickname, setNickname] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<ContentCategory[]>([]);
+
+  // Step 3 state
+  const [emailSent, setEmailSent] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,20 +58,65 @@ export function SignUpScreen() {
     );
   };
 
+  // 이메일 인증 상태 감지
+  useEffect(() => {
+    if (emailSent) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
+          console.log('이메일 인증 완료, 자동 로그인됨');
+          // 자동으로 메인 화면으로 이동됨 (RootNavigator에서 처리)
+        }
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('토큰 갱신됨');
+          // 이메일 인증 후 토큰 갱신되면 다시 로그인 화면으로
+          navigation.navigate('Login');
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    }
+  }, [emailSent, navigation]);
+
   const handleSignUp = async () => {
     if (!step2Valid) return;
     setLoading(true);
     setError(null);
     try {
-      await signUp({
+      const result = await signUp({
         email,
         password,
         nickname: nickname.trim(),
         preferredCategories: selectedCategories,
       });
+
+      console.log('회원가입 결과:', result);
+
+      // 회원가입 성공 - 이메일 확인 단계로 이동
+      setEmailSent(true);
+      setStep(3);
+
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Sign up failed";
+      console.error('회원가입 에러:', e);
+      const message = e instanceof Error ? e.message : "회원가입에 실패했습니다";
       setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendEmail = async () => {
+    try {
+      setLoading(true);
+      await resendConfirmation(email);
+      Alert.alert(
+        t("auth.resendEmailSuccessTitle"),
+        t("auth.resendEmailSuccess"),
+        [{ text: t("common.confirm") }]
+      );
+    } catch (e: unknown) {
+      console.error('이메일 재전송 에러:', e);
+      const message = e instanceof Error ? e.message : t("auth.resendEmailFailed");
+      Alert.alert(t("auth.resendEmailFailedTitle"), message, [{ text: t("common.confirm") }]);
     } finally {
       setLoading(false);
     }
@@ -86,13 +136,16 @@ export function SignUpScreen() {
           {/* Header */}
           <Text className="text-primary text-3xl font-bold mb-2">{t("app.name")}</Text>
           <Text className="text-text-secondary text-base mb-8">
-            {step === 1 ? t("auth.step1Title") : t("auth.step2Title")}
+            {step === 1 ? t("auth.step1Title") :
+             step === 2 ? t("auth.step2Title") :
+             t("auth.step3Title")}
           </Text>
 
           {/* Step indicator */}
           <View className="flex-row mb-8">
-            <View className={`flex-1 h-1 rounded mr-2 ${step >= 1 ? "bg-primary" : "bg-surface-tertiary"}`} />
-            <View className={`flex-1 h-1 rounded ${step >= 2 ? "bg-primary" : "bg-surface-tertiary"}`} />
+            <View className={`flex-1 h-1 rounded mr-1 ${step >= 1 ? "bg-primary" : "bg-surface-tertiary"}`} />
+            <View className={`flex-1 h-1 rounded mx-1 ${step >= 2 ? "bg-primary" : "bg-surface-tertiary"}`} />
+            <View className={`flex-1 h-1 rounded ml-1 ${step >= 3 ? "bg-primary" : "bg-surface-tertiary"}`} />
           </View>
 
           {step === 1 ? (
@@ -152,7 +205,7 @@ export function SignUpScreen() {
                 <Text className="text-white font-semibold text-base">{t("auth.next")}</Text>
               </Pressable>
             </>
-          ) : (
+          ) : step === 2 ? (
             <>
               {/* Nickname */}
               <View className="mb-6">
@@ -192,6 +245,51 @@ export function SignUpScreen() {
                 <Text className="text-white font-semibold text-base">
                   {loading ? "..." : t("auth.startButton")}
                 </Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {/* Step 3: Email Verification */}
+              <View className="items-center mb-8">
+                <Text className="text-6xl mb-4">📧</Text>
+                <Text className="text-text text-lg font-semibold mb-2">{t("auth.emailVerificationTitle")}</Text>
+                <Text className="text-text-secondary text-center text-base mb-4">
+                  {t("auth.emailVerificationMessage", { email })}
+                </Text>
+
+                <View className="bg-surface-secondary rounded-xl p-4 mb-6">
+                  <Text className="text-text-secondary text-sm text-center">
+                    {t("auth.emailVerificationTip")}
+                  </Text>
+                </View>
+              </View>
+
+              {/* 이메일 재전송 버튼 */}
+              <Pressable
+                className={`border border-primary rounded-xl py-4 items-center mb-4 ${loading ? "opacity-50" : ""}`}
+                onPress={() => {
+                  Alert.alert(
+                    t("auth.resendEmailTitle"),
+                    t("auth.resendEmailConfirm"),
+                    [
+                      { text: t("common.cancel") },
+                      { text: t("common.confirm"), onPress: handleResendEmail }
+                    ]
+                  );
+                }}
+                disabled={loading}
+              >
+                <Text className="text-primary font-semibold text-base">
+                  {loading ? "..." : t("auth.resendEmail")}
+                </Text>
+              </Pressable>
+
+              {/* 로그인 화면으로 이동 */}
+              <Pressable
+                className="bg-primary rounded-xl py-4 items-center"
+                onPress={() => navigation.navigate("Login")}
+              >
+                <Text className="text-white font-semibold text-base">{t("auth.goToLogin")}</Text>
               </Pressable>
             </>
           )}

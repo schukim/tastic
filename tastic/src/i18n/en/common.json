@@ -27,7 +27,19 @@
     "nicknameDuplicate": "Nickname already taken",
     "loginError": "Invalid email or password",
     "networkError": "Please check your network connection",
-    "sessionExpired": "Session expired. Please log in again"
+    "sessionExpired": "Session expired. Please log in again",
+    "step3Title": "Email Verification",
+    "emailVerificationTitle": "Check your email",
+    "emailVerificationMessage": "We sent a verification email to {{email}}.\nClick the link in the email to complete your registration.",
+    "emailVerificationTip": "💡 Don't see the email?\nCheck your spam folder or try again in a few minutes.",
+    "resendEmail": "Resend Email",
+    "resendEmailTitle": "Resend Email",
+    "resendEmailConfirm": "Would you like to resend the email?",
+    "resendEmailSuccess": "Verification email sent again.",
+    "resendEmailSuccessTitle": "Email Sent",
+    "resendEmailFailed": "Failed to send email",
+    "resendEmailFailedTitle": "Send Failed",
+    "goToLogin": "Go to Login"
   },
   "tabs": {
     "history": "History",
