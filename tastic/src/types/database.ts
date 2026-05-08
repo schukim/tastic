@@ -44,7 +44,7 @@ export interface Review {
 export interface ConversationEntry {
   role: "interviewer" | "user";
   text: string;
-  question_type?: "initial" | "drill_down" | "pivot";
+  question_type?: "initial" | "deep" | "wide" | "wrap_up";
   topic_label?: string;
 }
 

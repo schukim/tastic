@@ -13,14 +13,26 @@ import type {
   LLMErrorResponse,
 } from "../types/llm";
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("요청 시간이 초과되었습니다.")), ms)
+    ),
+  ]);
+}
+
 async function invokeFunction<TReq, TRes>(
   functionName: string,
   body: TReq,
   timeoutMs: number
 ): Promise<TRes> {
-  const { data, error } = await supabase.functions.invoke(functionName, {
-    body: body as Record<string, unknown>,
-  });
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke(functionName, {
+      body: body as Record<string, unknown>,
+    }),
+    timeoutMs
+  );
 
   if (error) {
     // FunctionsHttpError carries the actual Response in .context — read it

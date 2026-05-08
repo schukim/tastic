@@ -39,8 +39,9 @@ export interface GenerateQuestionRequest {
 
 export interface GenerateQuestionResponse {
   question: string;
-  question_type: "initial" | "drill_down" | "pivot";
+  question_type: "initial" | "deep" | "wide" | "wrap_up";
   topic_label: string;
+  should_end?: boolean;
 }
 
 // ── generate-review ──

@@ -16,6 +16,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
+  withDelay,
   Easing,
 } from "react-native-reanimated";
 import type { ReviewStackParamList } from "../../types/navigation";
@@ -62,6 +63,48 @@ export function ReviewHomeScreen() {
   const paddingTop = useSharedValue(height * 0.32);
   const fieldsOpacity = useSharedValue(0);
   const fieldsTranslateY = useSharedValue(16);
+
+  // Entrance animations
+  const ENTER = { duration: 420, easing: Easing.out(Easing.cubic) };
+  const greetingOpacity = useSharedValue(0);
+  const greetingTranslateY = useSharedValue(18);
+  const subtitleOpacity = useSharedValue(0);
+  const subtitleTranslateY = useSharedValue(18);
+  const chip0Opacity = useSharedValue(0);
+  const chip0TranslateY = useSharedValue(14);
+  const chip1Opacity = useSharedValue(0);
+  const chip1TranslateY = useSharedValue(14);
+  const chip2Opacity = useSharedValue(0);
+  const chip2TranslateY = useSharedValue(14);
+  const chip3Opacity = useSharedValue(0);
+  const chip3TranslateY = useSharedValue(14);
+
+  const greetingStyle = useAnimatedStyle(() => ({
+    opacity: greetingOpacity.value,
+    transform: [{ translateY: greetingTranslateY.value }],
+  }));
+  const subtitleStyle = useAnimatedStyle(() => ({
+    opacity: subtitleOpacity.value,
+    transform: [{ translateY: subtitleTranslateY.value }],
+  }));
+  const chipStyles = [
+    useAnimatedStyle(() => ({ opacity: chip0Opacity.value, transform: [{ translateY: chip0TranslateY.value }] })),
+    useAnimatedStyle(() => ({ opacity: chip1Opacity.value, transform: [{ translateY: chip1TranslateY.value }] })),
+    useAnimatedStyle(() => ({ opacity: chip2Opacity.value, transform: [{ translateY: chip2TranslateY.value }] })),
+    useAnimatedStyle(() => ({ opacity: chip3Opacity.value, transform: [{ translateY: chip3TranslateY.value }] })),
+  ];
+
+  useEffect(() => {
+    greetingOpacity.value = withDelay(0, withTiming(1, ENTER));
+    greetingTranslateY.value = withDelay(0, withTiming(0, ENTER));
+    subtitleOpacity.value = withDelay(120, withTiming(1, ENTER));
+    subtitleTranslateY.value = withDelay(120, withTiming(0, ENTER));
+    const chipOpacities = [chip0Opacity, chip1Opacity, chip2Opacity, chip3Opacity];
+    const chipTranslates = [chip0TranslateY, chip1TranslateY, chip2TranslateY, chip3TranslateY];
+    chipOpacities.forEach((sv, i) => { sv.value = withDelay(260 + i * 90, withTiming(1, ENTER)); });
+    chipTranslates.forEach((sv, i) => { sv.value = withDelay(260 + i * 90, withTiming(0, ENTER)); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const containerStyle = useAnimatedStyle(() => ({
     paddingTop: paddingTop.value,
@@ -139,32 +182,39 @@ export function ReviewHomeScreen() {
           style={containerStyle}
         >
           {/* Greeting */}
-          <Text className="text-text dark:text-text-dark text-2xl font-bold leading-9 mb-6">
-            {t("review.greeting", { name: user?.nickname ?? "" })}
-          </Text>
+          <Animated.View style={greetingStyle}>
+            <Text className="text-text dark:text-text-dark text-2xl font-bold leading-9 mb-6">
+              {t("review.greeting", { name: user?.nickname ?? "" })}
+            </Text>
+          </Animated.View>
 
           {/* Category chips */}
           {!isExpanded && (
-            <Text className="text-text-secondary dark:text-text-dark-secondary text-sm mb-3">카테고리를 선택하세요</Text>
+            <Animated.View style={subtitleStyle}>
+              <Text className="text-text-secondary dark:text-text-dark-secondary text-sm mb-3">
+                카테고리를 선택하세요
+              </Text>
+            </Animated.View>
           )}
           <View className="flex-row flex-wrap mb-4">
-            {ALL_CATEGORIES.map((cat) => (
-              <CategoryChip
-                key={cat}
-                category={cat}
-                selected={category === cat}
-                onPress={() => {
-                  if (isExpanded) {
-                    setCategory(cat);
-                    setMusicType("album");
-                    setTitle("");
-                    setCreator("");
-                    setTimeout(() => titleRef.current?.focus(), 100);
-                  } else {
-                    handleSelectCategory(cat);
-                  }
-                }}
-              />
+            {ALL_CATEGORIES.map((cat, i) => (
+              <Animated.View key={cat} style={chipStyles[i]}>
+                <CategoryChip
+                  category={cat}
+                  selected={category === cat}
+                  onPress={() => {
+                    if (isExpanded) {
+                      setCategory(cat);
+                      setMusicType("album");
+                      setTitle("");
+                      setCreator("");
+                      setTimeout(() => titleRef.current?.focus(), 100);
+                    } else {
+                      handleSelectCategory(cat);
+                    }
+                  }}
+                />
+              </Animated.View>
             ))}
           </View>
 

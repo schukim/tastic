@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useRoute } from "@react-navigation/native";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import type { ContentCategory } from "../../types/database";
 import type { RecommendContentResponse } from "../../types/llm";
@@ -45,13 +45,12 @@ const CATEGORY_ACCENT: Record<string, string> = {
   music:       "#2E3D4F",
   book:        "#3D4A2E",
   art:         "#5C4A2E",
-  exhibition:  "#3D2E4A",
-  performance: "#5C3D2E",
 };
 
 export function RecommendScreen() {
   const { t } = useTranslation();
   const route = useRoute();
+  const navigation = useNavigation();
   const user = useAuthStore((s) => s.user);
   const { isDark } = useTheme();
   const lang = user?.language ?? "ko";
@@ -112,6 +111,58 @@ export function RecommendScreen() {
   };
 
   const notEnoughReviews = reviewCount !== null && reviewCount < 3;
+
+  if (reviewCount === null) {
+    return (
+      <SafeAreaView className={`flex-1 ${isDark ? 'dark' : ''}`} style={{ backgroundColor: isDark ? '#1A1814' : '#F8F6F1' }} />
+    );
+  }
+
+  if (notEnoughReviews) {
+    const progress = Math.min((reviewCount ?? 0) / 3, 1);
+    return (
+      <SafeAreaView className={`flex-1 ${isDark ? 'dark' : ''}`} style={{ backgroundColor: isDark ? '#1A1814' : '#F8F6F1' }}>
+        <ScrollView className="flex-1" contentContainerStyle={{ flex: 1, justifyContent: 'center', paddingHorizontal: 32, paddingBottom: 48 }}>
+          <Animated.View entering={FadeInDown.duration(600)} className="items-center">
+            <View className="w-24 h-24 rounded-3xl bg-surface-secondary dark:bg-surface-dark-secondary items-center justify-center mb-8 shadow-lg border-2 border-surface-border/30 dark:border-surface-dark-border/30">
+              <Text className="text-5xl">💡</Text>
+            </View>
+
+            <Text className="text-text dark:text-text-dark text-3xl font-bold text-center mb-4 leading-tight">
+              {lang === "ko" ? "조금만 더!" : "Almost there"}
+            </Text>
+            <Text className="text-text-secondary dark:text-text-dark-secondary text-lg text-center leading-7 mb-10 font-medium">
+              {lang === "ko"
+                ? `평론 ${3 - (reviewCount ?? 0)}편만 더 작성하면\n취향 기반 추천을 받을 수 있어요`
+                : `Write ${3 - (reviewCount ?? 0)} more review${3 - (reviewCount ?? 0) > 1 ? 's' : ''} to\nunlock personalized recommendations`}
+            </Text>
+
+            <View className="w-full mb-3">
+              <View className="h-3 bg-surface-tertiary dark:bg-surface-dark-tertiary rounded-full overflow-hidden shadow-inner">
+                <Animated.View
+                  entering={FadeInDown.delay(300).duration(800)}
+                  className="h-full bg-primary dark:bg-primary-dm rounded-full"
+                  style={{ width: `${progress * 100}%` }}
+                />
+              </View>
+            </View>
+            <Text className="text-text-secondary dark:text-text-dark-secondary text-base mb-12 font-semibold">
+              {reviewCount} / 3 {lang === "ko" ? "평론" : "reviews"}
+            </Text>
+
+            <Pressable
+              className="border-2 border-text dark:border-primary-dm rounded-3xl px-10 py-4 active:scale-95 transition-transform"
+              onPress={() => navigation.navigate("ReviewTab" as never)}
+            >
+              <Text className="text-text dark:text-primary-dm font-bold text-base">
+                {lang === "ko" ? "평론 쓰러 가기" : "Write a review"}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className={`flex-1 ${isDark ? 'dark' : ''}`} style={{ backgroundColor: isDark ? '#1A1814' : '#F8F6F1' }}>
@@ -204,20 +255,6 @@ export function RecommendScreen() {
                     </Pressable>
                   </Animated.View>
                 ))}
-              </View>
-            </Animated.View>
-          )}
-
-          {/* ── Enhanced Not enough reviews ── */}
-          {notEnoughReviews && (
-            <Animated.View entering={FadeIn.duration(400)} className="mx-7">
-              <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-3xl p-8 border-2 border-surface-border/50 dark:border-surface-dark-border/50 items-center">
-                <View className="w-16 h-16 rounded-3xl bg-surface-tertiary dark:bg-surface-dark-tertiary items-center justify-center mb-4">
-                  <Text className="text-3xl">📝</Text>
-                </View>
-                <Text className="text-text-secondary dark:text-text-dark-secondary text-base text-center leading-7 font-medium">
-                  {t("recommend.needMore")}
-                </Text>
               </View>
             </Animated.View>
           )}

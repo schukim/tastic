@@ -39,8 +39,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   music: "음악",
   book: "책",
   art: "미술",
-  exhibition: "전시",
-  performance: "공연",
 };
 
 export function AnalysisScreen() {

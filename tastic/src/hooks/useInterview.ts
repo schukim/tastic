@@ -17,6 +17,7 @@ export function useInterview(content: Content) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [isInterviewComplete, setIsInterviewComplete] = useState(false);
   const interviewIdRef = useRef<string | null>(null);
 
   const canPreview = questionCount >= 5;
@@ -66,6 +67,12 @@ export function useInterview(content: Content) {
         });
       }
 
+      if (response.should_end) {
+        setIsInterviewComplete(true);
+        setRetryCount(0);
+        return response;
+      }
+
       setCurrentQuestion(response);
       setRetryCount(0);
 
@@ -98,6 +105,12 @@ export function useInterview(content: Content) {
 
     setConversation(updatedConv);
     setQuestionCount(newCount);
+
+    // Max 6 turns — guard against extra calls
+    if (newCount >= 6) {
+      setIsInterviewComplete(true);
+      return null;
+    }
 
     // Auto-save draft
     await saveDraft({
@@ -166,7 +179,7 @@ export function useInterview(content: Content) {
     if (lastQuestion) {
       setCurrentQuestion({
         question: lastQuestion.text,
-        question_type: lastQuestion.question_type ?? "drill_down",
+        question_type: lastQuestion.question_type ?? "deep",
         topic_label: lastQuestion.topic_label ?? "",
       });
     }
@@ -179,6 +192,7 @@ export function useInterview(content: Content) {
     isLoading,
     error,
     canPreview,
+    isInterviewComplete,
     interviewId: interviewIdRef.current,
     initInterview,
     fetchQuestion,

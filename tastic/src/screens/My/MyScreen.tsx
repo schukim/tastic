@@ -29,6 +29,7 @@ export function MyScreen() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  const reset = useAuthStore((s) => s.reset);
   const { isDark, setDark } = useTheme();
 
   const [reviewCount, setReviewCount] = useState(0);
@@ -82,7 +83,12 @@ export function MyScreen() {
 
   const handleLogout = async () => {
     setShowLogoutDialog(false);
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // signOut failed (e.g. network), fall through to reset store
+    }
+    reset();
   };
 
   const handleDeleteAccount = async () => {

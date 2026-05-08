@@ -7,24 +7,16 @@ export function useAuth() {
   const { setSession, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setSession(session);
         if (session?.user) {
           await fetchProfile(session.user.id);
+          setSession(session);
         } else {
           setUser(null);
-          setLoading(false);
+          setSession(null);
         }
+        setLoading(false);
       }
     );
 
@@ -43,8 +35,6 @@ export function useAuth() {
       setUser(data as User);
     } catch {
       setUser(null);
-    } finally {
-      setLoading(false);
     }
   }
 }

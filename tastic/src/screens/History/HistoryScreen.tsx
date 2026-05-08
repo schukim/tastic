@@ -7,6 +7,8 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -29,8 +31,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   music:       "#2E3D4F",
   book:        "#3D4A2E",
   art:         "#5C4A2E",
-  exhibition:  "#3D2E4A",
-  performance: "#5C3D2E",
 };
 
 const CATEGORY_BG: Record<string, string> = {
@@ -38,8 +38,6 @@ const CATEGORY_BG: Record<string, string> = {
   music:       "#2E3D4F18",
   book:        "#3D4A2E18",
   art:         "#5C4A2E18",
-  exhibition:  "#3D2E4A18",
-  performance: "#5C3D2E18",
 };
 
 const DAYS_OF_WEEK_KO = ["일", "월", "화", "수", "목", "금", "토"];
@@ -347,6 +345,10 @@ export function HistoryScreen() {
         animationType="slide"
         onRequestClose={() => { setSelectedReview(null); setIsEditing(false); }}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
         <Pressable
           className="flex-1"
           style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
@@ -500,6 +502,7 @@ export function HistoryScreen() {
             )}
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Enhanced Toast */}

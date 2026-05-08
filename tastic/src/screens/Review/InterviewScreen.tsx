@@ -175,12 +175,12 @@ export function InterviewScreen() {
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
           {displayPairs.map((pair, idx) => {
-            const isPivot = pair.question.question_type === "pivot";
-            const isNewTopic =
-              isPivot ||
+            const isTopicShift =
+              pair.question.question_type === "wide" ||
+              pair.question.question_type === "wrap_up" ||
               pair.question.topic_label !== displayPairs[idx - 1]?.question.topic_label;
 
-            const AnimWrapper = isPivot ? SlideInRight : FadeInDown;
+            const AnimWrapper = isTopicShift ? SlideInRight : FadeInDown;
 
             return (
               <Animated.View
@@ -192,7 +192,7 @@ export function InterviewScreen() {
                   question={pair.question.text}
                   topicLabel={pair.question.topic_label ?? ""}
                   questionNumber={idx + 1}
-                  isNewTopic={isNewTopic}
+                  isNewTopic={isTopicShift}
                 />
                 {pair.answer && (
                   <Animated.View entering={FadeIn.delay(100)} className="mt-3 ml-4">
