@@ -1,15 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
-const MODEL = "gpt-4o-mini";
+const MODEL = "gpt-4o";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function callOpenAI(prompt: string, temperature = 0.5, maxTokens = 2048) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+async function callOpenAI(prompt: string, _temperature = 0.5, maxTokens = 2048) {
+  const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -17,15 +17,18 @@ async function callOpenAI(prompt: string, temperature = 0.5, maxTokens = 2048) {
     },
     body: JSON.stringify({
       model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature,
-      max_tokens: maxTokens,
+      tools: [{ type: "web_search_preview" }],
+      input: prompt,
+      max_output_tokens: maxTokens,
     }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
-  return JSON.parse(data.choices[0].message.content);
+  const message = data.output?.find((o: { type: string }) => o.type === "message");
+  if (!message) throw new Error("No message in response");
+  const raw = message.content[0].text as string;
+  const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
+  return JSON.parse(jsonMatch ? jsonMatch[1] : raw);
 }
 
 Deno.serve(async (req) => {

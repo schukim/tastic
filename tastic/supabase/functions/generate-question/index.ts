@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
-const MODEL = "gpt-4o-mini";
+const MODEL = "gpt-4o";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -35,6 +35,19 @@ const TURN_ROLE: Record<number, string> = {
   5: "정리(wrap_up) — 감상의 조각들을 사용자 스스로 연결하게 만드는 마무리 질문. 이 답변이 리뷰의 핵심 문장이 된다",
   6: "조건부 추가 — 아래 6번째 질문 조건 섹션 참고",
 };
+
+function formatMetadata(metadata: Record<string, unknown>): string {
+  const entries = Object.entries(metadata).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  if (entries.length === 0) return "";
+
+  const lines = entries.map(([k, v]) => {
+    if (Array.isArray(v)) return `- ${k}: ${(v as unknown[]).join(", ")}`;
+    if (typeof v === "object") return `- ${k}: ${JSON.stringify(v)}`;
+    return `- ${k}: ${v}`;
+  });
+
+  return `\n추가 작품 정보 (질문 생성에 활용):\n${lines.join("\n")}`;
+}
 
 function buildPrompt(
   content: { title: string; category: string; creator: string | null; year: number | null; genre: string | null; metadata: Record<string, unknown> },
@@ -120,7 +133,7 @@ ${language === "ko" ? "한국어" : "English"}로 질문을 생성하라.
 - 카테고리: ${content.category}
 - 창작자: ${content.creator ?? "정보 없음"}
 - 연도: ${content.year ?? "정보 없음"}
-- 장르: ${content.genre ?? "정보 없음"}
+- 장르: ${content.genre ?? "정보 없음"}${formatMetadata(content.metadata)}
 
 이전 대화:
 ${conversationText}

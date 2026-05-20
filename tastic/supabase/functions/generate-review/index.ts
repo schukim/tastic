@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
-const MODEL = "gpt-4o-mini";
+const MODEL = "gpt-4o";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
