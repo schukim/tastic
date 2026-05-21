@@ -59,7 +59,7 @@ export async function verifyContent(
   return invokeFunction<VerifyContentRequest, VerifyContentResponse>(
     "verify-content",
     request,
-    10_000
+    25_000
   );
 }
 

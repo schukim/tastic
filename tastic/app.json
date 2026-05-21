@@ -30,6 +30,11 @@
     },
     "plugins": [
       "expo-localization"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "434af8a9-7105-40d4-9f49-c2cc58a2a6cd"
+      }
+    }
   }
 }
