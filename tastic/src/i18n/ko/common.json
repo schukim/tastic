@@ -52,7 +52,8 @@
     "movie": "영화",
     "music": "음악",
     "book": "책",
-    "art": "미술"
+    "art": "미술",
+    "series": "시리즈"
   },
   "review": {
     "greeting": "{{name}}님, 오늘은 무엇을 감상하셨나요?",

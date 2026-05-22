@@ -2,7 +2,8 @@ export type ContentCategory =
   | "movie"
   | "music"
   | "book"
-  | "art";
+  | "art"
+  | "series";
 
 export type InterviewStatus = "in_progress" | "completed" | "abandoned";
 
@@ -17,23 +18,34 @@ export interface User {
   created_at: string;
 }
 
-export interface Content {
+export interface Work {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  category: ContentCategory;
   title: string;
   original_title: string | null;
-  category: ContentCategory;
   creator: string | null;
   year: number | null;
   genre: string | null;
+  title_normalized: string | null;
   metadata: Record<string, unknown>;
+  primary_source: string | null;
+  contributing_sources: string[];
+  external_ids: Record<string, string>;
+  last_synced_at: string | null;
+  sync_status: string;
+  is_verified: boolean;
   created_at: string;
+  updated_at: string;
 }
+
+// Content는 Work의 별칭 (네비게이션 파라미터 등 기존 코드 호환)
+export type Content = Work;
 
 export interface Review {
   id: string;
   user_id: string;
-  content_id: string;
+  work_id: string;
   title: string | null;
   body: string;
   experience_date: string | null;
@@ -52,7 +64,7 @@ export interface Interview {
   id: string;
   review_id: string | null;
   user_id: string;
-  content_id: string;
+  work_id: string;
   conversation: ConversationEntry[];
   question_count: number;
   status: InterviewStatus;
@@ -67,6 +79,7 @@ export interface TasteProfile {
   recommendation_hook: string | null;
   review_count: number;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Recommendation {
@@ -87,6 +100,6 @@ export interface RecommendationItem {
 }
 
 // Placeholder — run `npm run db:types` with a live Supabase instance to generate
-// the full Database type. Until then, we use a minimal shape so the client compiles.
+// the full Database type.
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface Database {}

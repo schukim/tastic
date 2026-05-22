@@ -8,26 +8,28 @@ const CATEGORY_ICONS: Record<ContentCategory, string> = {
   music: "\uD83C\uDFB5",
   book: "\uD83D\uDCDA",
   art: "\uD83C\uDFA8",
+  series: "\uD83D\uDCFA",
 };
 
 interface CategoryChipProps {
   category: ContentCategory;
   selected: boolean;
   onPress: (category: ContentCategory) => void;
+  fluid?: boolean;
 }
 
-export function CategoryChip({ category, selected, onPress }: CategoryChipProps) {
+export function CategoryChip({ category, selected, onPress, fluid }: CategoryChipProps) {
   const { t } = useTranslation();
 
   return (
     <Pressable
-      className={`flex-row items-center px-4 py-2 rounded-full mr-2 mb-2 ${
-        selected ? "bg-primary" : "bg-surface-tertiary"
-      }`}
+      className={`flex-row items-center justify-center py-2 rounded-full ${
+        fluid ? "px-2 w-full" : "px-4 mr-2 mb-2"
+      } ${selected ? "bg-primary dark:bg-primary-dm" : "bg-surface-tertiary dark:bg-surface-dark-secondary"}`}
       onPress={() => onPress(category)}
     >
-      <Text className="mr-1">{CATEGORY_ICONS[category]}</Text>
-      <Text className={`text-sm font-medium ${selected ? "text-white" : "text-text"}`}>
+      <Text className="mr-1 text-sm">{CATEGORY_ICONS[category]}</Text>
+      <Text className={`text-xs font-medium ${selected ? "text-white" : "text-text dark:text-text-dark"}`}>
         {t(`category.${category}`)}
       </Text>
     </Pressable>

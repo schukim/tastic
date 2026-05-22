@@ -22,7 +22,7 @@ import { supabase } from "../../services/supabase";
 type Nav = NativeStackNavigationProp<AuthStackParamList, "SignUp">;
 
 const ALL_CATEGORIES: ContentCategory[] = [
-  "movie", "music", "book", "art",
+  "movie", "music", "book", "art", "series",
 ];
 
 export function SignUpScreen() {
@@ -221,14 +221,17 @@ export function SignUpScreen() {
               {/* Categories */}
               <View className="mb-6">
                 <Text className="text-text-secondary text-sm mb-3">{t("auth.selectCategories")}</Text>
-                <View className="flex-row flex-wrap">
+                <View className="flex-row gap-1.5">
                   {ALL_CATEGORIES.map((cat) => (
-                    <CategoryChip
-                      key={cat}
-                      category={cat}
-                      selected={selectedCategories.includes(cat)}
-                      onPress={toggleCategory}
-                    />
+                    <View key={cat} style={{ flex: 1 }}>
+                      <CategoryChip
+                        key={cat}
+                        category={cat}
+                        selected={selectedCategories.includes(cat)}
+                        onPress={toggleCategory}
+                        fluid
+                      />
+                    </View>
                   ))}
                 </View>
               </View>

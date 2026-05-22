@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useFocusEffect } from "@react-navigation/native";
+// import { useFocusEffect } from "@react-navigation/native"; // Temporarily disabled
 import Animated, { FadeIn, FadeInDown, SlideInDown } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useAuthStore } from "../../stores/authStore";
@@ -31,6 +31,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   music:       "#2E3D4F",
   book:        "#3D4A2E",
   art:         "#5C4A2E",
+  series:      "#2E3050",
 };
 
 const CATEGORY_BG: Record<string, string> = {
@@ -38,6 +39,7 @@ const CATEGORY_BG: Record<string, string> = {
   music:       "#2E3D4F18",
   book:        "#3D4A2E18",
   art:         "#5C4A2E18",
+  series:      "#2E305018",
 };
 
 const DAYS_OF_WEEK_KO = ["일", "월", "화", "수", "목", "금", "토"];
@@ -84,11 +86,10 @@ export function HistoryScreen() {
     }
   }, [user, year, month]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadReviews();
-    }, [loadReviews])
-  );
+  // Use useEffect instead of useFocusEffect to avoid NavigationContainer context issues
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
 
   const prevMonth = () => {
     if (month === 1) { setMonth(12); setYear(year - 1); }
@@ -104,7 +105,7 @@ export function HistoryScreen() {
   reviews.forEach((r) => {
     const day = new Date(r.created_at).getDate();
     if (!reviewsByDay[day]) reviewsByDay[day] = [];
-    const cat = r.contents?.category;
+    const cat = r.works?.category;
     if (cat && !reviewsByDay[day].includes(cat)) {
       reviewsByDay[day].push(cat);
     }
@@ -160,7 +161,7 @@ export function HistoryScreen() {
   for (let i = 0; i < firstDay; i++) calendarCells.push(null);
   for (let d = 1; d <= daysInMonth; d++) calendarCells.push(d);
 
-  const selectedCategory = selectedReview?.contents?.category ?? "movie";
+  const selectedCategory = selectedReview?.works?.category ?? "movie";
   const accentColor = CATEGORY_COLORS[selectedCategory] ?? "#6B6560";
   const accentBg = CATEGORY_BG[selectedCategory] ?? "#6B656018";
 
@@ -204,65 +205,69 @@ export function HistoryScreen() {
           ))}
         </View>
 
-        {/* Enhanced Calendar grid */}
+        {/* Safe Calendar grid - simplified to avoid navigation context issues */}
         <View className="flex-row flex-wrap px-1">
           {calendarCells.map((day, idx) => {
-            const dots = day ? reviewsByDay[day] ?? [] : [];
+            if (!day) {
+              // Empty cell
+              return <View key={idx} style={{ width: "14.28%", height: 50 }} />;
+            }
+
+            const hasReviews = reviewsByDay[day] && reviewsByDay[day].length > 0;
             const isToday = isCurrentMonth && day === today;
-            const hasDots = dots.length > 0;
 
             return (
-              <Pressable
+              <View
                 key={idx}
-                className={`items-center justify-center rounded-2xl transition-all ${
-                  day && hasDots ? 'active:scale-95' : ''
-                }`}
                 style={{ width: "14.28%", height: 50 }}
-                onPress={() => day && hasDots && handleDayPress(day)}
-                disabled={!day || !hasDots}
+                className="items-center justify-center"
               >
-                {day && (
-                  <>
-                    <View
-                      className={`w-8 h-8 items-center justify-center rounded-2xl transition-all ${
-                        isToday
-                          ? "bg-text dark:bg-primary-dm shadow-lg"
-                          : hasDots
-                          ? "bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-border/30 dark:border-surface-dark-border/30"
-                          : ""
-                      }`}
-                    >
-                      <Text
-                        className={`text-sm transition-colors ${
-                          isToday
-                            ? "text-surface dark:text-surface-dark font-bold"
-                            : hasDots
-                            ? "text-text dark:text-text-dark font-semibold"
-                            : "text-text-tertiary dark:text-text-dark-tertiary"
-                        }`}
-                      >
-                        {day}
-                      </Text>
-                    </View>
-                    {hasDots && (
-                      <View className="flex-row mt-1 gap-1">
-                        {dots.slice(0, 3).map((cat, i) => (
-                          <View
-                            key={i}
-                            className="w-2 h-2 rounded-full shadow-sm"
-                            style={{ backgroundColor: isDark ? CATEGORY_COLORS[cat] + '80' : CATEGORY_COLORS[cat] }}
-                          />
-                        ))}
-                        {dots.length > 3 && (
-                          <Text className="text-text-tertiary dark:text-text-dark-tertiary font-bold" style={{ fontSize: 7 }}>
-                            +{dots.length - 3}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </>
+                <Pressable
+                  onPress={() => hasReviews && handleDayPress(day)}
+                  disabled={!hasReviews}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: isToday
+                      ? (isDark ? '#D4CFC8' : '#221F1A')
+                      : hasReviews
+                      ? (isDark ? '#333028' : '#EAE7E0')
+                      : 'transparent',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: isToday ? 'bold' : hasReviews ? '600' : 'normal',
+                      color: isToday
+                        ? (isDark ? '#221F1A' : '#F8F6F1')
+                        : hasReviews
+                        ? (isDark ? '#D4CFC8' : '#221F1A')
+                        : (isDark ? '#7A7268' : '#9C9589'),
+                    }}
+                  >
+                    {day}
+                  </Text>
+                </Pressable>
+                {hasReviews && (
+                  <View style={{ flexDirection: 'row', marginTop: 2, gap: 2 }}>
+                    {reviewsByDay[day].slice(0, 3).map((cat, i) => (
+                      <View
+                        key={i}
+                        style={{
+                          width: 4,
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor: CATEGORY_COLORS[cat] || '#6B6560',
+                        }}
+                      />
+                    ))}
+                  </View>
                 )}
-              </Pressable>
+              </View>
             );
           })}
         </View>
@@ -294,7 +299,7 @@ export function HistoryScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 12 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item, index }) => {
-            const cat = item.contents?.category ?? "movie";
+            const cat = item.works?.category ?? "movie";
             const color = CATEGORY_COLORS[cat] ?? "#6B6560";
             const bg = CATEGORY_BG[cat] ?? "#6B656018";
             return (
@@ -319,7 +324,7 @@ export function HistoryScreen() {
                       className="text-text dark:text-text-dark text-base font-semibold leading-5 mb-1"
                       numberOfLines={1}
                     >
-                      {item.contents?.title ?? item.title ?? ""}
+                      {item.works?.title ?? item.title ?? ""}
                     </Text>
                     <Text className="text-text-secondary dark:text-text-dark-secondary text-sm">
                       {item.experience_date ?? item.created_at.split("T")[0]}
@@ -368,10 +373,7 @@ export function HistoryScreen() {
                 {/* Enhanced Category color strip with gradient */}
                 <View
                   className="h-1.5 rounded-t-[32px]"
-                  style={{
-                    background: `linear-gradient(90deg, ${accentColor}00 0%, ${accentColor} 50%, ${accentColor}00 100%)`,
-                    backgroundColor: accentColor
-                  }}
+                  style={{ backgroundColor: accentColor }}
                 />
 
                 {/* Refined Drag handle */}
@@ -409,11 +411,11 @@ export function HistoryScreen() {
 
                   {/* Enhanced Title */}
                   <Text className="text-text dark:text-text-dark text-3xl font-bold leading-9 mb-2">
-                    {selectedReview.contents?.title ?? ""}
+                    {selectedReview.works?.title ?? ""}
                   </Text>
-                  {selectedReview.contents?.creator && (
+                  {selectedReview.works?.creator && (
                     <Text className="text-text-secondary dark:text-text-dark-secondary text-base font-medium">
-                      {selectedReview.contents.creator}
+                      {selectedReview.works.creator}
                     </Text>
                   )}
                 </View>

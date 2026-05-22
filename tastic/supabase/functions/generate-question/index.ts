@@ -29,14 +29,15 @@ async function callOpenAI(prompt: string, temperature = 0.7, maxTokens = 512) {
 }
 
 const TURN_ROLE: Record<number, string> = {
-  2: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단",
-  3: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단",
-  4: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단",
-  5: "정리(wrap_up) — 감상의 조각들을 사용자 스스로 연결하게 만드는 마무리 질문. 이 답변이 리뷰의 핵심 문장이 된다",
+  2: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단. should_end는 반드시 false",
+  3: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단. should_end는 반드시 false",
+  4: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단. should_end는 반드시 false",
+  5: "정리(wrap_up) — 감상의 조각들을 사용자 스스로 연결하게 만드는 마무리 질문. 이 답변이 리뷰의 핵심 문장이 된다. should_end는 반드시 false",
   6: "조건부 추가 — 아래 6번째 질문 조건 섹션 참고",
 };
 
-function formatMetadata(metadata: Record<string, unknown>): string {
+function formatMetadata(metadata: Record<string, unknown> | null | undefined): string {
+  if (!metadata) return "";
   const entries = Object.entries(metadata).filter(([, v]) => v !== null && v !== undefined && v !== "");
   if (entries.length === 0) return "";
 
@@ -63,6 +64,11 @@ function buildPrompt(
       ? `\n## 음악 카테고리 스코프\n- 곡 단위 (metadata.music_type === "song"): 하나의 곡 안에서의 감정, 사운드, 순간에 집중\n- 앨범 단위 (metadata.music_type === "album"): 트랙 간의 흐름, 전체 구성, 앨범의 서사/컨셉\n- 현재: ${content.metadata?.music_type === "song" ? "곡 단위" : "앨범 단위"}\n`
       : "";
 
+  const bookScopeSection =
+    content.category === "book"
+      ? `\n## 책 카테고리 스코프\n- 소설/스토리 (metadata.book_type === "fiction"): 배경, 시점, 인물, 서사 구조, 감정적 몰입에 집중. 독자가 "어떤 장면에서 감정이 움직였는가"를 끌어낼 것\n- 비소설/에세이/이론서 (metadata.book_type === "nonfiction"): 핵심 논지, 저자의 관점, 독자의 생각 변화, 실용성에 집중. "이 책을 읽고 달라진 것"을 끌어낼 것\n- 현재: ${content.metadata?.book_type === "nonfiction" ? "비소설" : "소설/스토리"}\n`
+      : "";
+
   const extraTurnSection =
     questionCount === 5
       ? `\n## 6번째 질문 생성 조건\n다음 중 하나라도 해당할 때만 질문을 생성하라:\n1. 직전 답변이 길고 새로운 키워드/맥락이 등장했을 때\n2. 감상의 핵심이 아직 정리되지 않은 느낌일 때\n해당하지 않으면 반드시 should_end: true를 반환하라.\n`
@@ -81,7 +87,7 @@ ${extraTurnSection}
   예: "그 장면이 긴장됐어요" → "어떤 종류의 긴장이었나요?"
 - wide: 하나의 포인트에 대해 충분히 풀었을 때, 또는 더 파면 막힐 것 같을 때
   예: 캐릭터에 대해 충분히 이야기했으면 → 다른 축(분위기, 연출, 음악)으로 전환
-${musicScopeSection}
+${musicScopeSection}${bookScopeSection}
 ## 톤 적응
 사용자 답변 스타일을 그대로 따라간다:
 - 감정 언어 사용 → 감정 방향으로

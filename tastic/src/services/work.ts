@@ -12,26 +12,19 @@ interface CreateWorkParams {
   metadata?: Record<string, unknown>;
 }
 
-function buildMetadata(params: CreateWorkParams): Record<string, unknown> {
-  const meta: Record<string, unknown> = { ...(params.metadata ?? {}) };
-  if (params.originalTitle) meta.original_title = params.originalTitle;
-  if (params.creator) meta.creator = params.creator;
-  if (params.year !== undefined) meta.year = params.year;
-  if (params.genre) meta.genre = params.genre;
-  return meta;
-}
-
 export async function createWork(params: CreateWorkParams): Promise<Work> {
-  const insertData = {
-    user_id: params.userId,
-    title: params.title,
-    category: params.category,
-    metadata: buildMetadata(params),
-  };
-
   const { data, error } = await supabase
     .from("works")
-    .insert(insertData)
+    .insert({
+      user_id: params.userId,
+      title: params.title,
+      original_title: params.originalTitle ?? null,
+      category: params.category,
+      creator: params.creator ?? null,
+      year: params.year ?? null,
+      genre: params.genre ?? null,
+      metadata: params.metadata ?? {},
+    })
     .select()
     .single();
 
@@ -59,16 +52,17 @@ export async function fetchWorksByUser(userId: string): Promise<Work[]> {
 }
 
 // 동일 작품이 카탈로그에 있으면 재사용, 없으면 새로 생성.
-// search_works RPC를 활용해 외부 ingestion이 적재한 work도 매칭한다.
+// search_works RPC로 외부 ingestion 작품도 매칭한다.
 export async function findOrCreateWork(
   userId: string,
   contentInfo: {
     title: string;
     category: ContentCategory;
+    originalTitle?: string;
     creator?: string;
     year?: number;
     genre?: string;
-    original_title?: string;
+    metadata?: Record<string, unknown>;
   }
 ): Promise<Work> {
   const { data: matches, error: searchError } = await supabase.rpc("search_works", {
@@ -81,7 +75,6 @@ export async function findOrCreateWork(
     console.error("findOrCreateWork search error:", searchError);
   }
 
-  // 가장 점수 높은 후보가 임계값 이상이면 재사용
   const best = matches?.[0];
   if (best && best.similarity_score >= 0.85) {
     const { data, error } = await supabase
@@ -95,10 +88,11 @@ export async function findOrCreateWork(
   return createWork({
     userId,
     title: contentInfo.title,
-    originalTitle: contentInfo.original_title,
+    originalTitle: contentInfo.originalTitle,
     category: contentInfo.category,
     creator: contentInfo.creator,
     year: contentInfo.year,
     genre: contentInfo.genre,
+    metadata: contentInfo.metadata,
   });
 }

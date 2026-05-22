@@ -32,21 +32,23 @@ function AuthNavigator() {
   );
 }
 
+function LoadingScreen() {
+  return (
+    <View className="flex-1 bg-surface justify-center items-center">
+      <ActivityIndicator size="large" color="#6366F1" />
+    </View>
+  );
+}
+
 export function RootNavigator() {
   const session = useAuthStore((s) => s.session);
   const isLoading = useAuthStore((s) => s.isLoading);
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 bg-surface justify-center items-center">
-        <ActivityIndicator size="large" color="#6366F1" />
-      </View>
-    );
-  }
-
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {session ? (
+      {isLoading ? (
+        <Stack.Screen name="Loading" component={LoadingScreen} />
+      ) : session ? (
         <Stack.Screen name="Main" component={MainTabs} />
       ) : (
         <Stack.Screen name="Auth" component={AuthNavigator} />

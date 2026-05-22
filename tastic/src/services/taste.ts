@@ -8,7 +8,7 @@ export async function getLatestTasteProfile(userId: string): Promise<TasteProfil
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) return null;
   return data as TasteProfile;

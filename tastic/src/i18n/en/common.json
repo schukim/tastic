@@ -52,7 +52,8 @@
     "movie": "Movie",
     "music": "Music",
     "book": "Book",
-    "art": "Art"
+    "art": "Art",
+    "series": "Series"
   },
   "review": {
     "greeting": "{{name}}, what did you experience today?",

@@ -22,7 +22,7 @@ import type { ContentCategory, Language } from "../../types/database";
 import i18n from "../../i18n";
 
 const ALL_CATEGORIES: ContentCategory[] = [
-  "movie", "music", "book", "art",
+  "movie", "music", "book", "art", "series",
 ];
 
 export function MyScreen() {
@@ -40,7 +40,7 @@ export function MyScreen() {
   const [showLanguageSheet, setShowLanguageSheet] = useState(false);
 
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
       if (user) {
         getReviewCount(user.id).then(setReviewCount);
       }
@@ -145,14 +145,16 @@ export function MyScreen() {
           <Text className="text-text dark:text-text-dark text-sm font-semibold mb-3 uppercase tracking-widest opacity-50">
             {t("my.categories")}
           </Text>
-          <View className="flex-row flex-wrap">
+          <View className="flex-row gap-1.5">
             {ALL_CATEGORIES.map((cat) => (
-              <CategoryChip
-                key={cat}
-                category={cat}
-                selected={(user.preferred_categories ?? []).includes(cat)}
-                onPress={handleCategoryToggle}
-              />
+              <View key={cat} style={{ flex: 1 }}>
+                <CategoryChip
+                  category={cat}
+                  selected={(user.preferred_categories ?? []).includes(cat)}
+                  onPress={handleCategoryToggle}
+                  fluid
+                />
+              </View>
             ))}
           </View>
         </View>

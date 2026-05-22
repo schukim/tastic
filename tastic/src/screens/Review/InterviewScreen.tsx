@@ -103,6 +103,7 @@ export function InterviewScreen() {
           category: content.category,
           creator: content.creator,
           year: content.year,
+          genre: content.genre,
         },
         conversation_history: conversation,
         language: user?.language ?? "ko",

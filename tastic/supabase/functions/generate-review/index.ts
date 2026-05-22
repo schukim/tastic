@@ -75,6 +75,7 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 - 카테고리: ${content.category}
 - 창작자: ${content.creator ?? "정보 없음"}
 - 연도: ${content.year ?? "정보 없음"}
+- 장르: ${content.genre ?? "정보 없음"}
 
 인터뷰 대화:
 ${conversationText}`;

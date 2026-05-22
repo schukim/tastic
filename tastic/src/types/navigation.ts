@@ -2,6 +2,7 @@ import type { ContentCategory, Content, ConversationEntry } from "./database";
 
 // Root
 export type RootStackParamList = {
+  Loading: undefined;
   Auth: undefined;
   Main: undefined;
 };

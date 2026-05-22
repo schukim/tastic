@@ -95,8 +95,8 @@ export function RecommendScreen() {
         taste_profile: tasteProfile?.profile_sentences ?? [],
         user_prompt: queryPrompt.trim(),
         review_history: reviews.map((r) => ({
-          content_title: r.contents?.title ?? "",
-          category: (r.contents?.category ?? "movie") as ContentCategory,
+          content_title: r.works?.title ?? "",
+          category: (r.works?.category ?? "movie") as ContentCategory,
         })),
         language: lang,
       });
@@ -265,8 +265,8 @@ export function RecommendScreen() {
               <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-3xl p-8 border-2 border-surface-border/50 dark:border-surface-dark-border/50 mb-4">
                 <View className="flex-row items-center justify-center mb-4">
                   <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full mr-2 animate-pulse" />
-                  <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full mr-2 animate-pulse" style={{ animationDelay: '0.2s' }} />
-                  <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                  <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full mr-2 animate-pulse" />
+                  <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full animate-pulse" />
                 </View>
                 <Text className="text-text-secondary dark:text-text-dark-secondary text-base text-center font-medium">
                   {lang === "ko" ? "취향을 분석하고 있어요..." : "Analyzing your taste..."}
@@ -333,10 +333,7 @@ export function RecommendScreen() {
                       {/* Enhanced Category accent strip */}
                       <View
                         className="h-2 w-full"
-                        style={{
-                          background: `linear-gradient(90deg, ${accentColor}00 0%, ${accentColor} 50%, ${accentColor}00 100%)`,
-                          backgroundColor: accentColor
-                        }}
+                        style={{ backgroundColor: accentColor }}
                       />
 
                       <View className="p-6">

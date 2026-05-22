@@ -98,8 +98,8 @@ export function AnalysisScreen() {
     try {
       const reviews = await fetchReviews(user.id);
       const reviewData = reviews.map((r) => ({
-        content_title: r.contents?.title ?? "",
-        category: (r.contents?.category ?? "movie") as ContentCategory,
+        content_title: r.works?.title ?? "",
+        category: (r.works?.category ?? "movie") as ContentCategory,
         review_text: r.body,
         created_at: r.created_at,
       }));
@@ -174,8 +174,8 @@ export function AnalysisScreen() {
           </Text>
           <View className="flex-row mt-6 gap-2">
             <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full animate-pulse" />
-            <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full animate-pulse" style={{ animationDelay: '0.3s' }} />
-            <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full animate-pulse" style={{ animationDelay: '0.6s' }} />
+            <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full animate-pulse" />
+            <View className="w-2 h-2 bg-primary dark:bg-primary-dm rounded-full animate-pulse" />
           </View>
         </View>
       </SafeAreaView>

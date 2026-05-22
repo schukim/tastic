@@ -5,7 +5,7 @@ import { supabase } from "./supabase";
 
 interface CreateReviewParams {
   userId: string;
-  contentId: string;
+  workId: string;
   title: string | null;
   body: string;
   experienceDate: string | null;
@@ -16,7 +16,7 @@ export async function createReview(params: CreateReviewParams): Promise<Review> 
     .from("reviews")
     .insert({
       user_id: params.userId,
-      content_id: params.contentId,
+      work_id: params.workId,
       title: params.title,
       body: params.body,
       experience_date: params.experienceDate,
@@ -33,59 +33,28 @@ export async function createReview(params: CreateReviewParams): Promise<Review> 
 }
 
 export interface ReviewWithContent extends Review {
-  contents: {
+  works: {
     id: string;
     title: string;
     category: string;
     creator: string | null;
     year: number | null;
-  };
+  } | null;
 }
 
 export async function fetchReviews(userId: string): Promise<ReviewWithContent[]> {
-  // 외래키 제약조건이 없으므로 별도 쿼리로 조회
-  const { data: reviews, error: reviewError } = await supabase
+  const { data, error } = await supabase
     .from("reviews")
-    .select("*")
+    .select("*, works(id, title, category, creator, year)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
-  if (reviewError) {
-    console.error("fetchReviews review error:", reviewError);
-    throw new Error(`평론 조회에 실패했습니다: ${reviewError.message}`);
+  if (error) {
+    console.error("fetchReviews error:", error);
+    throw new Error(`평론 조회에 실패했습니다: ${error.message}`);
   }
 
-  if (!reviews || reviews.length === 0) {
-    return [];
-  }
-
-  // content_id 목록 추출
-  const contentIds = reviews.map(r => r.content_id);
-
-  // 관련된 contents 조회
-  const { data: contents, error: contentError } = await supabase
-    .from("contents")
-    .select("id, title, category, creator, year")
-    .in("id", contentIds);
-
-  if (contentError) {
-    console.error("fetchReviews content error:", contentError);
-    // contents 조회 실패해도 reviews만 반환
-  }
-
-  // reviews와 contents 조합
-  const reviewsWithContent: ReviewWithContent[] = reviews.map(review => ({
-    ...review,
-    contents: contents?.find(c => c.id === review.content_id) || {
-      id: review.content_id,
-      title: "알 수 없는 작품",
-      category: "movie",
-      creator: null,
-      year: null,
-    }
-  }));
-
-  return reviewsWithContent;
+  return (data ?? []) as ReviewWithContent[];
 }
 
 export async function fetchReviewsByMonth(
@@ -93,56 +62,23 @@ export async function fetchReviewsByMonth(
   year: number,
   month: number
 ): Promise<ReviewWithContent[]> {
-  // 해당 월의 첫째 날과 마지막 날 계산
   const startDate = new Date(year, month - 1, 1).toISOString();
   const endDate = new Date(year, month, 0, 23, 59, 59, 999).toISOString();
 
-  // 외래키 제약조건이 없으므로 별도 쿼리로 조회
-  const { data: reviews, error: reviewError } = await supabase
+  const { data, error } = await supabase
     .from("reviews")
-    .select("*")
+    .select("*, works(id, title, category, creator, year)")
     .eq("user_id", userId)
     .gte("created_at", startDate)
     .lte("created_at", endDate)
     .order("created_at", { ascending: false });
 
-  if (reviewError) {
-    console.error("fetchReviewsByMonth review error:", reviewError);
-    throw new Error(`월별 평론 조회에 실패했습니다: ${reviewError.message}`);
+  if (error) {
+    console.error("fetchReviewsByMonth error:", error);
+    throw new Error(`월별 평론 조회에 실패했습니다: ${error.message}`);
   }
 
-  if (!reviews || reviews.length === 0) {
-    return [];
-  }
-
-  // content_id 목록 추출
-  const contentIds = reviews.map(r => r.content_id);
-
-  // 관련된 contents 조회
-  const { data: contents, error: contentError } = await supabase
-    .from("contents")
-    .select("id, title, category, creator, year")
-    .in("id", contentIds);
-
-  if (contentError) {
-    console.error("fetchReviewsByMonth content error:", contentError);
-    // contents 조회 실패해도 reviews만 반환
-  }
-
-  // reviews와 contents 조합
-  const reviewsWithContent: ReviewWithContent[] = reviews.map(review => ({
-    ...review,
-    contents: contents?.find(c => c.id === review.content_id) || {
-      id: review.content_id,
-      title: "알 수 없는 작품",
-      category: "movie",
-      creator: null,
-      year: null,
-    }
-  }));
-
-  console.log(`Found ${reviewsWithContent.length} reviews for ${year}-${month}`);
-  return reviewsWithContent;
+  return (data ?? []) as ReviewWithContent[];
 }
 
 export async function deleteReview(reviewId: string): Promise<void> {
@@ -159,9 +95,7 @@ export async function deleteReview(reviewId: string): Promise<void> {
 
 export async function updateReview(reviewId: string, body: string, title?: string): Promise<Review> {
   const updateData: Partial<Review> = { body };
-  if (title !== undefined) {
-    updateData.title = title;
-  }
+  if (title !== undefined) updateData.title = title;
 
   const { data, error } = await supabase
     .from("reviews")
@@ -182,7 +116,7 @@ export async function updateReview(reviewId: string, body: string, title?: strin
 
 interface CreateInterviewParams {
   userId: string;
-  contentId: string;
+  workId: string;
 }
 
 export async function createInterview(params: CreateInterviewParams): Promise<Interview> {
@@ -190,7 +124,7 @@ export async function createInterview(params: CreateInterviewParams): Promise<In
     .from("interviews")
     .insert({
       user_id: params.userId,
-      content_id: params.contentId,
+      work_id: params.workId,
       conversation: [],
       question_count: 0,
       status: "in_progress",
@@ -212,14 +146,8 @@ export async function updateInterview(
   questionCount: number,
   status?: "in_progress" | "completed" | "abandoned"
 ): Promise<void> {
-  const updateData: Partial<Interview> = {
-    conversation,
-    question_count: questionCount,
-  };
-
-  if (status) {
-    updateData.status = status;
-  }
+  const updateData: Partial<Interview> = { conversation, question_count: questionCount };
+  if (status) updateData.status = status;
 
   const { error } = await supabase
     .from("interviews")

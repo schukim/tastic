@@ -28,7 +28,7 @@ export function useInterview(content: Content) {
     try {
       const interview = await createInterview({
         userId: user.id,
-        contentId: content.id,
+        workId: content.id,
       });
       interviewIdRef.current = interview.id;
     } catch {
@@ -67,7 +67,8 @@ export function useInterview(content: Content) {
         });
       }
 
-      if (response.should_end) {
+      // Only honor should_end after the user has answered at least 5 questions
+      if (response.should_end && qCount >= 5) {
         setIsInterviewComplete(true);
         setRetryCount(0);
         return response;
@@ -141,6 +142,7 @@ export function useInterview(content: Content) {
           category: content.category,
           creator: content.creator,
           year: content.year,
+          genre: content.genre,
         },
         conversation_history: conversation,
         language: user?.language ?? "ko",

@@ -51,6 +51,7 @@ export interface GenerateReviewRequest {
     category: ContentCategory;
     creator: string | null;
     year: number | null;
+    genre: string | null;
   };
   conversation_history: ConversationEntry[];
   language: "ko" | "en";

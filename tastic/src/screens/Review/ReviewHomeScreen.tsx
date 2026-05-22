@@ -31,7 +31,7 @@ import { toISODateString } from "../../utils/formatDate";
 type Nav = NativeStackNavigationProp<ReviewStackParamList, "ReviewHome">;
 
 const ALL_CATEGORIES: ContentCategory[] = [
-  "movie", "music", "book", "art",
+  "movie", "music", "book", "art", "series",
 ];
 
 const CREATOR_LABEL: Record<ContentCategory, string> = {
@@ -39,6 +39,7 @@ const CREATOR_LABEL: Record<ContentCategory, string> = {
   music: "아티스트",
   book: "작가",
   art: "아티스트",
+  series: "크리에이터/감독",
 };
 
 export function ReviewHomeScreen() {
@@ -78,6 +79,8 @@ export function ReviewHomeScreen() {
   const chip2TranslateY = useSharedValue(14);
   const chip3Opacity = useSharedValue(0);
   const chip3TranslateY = useSharedValue(14);
+  const chip4Opacity = useSharedValue(0);
+  const chip4TranslateY = useSharedValue(14);
 
   const greetingStyle = useAnimatedStyle(() => ({
     opacity: greetingOpacity.value,
@@ -92,6 +95,7 @@ export function ReviewHomeScreen() {
     useAnimatedStyle(() => ({ opacity: chip1Opacity.value, transform: [{ translateY: chip1TranslateY.value }] })),
     useAnimatedStyle(() => ({ opacity: chip2Opacity.value, transform: [{ translateY: chip2TranslateY.value }] })),
     useAnimatedStyle(() => ({ opacity: chip3Opacity.value, transform: [{ translateY: chip3TranslateY.value }] })),
+    useAnimatedStyle(() => ({ opacity: chip4Opacity.value, transform: [{ translateY: chip4TranslateY.value }] })),
   ];
 
   useEffect(() => {
@@ -99,8 +103,8 @@ export function ReviewHomeScreen() {
     greetingTranslateY.value = withDelay(0, withTiming(0, ENTER));
     subtitleOpacity.value = withDelay(120, withTiming(1, ENTER));
     subtitleTranslateY.value = withDelay(120, withTiming(0, ENTER));
-    const chipOpacities = [chip0Opacity, chip1Opacity, chip2Opacity, chip3Opacity];
-    const chipTranslates = [chip0TranslateY, chip1TranslateY, chip2TranslateY, chip3TranslateY];
+    const chipOpacities = [chip0Opacity, chip1Opacity, chip2Opacity, chip3Opacity, chip4Opacity];
+    const chipTranslates = [chip0TranslateY, chip1TranslateY, chip2TranslateY, chip3TranslateY, chip4TranslateY];
     chipOpacities.forEach((sv, i) => { sv.value = withDelay(260 + i * 90, withTiming(1, ENTER)); });
     chipTranslates.forEach((sv, i) => { sv.value = withDelay(260 + i * 90, withTiming(0, ENTER)); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,12 +200,13 @@ export function ReviewHomeScreen() {
               </Text>
             </Animated.View>
           )}
-          <View className="flex-row flex-wrap mb-4">
+          <View className="flex-row mb-4 gap-1.5">
             {ALL_CATEGORIES.map((cat, i) => (
-              <Animated.View key={cat} style={chipStyles[i]}>
+              <Animated.View key={cat} style={[chipStyles[i], { flex: 1 }]}>
                 <CategoryChip
                   category={cat}
                   selected={category === cat}
+                  fluid
                   onPress={() => {
                     if (isExpanded) {
                       setCategory(cat);

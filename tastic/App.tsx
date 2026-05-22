@@ -9,6 +9,17 @@ import { useAuth } from "./src/hooks/useAuth";
 import { useTheme } from "./src/hooks/useTheme";
 import "./src/i18n";
 
+// Disable React DevTools in development to prevent navigation context issues
+if (__DEV__) {
+  // @ts-ignore
+  if (typeof global !== 'undefined' && global.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+    // @ts-ignore
+    global.__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot = null;
+    // @ts-ignore
+    global.__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberUnmount = null;
+  }
+}
+
 function AppContent() {
   const { isDark } = useTheme();
 

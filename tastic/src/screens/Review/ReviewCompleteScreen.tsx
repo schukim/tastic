@@ -51,6 +51,7 @@ export function ReviewCompleteScreen() {
           category: content.category,
           creator: content.creator,
           year: content.year,
+          genre: content.genre,
         },
         conversation_history: conversation,
         language: user?.language ?? "ko",
@@ -74,7 +75,7 @@ export function ReviewCompleteScreen() {
     try {
       const review = await createReview({
         userId: user.id,
-        contentId: content.id,
+        workId: content.id,
         title: reviewTitle || null,
         body: reviewText,
         experienceDate: null,
