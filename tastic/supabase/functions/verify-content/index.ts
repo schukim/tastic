@@ -36,26 +36,26 @@ function buildMetadataSchema(category: string): string {
     case "movie":
       return `metadata 필드 구조 (영화):
 {
-  "creator_style": "감독의 대표 연출 스타일 (string | null)",
+  "creator_style": "감독 고유의 연출 방식 — 편집 리듬, 카메라 무브먼트, 장면 구성, 색채 등 구체적으로 서술. 장르명 단독 사용 금지 (string | null)",
   "cast": ["주요 배우 이름 배열, 최대 5명"],
   "synopsis": "한 줄 시놉시스 (string | null)",
-  "keywords": ["작품 관련 주요 키워드, 최소 1개 이상"]
+  "keywords": ["이 영화만의 감정적 분위기·주제의식·서사 특성 키워드. 제목·감독명·배우명·장르명은 절대 포함하지 말 것. 최소 1개 이상 (예: '냉소적 유머', '비선형 구조', '계급 갈등')"]
 }`;
     case "music":
       return `metadata 필드 구조 (음악 — 앨범/곡 구분 필수):
 앨범인 경우:
 {
   "music_type": "album",
-  "creator_style": "아티스트의 대표 음악 스타일 (string | null)",
+  "creator_style": "아티스트 고유의 음악적 접근 방식 — 제작 방식, 사운드 질감, 보컬 스타일, 가사 서사 등을 구체적으로 서술. 장르명 단독 사용 금지 (string | null)",
   "track_count": number | null,
-  "keywords": ["작품 관련 주요 키워드, 최소 1개 이상"]
+  "keywords": ["이 앨범만의 감정적 분위기·소닉 특성·주제의식 키워드. 아티스트명·앨범명·장르명은 절대 포함하지 말 것. 최소 1개 이상 (예: '새벽 감성', '레이어드 사운드', '자기 성찰')"]
 }
 곡인 경우:
 {
   "music_type": "song",
-  "creator_style": "아티스트의 대표 음악 스타일 (string | null)",
+  "creator_style": "아티스트 고유의 음악적 접근 방식 — 제작 방식, 사운드 질감, 보컬 스타일, 가사 서사 등을 구체적으로 서술. 장르명 단독 사용 금지 (string | null)",
   "release_format": "앨범 수록 또는 싱글 (string | null)",
-  "keywords": ["작품 관련 주요 키워드, 최소 1개 이상"]
+  "keywords": ["이 곡만의 감정적 분위기·소닉 특성·주제의식 키워드. 아티스트명·곡명·장르명은 절대 포함하지 말 것. 최소 1개 이상 (예: '이별 직후의 공허함', '몽환적 베이스라인', '반복 후렴')"]
 }
 ※ 사용자가 명시하지 않으면 music_type은 "album"으로 기본 설정`;
     case "book":
@@ -63,33 +63,34 @@ function buildMetadataSchema(category: string): string {
 소설 · 스토리인 경우:
 {
   "book_type": "fiction",
-  "creator_style": "저자의 대표 문체/스타일 (string | null)",
+  "creator_style": "저자 고유의 문체 특성 — 문장 길이·밀도, 감정 처리 방식, 서술 거리 등을 구체적으로 서술. 장르명 단독 사용 금지 (string | null)",
   "setting": "배경 (시대 + 장소) (string | null)",
   "perspective": "시점 (1인칭, 3인칭 등) (string | null)",
-  "keywords": ["작품 관련 주요 키워드, 최소 1개 이상"]
+  "keywords": ["이 소설만의 감정적 분위기·서사 특성·주제의식 키워드. 제목·저자명·장르명은 절대 포함하지 말 것. 최소 1개 이상 (예: '실존적 불안', '섬세한 심리묘사', '느린 전개')"]
 }
 비소설 · 자기계발 · 이론 · 에세이인 경우:
 {
   "book_type": "nonfiction",
-  "creator_style": "저자의 대표 문체/스타일 (string | null)",
+  "creator_style": "저자 고유의 서술 방식 — 논증 구조, 예시 활용 방식, 독자 호명 스타일 등을 구체적으로 서술. 분야명 단독 사용 금지 (string | null)",
   "field": "분야 (심리학, 경제, 철학 등) (string | null)",
   "core_argument": "핵심 주장/논지 한 줄 (string | null)",
-  "keywords": ["작품 관련 주요 키워드, 최소 1개 이상"]
+  "keywords": ["이 책만의 핵심 개념·주제 키워드. 제목·저자명·분야명은 절대 포함하지 말 것. 최소 1개 이상 (예: '습관 루프', '작은 행동의 복리', '정체성 기반 변화')"]
 }`;
     case "art":
       return `metadata 필드 구조 (미술):
 {
-  "creator_style": "작가의 대표 스타일 (string | null)",
+  "creator_style": "작가 고유의 조형 언어 — 색채 사용, 구성 방식, 붓질·질감, 표현 특성 등을 구체적으로 서술. 사조명 단독 사용 금지 (string | null)",
   "medium": "매체/기법 (유화, 설치미술, 사진 등) (string | null)",
   "movement": "예술 사조 (인상주의, 팝아트 등) (string | null)",
-  "keywords": ["작품 관련 주요 키워드, 최소 1개 이상"]
+  "keywords": ["이 작품만의 감정적 분위기·시각적 특성·주제의식 키워드. 작품명·작가명·사조명은 절대 포함하지 말 것. 최소 1개 이상 (예: '멜랑꼴리', '왜곡된 원근법', '소비사회 비판')"]
 }`;
     case "series":
       return `metadata 필드 구조 (시리즈/드라마):
 {
+  "creator_style": "감독/크리에이터 고유의 연출 방식 — 편집 리듬, 장면 구성, 캐릭터 서사 전개 방식 등을 구체적으로 서술. 장르명 단독 사용 금지 (string | null)",
   "cast": ["주요 배우 이름 배열, 최대 5명"],
   "synopsis": "한 줄 시놉시스 (string | null)",
-  "keywords": ["작품 관련 주요 키워드, 최소 1개 이상"]
+  "keywords": ["이 시리즈만의 감정적 분위기·서사 특성·주제의식 키워드. 제목·감독명·배우명·장르명은 절대 포함하지 말 것. 최소 1개 이상 (예: '긴장된 침묵', '가족 내 권력 구도', '느린 빌드업')"]
 }
 ※ 창작자(감독/크리에이터), 장르, 발표 연도는 별도 필드로 저장하므로 metadata에 포함하지 말 것`;
     default:

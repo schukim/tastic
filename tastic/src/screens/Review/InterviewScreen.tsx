@@ -149,6 +149,10 @@ export function InterviewScreen() {
   }
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
     <SafeAreaView className="flex-1 bg-surface">
       {/* Header */}
       <View className="px-6 py-3 flex-row items-center justify-between border-b border-surface-tertiary">
@@ -163,11 +167,7 @@ export function InterviewScreen() {
         </Text>
       </View>
 
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-      >
+      <View className="flex-1">
         {/* Conversation */}
         <ScrollView
           ref={scrollRef}
@@ -252,11 +252,12 @@ export function InterviewScreen() {
           {canPreview && (
             <View className="flex-row mb-3 gap-3">
               <Pressable
-                className="flex-1 bg-surface-tertiary rounded-xl py-3 items-center"
+                className={`flex-1 rounded-xl py-3 items-center ${previewLoading ? "bg-surface-tertiary/50" : "bg-surface-tertiary"}`}
                 onPress={handlePreview}
+                disabled={previewLoading}
               >
                 <Text className="text-text font-medium text-sm">
-                  {t("review.interview.previewButton")}
+                  {previewLoading ? "..." : t("review.interview.previewButton")}
                 </Text>
               </Pressable>
               <Pressable
@@ -293,14 +294,15 @@ export function InterviewScreen() {
             </Pressable>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       {/* Preview Modal */}
       {showPreview && (
         <ConfirmDialog
           visible={showPreview}
           title={t("review.interview.previewButton")}
-          message={previewLoading ? "..." : previewText}
+          message={previewText}
+          loading={previewLoading}
           actions={[
             { label: t("common.close"), onPress: () => setShowPreview(false) },
           ]}
@@ -321,5 +323,6 @@ export function InterviewScreen() {
         onClose={() => setShowExitDialog(false)}
       />
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
