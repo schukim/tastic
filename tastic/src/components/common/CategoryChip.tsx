@@ -28,8 +28,8 @@ export function CategoryChip({ category, selected, onPress, fluid }: CategoryChi
       } ${selected ? "bg-primary dark:bg-primary-dm" : "bg-surface-tertiary dark:bg-surface-dark-secondary"}`}
       onPress={() => onPress(category)}
     >
-      <Text className="mr-1 text-sm">{CATEGORY_ICONS[category]}</Text>
-      <Text className={`text-xs font-medium ${selected ? "text-white" : "text-text dark:text-text-dark"}`}>
+      <Text className="mr-1 text-[15px]">{CATEGORY_ICONS[category]}</Text>
+      <Text className={`text-[13px] font-medium ${selected ? "text-white" : "text-text dark:text-text-dark"}`}>
         {t(`category.${category}`)}
       </Text>
     </Pressable>

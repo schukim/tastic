@@ -152,7 +152,7 @@ export function SignUpScreen() {
             <>
               {/* Email */}
               <View className="mb-4">
-                <Text className="text-text-secondary text-sm mb-1.5">{t("auth.email")}</Text>
+                <Text className="text-text-secondary text-[15px] mb-1.5">{t("auth.email")}</Text>
                 <TextInput
                   className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base"
                   value={email}
@@ -162,13 +162,13 @@ export function SignUpScreen() {
                   autoComplete="email"
                 />
                 {email.length > 0 && !emailValid && (
-                  <Text className="text-error text-xs mt-1">{t("auth.emailInvalid")}</Text>
+                  <Text className="text-error text-[13px] mt-1">{t("auth.emailInvalid")}</Text>
                 )}
               </View>
 
               {/* Password */}
               <View className="mb-4">
-                <Text className="text-text-secondary text-sm mb-1.5">{t("auth.password")}</Text>
+                <Text className="text-text-secondary text-[15px] mb-1.5">{t("auth.password")}</Text>
                 <TextInput
                   className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base"
                   value={password}
@@ -176,13 +176,13 @@ export function SignUpScreen() {
                   secureTextEntry
                 />
                 {password.length > 0 && !passwordValid && (
-                  <Text className="text-error text-xs mt-1">{t("auth.passwordMinLength")}</Text>
+                  <Text className="text-error text-[13px] mt-1">{t("auth.passwordMinLength")}</Text>
                 )}
               </View>
 
               {/* Password Confirm */}
               <View className="mb-6">
-                <Text className="text-text-secondary text-sm mb-1.5">{t("auth.passwordConfirm")}</Text>
+                <Text className="text-text-secondary text-[15px] mb-1.5">{t("auth.passwordConfirm")}</Text>
                 <TextInput
                   className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base"
                   value={passwordConfirm}
@@ -190,7 +190,7 @@ export function SignUpScreen() {
                   secureTextEntry
                 />
                 {passwordConfirm.length > 0 && !passwordMatch && (
-                  <Text className="text-error text-xs mt-1">
+                  <Text className="text-error text-[13px] mt-1">
                     {t("auth.passwordConfirm")}
                   </Text>
                 )}
@@ -209,7 +209,7 @@ export function SignUpScreen() {
             <>
               {/* Nickname */}
               <View className="mb-6">
-                <Text className="text-text-secondary text-sm mb-1.5">{t("auth.nickname")}</Text>
+                <Text className="text-text-secondary text-[15px] mb-1.5">{t("auth.nickname")}</Text>
                 <TextInput
                   className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3.5 text-text text-base"
                   value={nickname}
@@ -220,7 +220,7 @@ export function SignUpScreen() {
 
               {/* Categories */}
               <View className="mb-6">
-                <Text className="text-text-secondary text-sm mb-3">{t("auth.selectCategories")}</Text>
+                <Text className="text-text-secondary text-[15px] mb-3">{t("auth.selectCategories")}</Text>
                 <View className="flex-row gap-1.5">
                   {ALL_CATEGORIES.map((cat) => (
                     <View key={cat} style={{ flex: 1 }}>
@@ -237,7 +237,7 @@ export function SignUpScreen() {
               </View>
 
               {/* Error */}
-              {error && <Text className="text-error text-sm mb-4">{error}</Text>}
+              {error && <Text className="text-error text-[15px] mb-4">{error}</Text>}
 
               {/* Start */}
               <Pressable
@@ -261,7 +261,7 @@ export function SignUpScreen() {
                 </Text>
 
                 <View className="bg-surface-secondary rounded-xl p-4 mb-6">
-                  <Text className="text-text-secondary text-sm text-center">
+                  <Text className="text-text-secondary text-[15px] text-center">
                     {t("auth.emailVerificationTip")}
                   </Text>
                 </View>
@@ -299,9 +299,9 @@ export function SignUpScreen() {
 
           {/* Back to Login */}
           <View className="flex-row justify-center mt-6">
-            <Text className="text-text-secondary text-sm">{t("auth.hasAccount")} </Text>
+            <Text className="text-text-secondary text-[15px]">{t("auth.hasAccount")} </Text>
             <Pressable onPress={() => navigation.navigate("Login")}>
-              <Text className="text-primary text-sm font-semibold">{t("auth.login")}</Text>
+              <Text className="text-primary text-[15px] font-semibold">{t("auth.login")}</Text>
             </Pressable>
           </View>
         </ScrollView>

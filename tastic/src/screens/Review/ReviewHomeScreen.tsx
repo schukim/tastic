@@ -195,7 +195,7 @@ export function ReviewHomeScreen() {
           {/* Category chips */}
           {!isExpanded && (
             <Animated.View style={subtitleStyle}>
-              <Text className="text-text-secondary dark:text-text-dark-secondary text-sm mb-3">
+              <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px] mb-3">
                 카테고리를 선택하세요
               </Text>
             </Animated.View>
@@ -240,7 +240,7 @@ export function ReviewHomeScreen() {
                   className={`flex-1 py-3 items-center ${musicType === "album" ? "bg-primary dark:bg-primary-dm" : "bg-surface-secondary dark:bg-surface-dark-secondary"}`}
                   onPress={() => setMusicType("album")}
                 >
-                  <Text className={`text-sm font-medium ${musicType === "album" ? "text-white" : "text-text-secondary dark:text-text-dark-secondary"}`}>
+                  <Text className={`text-[15px] font-medium ${musicType === "album" ? "text-white" : "text-text-secondary dark:text-text-dark-secondary"}`}>
                     앨범
                   </Text>
                 </Pressable>
@@ -248,7 +248,7 @@ export function ReviewHomeScreen() {
                   className={`flex-1 py-3 items-center ${musicType === "song" ? "bg-primary dark:bg-primary-dm" : "bg-surface-secondary dark:bg-surface-dark-secondary"}`}
                   onPress={() => setMusicType("song")}
                 >
-                  <Text className={`text-sm font-medium ${musicType === "song" ? "text-white" : "text-text-secondary dark:text-text-dark-secondary"}`}>
+                  <Text className={`text-[15px] font-medium ${musicType === "song" ? "text-white" : "text-text-secondary dark:text-text-dark-secondary"}`}>
                     곡
                   </Text>
                 </Pressable>

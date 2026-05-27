@@ -249,7 +249,7 @@ export function AnalysisScreen() {
 
             {error && (
               <Animated.View entering={FadeIn.delay(200)} className="mt-8 bg-error/10 rounded-2xl p-4">
-                <Text className="text-error text-sm text-center font-medium">{t("analysis.error")}</Text>
+                <Text className="text-error text-[15px] text-center font-medium">{t("analysis.error")}</Text>
               </Animated.View>
             )}
           </Animated.View>
@@ -272,7 +272,7 @@ export function AnalysisScreen() {
         <Animated.View entering={FadeInDown.duration(400)} className="px-7 pt-8 pb-6">
           <View className="flex-row items-start justify-between">
             <View className="flex-1 mr-4">
-              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-[3px] mb-2 font-semibold">
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] uppercase tracking-[3px] mb-2 font-semibold">
                 {lang === "ko" ? "취향 분석" : "Taste Profile"}
               </Text>
               <Text className="text-text dark:text-text-dark text-3xl font-bold leading-tight">
@@ -283,13 +283,13 @@ export function AnalysisScreen() {
             <View className="items-end">
               {newReviewCount > 0 && (
                 <Animated.View entering={FadeIn.delay(200)} className="bg-primary/15 dark:bg-primary-dm/15 px-4 py-2 rounded-2xl mb-3 border border-primary/20 dark:border-primary-dm/20">
-                  <Text className="text-primary dark:text-primary-dm text-xs font-bold">
+                  <Text className="text-primary dark:text-primary-dm text-[13px] font-bold">
                     {lang === "ko" ? `+${newReviewCount}편 새로운 평론` : `+${newReviewCount} new reviews`}
                   </Text>
                 </Animated.View>
               )}
               <Pressable onPress={handleAnalyze} className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl px-4 py-2 border border-surface-border/50 dark:border-surface-dark-border/50 active:scale-95 transition-transform">
-                <Text className="text-text-secondary dark:text-text-dark-secondary text-sm font-semibold">
+                <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px] font-semibold">
                   {t("analysis.reanalyze")}
                 </Text>
               </Pressable>
@@ -315,7 +315,7 @@ export function AnalysisScreen() {
               <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-3xl p-6 border-2 border-surface-border/30 dark:border-surface-dark-border/30 shadow-sm">
                 <View className="flex-row items-start">
                   <View className="w-8 h-8 rounded-2xl bg-primary/15 dark:bg-primary-dm/15 items-center justify-center mr-4 mt-1">
-                    <Text className="text-primary dark:text-primary-dm text-sm font-bold">
+                    <Text className="text-primary dark:text-primary-dm text-[15px] font-bold">
                       {String(idx + 1).padStart(2, "0")}
                     </Text>
                   </View>
@@ -332,12 +332,12 @@ export function AnalysisScreen() {
         <View className="mx-7 mb-10 flex-row items-center">
           <View className="flex-1 h-px bg-gradient-to-r from-surface-border dark:from-surface-dark-border to-transparent" />
           <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl px-5 py-3 mx-4 border border-surface-border/50 dark:border-surface-dark-border/50">
-            <Text className="text-text-secondary dark:text-text-dark-secondary text-sm font-semibold text-center">
+            <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px] font-semibold text-center">
               {lang === "ko"
                 ? `평론 ${profile.review_count}편 기반`
                 : `Based on ${profile.review_count} reviews`}
             </Text>
-            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs text-center mt-1">
+            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] text-center mt-1">
               {updatedAt}
             </Text>
           </View>
@@ -362,11 +362,11 @@ export function AnalysisScreen() {
             className="mx-7"
           >
             <View className="mb-4 flex-row items-center">
-              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-[3px] font-semibold">
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] uppercase tracking-[3px] font-semibold">
                 {lang === "ko" ? "맞춤 추천" : "Personalized Pick"}
               </Text>
               <View className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-primary-light dark:from-primary-dm dark:to-primary-dm-sub items-center justify-center ml-3">
-                <Text className="text-white text-xs font-bold">✨</Text>
+                <Text className="text-white text-[13px] font-bold">✨</Text>
               </View>
             </View>
             <Pressable

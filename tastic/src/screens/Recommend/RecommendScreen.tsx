@@ -179,7 +179,7 @@ export function RecommendScreen() {
           {/* ── Enhanced Header ── */}
           <View className="px-7 pt-8 pb-6">
             <Animated.View entering={FadeInDown.duration(400)}>
-              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-[3px] mb-2 font-semibold">
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] uppercase tracking-[3px] mb-2 font-semibold">
                 {lang === "ko" ? "콘텐츠 추천" : "Recommendations"}
               </Text>
               <Text className="text-text dark:text-text-dark text-3xl font-bold leading-tight">
@@ -217,7 +217,7 @@ export function RecommendScreen() {
                   onPress={() => handleSubmit()}
                   disabled={!prompt.trim() || isLoading}
                 >
-                  <Text className={`font-bold text-sm ${
+                  <Text className={`font-bold text-[15px] ${
                     prompt.trim() && !isLoading
                       ? "text-surface dark:text-surface-dark"
                       : "text-text-tertiary dark:text-text-dark-tertiary"
@@ -232,7 +232,7 @@ export function RecommendScreen() {
           {/* ── Enhanced Quick chips ── */}
           {results.length === 0 && !isLoading && (
             <Animated.View entering={FadeInDown.delay(300).duration(400)} className="px-7 mb-8">
-              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs mb-4 uppercase tracking-wider font-semibold">
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mb-4 uppercase tracking-wider font-semibold">
                 {lang === "ko" ? "빠른 선택" : "Quick pick"}
               </Text>
               <View className="flex-row flex-wrap gap-3">
@@ -249,7 +249,7 @@ export function RecommendScreen() {
                       }}
                     >
                       <Text className="text-base mr-2">{chip.icon}</Text>
-                      <Text className="text-text-secondary dark:text-text-dark-secondary text-sm font-medium">
+                      <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px] font-medium">
                         {t(`recommend.${chip.key}`)}
                       </Text>
                     </Pressable>
@@ -291,7 +291,7 @@ export function RecommendScreen() {
                   className="mt-4 bg-error/10 dark:bg-error/20 rounded-2xl px-4 py-2 active:scale-95 transition-transform"
                   onPress={() => handleSubmit()}
                 >
-                  <Text className="text-error text-sm font-semibold">
+                  <Text className="text-error text-[15px] font-semibold">
                     {lang === "ko" ? "다시 시도" : "Try again"}
                   </Text>
                 </Pressable>
@@ -304,7 +304,7 @@ export function RecommendScreen() {
             <Animated.View entering={FadeInDown.delay(100).duration(400)} className="px-7">
               <View className="flex-row items-center justify-between mb-6">
                 <View>
-                  <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-[3px] font-semibold">
+                  <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] uppercase tracking-[3px] font-semibold">
                     {lang === "ko" ? "추천 결과" : "Recommendations"}
                   </Text>
                   <Text className="text-text dark:text-text-dark text-xl font-bold mt-1">
@@ -349,14 +349,14 @@ export function RecommendScreen() {
                               </Text>
                             </View>
                             <Text
-                              className="text-sm font-bold uppercase tracking-wider"
+                              className="text-[15px] font-bold uppercase tracking-wider"
                               style={{ color: accentColor }}
                             >
                               {item.category}
                             </Text>
                           </View>
                           <View className="w-8 h-8 rounded-full bg-surface-tertiary dark:bg-surface-dark-tertiary items-center justify-center">
-                            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-sm font-bold">
+                            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[15px] font-bold">
                               {isExpanded ? "▲" : "▼"}
                             </Text>
                           </View>

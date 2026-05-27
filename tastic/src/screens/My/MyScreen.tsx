@@ -135,14 +135,14 @@ export function MyScreen() {
             </Pressable>
           )}
 
-          <Text className="text-text-tertiary dark:text-text-dark-tertiary text-sm mt-1.5">
+          <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[15px] mt-1.5">
             평론 {reviewCount}개
           </Text>
         </View>
 
         {/* ── Interest Categories ── */}
         <View className="mb-8">
-          <Text className="text-text dark:text-text-dark text-sm font-semibold mb-3 uppercase tracking-widest opacity-50">
+          <Text className="text-text dark:text-text-dark text-[15px] font-semibold mb-3 uppercase tracking-widest opacity-50">
             {t("my.categories")}
           </Text>
           <View className="flex-row gap-1.5">
@@ -161,13 +161,13 @@ export function MyScreen() {
 
         {/* ── Settings ── */}
         <View className="mb-8">
-          <Text className="text-text dark:text-text-dark text-sm font-semibold mb-3 uppercase tracking-widest opacity-50">
+          <Text className="text-text dark:text-text-dark text-[15px] font-semibold mb-3 uppercase tracking-widest opacity-50">
             {t("my.settings")}
           </Text>
 
           <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl overflow-hidden border border-surface-border dark:border-surface-dark-border">
             {/* Enhanced Dark mode */}
-            <View className="flex-row items-center justify-between px-5 py-4 border-b border-surface-tertiary/50 dark:border-surface-dark-tertiary/50">
+            <View className="flex-row items-center justify-between px-4 py-2 border-b border-surface-tertiary/50 dark:border-surface-dark-tertiary/50">
               <View className="flex-row items-center">
                 <Text className="text-base mr-3">{isDark ? "🌙" : "☀️"}</Text>
                 <Text className="text-text dark:text-text-dark text-base font-medium">{t("my.darkMode")}</Text>
@@ -180,7 +180,6 @@ export function MyScreen() {
                   true: isDark ? "#D4CFC8" : "#221F1A"
                 }}
                 thumbColor={isDark ? "#1A1814" : "#F8F6F1"}
-                style={{ transform: [{ scale: 1.1 }] }}
               />
             </View>
 
@@ -199,7 +198,7 @@ export function MyScreen() {
 
         {/* ── Subscription ── */}
         <View className="mb-8">
-          <Text className="text-text dark:text-text-dark text-sm font-semibold mb-3 uppercase tracking-widest opacity-50">
+          <Text className="text-text dark:text-text-dark text-[15px] font-semibold mb-3 uppercase tracking-widest opacity-50">
             {t("my.subscription")}
           </Text>
           <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl px-4 py-3.5 border border-surface-border dark:border-surface-dark-border">

@@ -11,7 +11,7 @@ export function NetworkBanner() {
 
   return (
     <View className="bg-error px-4 py-2">
-      <Text className="text-white text-center text-sm font-medium">
+      <Text className="text-white text-center text-[15px] font-medium">
         {t("common.networkOffline")}
       </Text>
     </View>

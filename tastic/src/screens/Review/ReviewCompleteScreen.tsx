@@ -162,7 +162,7 @@ export function ReviewCompleteScreen() {
           <Text className="text-text font-semibold text-base flex-1" numberOfLines={1}>
             {content.title}
           </Text>
-          <Text className="text-text-secondary text-sm">{t("review.complete.title")}</Text>
+          <Text className="text-text-secondary text-[15px]">{t("review.complete.title")}</Text>
         </View>
 
         {/* Review title */}
@@ -184,7 +184,7 @@ export function ReviewCompleteScreen() {
         />
 
         {/* Character count */}
-        <Text className="text-text-tertiary text-xs text-right mt-2">
+        <Text className="text-text-tertiary text-[13px] text-right mt-2">
           {reviewText.length}
         </Text>
       </ScrollView>

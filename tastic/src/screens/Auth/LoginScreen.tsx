@@ -115,7 +115,7 @@ export function LoginScreen() {
                 className="absolute right-4 top-3.5"
                 onPress={() => setShowPassword(!showPassword)}
               >
-                <Text className="text-text-secondary text-sm">
+                <Text className="text-text-secondary text-[15px]">
                   {showPassword ? "Hide" : "Show"}
                 </Text>
               </Pressable>
@@ -124,7 +124,7 @@ export function LoginScreen() {
 
           {/* Error */}
           {error && (
-            <Text className="text-error text-sm mb-4">{error}</Text>
+            <Text className="text-error text-[15px] mb-4">{error}</Text>
           )}
 
           {/* Login Button */}
@@ -143,7 +143,7 @@ export function LoginScreen() {
           {/* Divider */}
           <View className="flex-row items-center mb-6">
             <View className="flex-1 h-px bg-surface-tertiary" />
-            <Text className="mx-4 text-text-tertiary text-sm">{t("auth.orDivider")}</Text>
+            <Text className="mx-4 text-text-tertiary text-[15px]">{t("auth.orDivider")}</Text>
             <View className="flex-1 h-px bg-surface-tertiary" />
           </View>
 
@@ -165,9 +165,9 @@ export function LoginScreen() {
 
           {/* Sign Up Link */}
           <View className="flex-row justify-center">
-            <Text className="text-text-secondary text-sm">{t("auth.noAccount")} </Text>
+            <Text className="text-text-secondary text-[15px]">{t("auth.noAccount")} </Text>
             <Pressable onPress={() => navigation.navigate("SignUp")}>
-              <Text className="text-primary text-sm font-semibold">{t("auth.signUp")}</Text>
+              <Text className="text-primary text-[15px] font-semibold">{t("auth.signUp")}</Text>
             </Pressable>
           </View>
         </ScrollView>

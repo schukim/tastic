@@ -1,6 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { View } from "react-native";
+import { View, Text } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Polyline, Polygon, Path, Line, Rect } from "react-native-svg";
 import { useTranslation } from "react-i18next";
 import type { MainTabParamList } from "../types/navigation";
@@ -101,6 +102,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 export function MainTabs() {
   const { t } = useTranslation();
   const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   // Dynamic colors based on theme
   const colors = {
@@ -111,6 +113,7 @@ export function MainTabs() {
   };
 
   return (
+    <View style={{ flex: 1 }}>
     <Tab.Navigator
       initialRouteName="ReviewTab"
       screenOptions={({ route }) => ({
@@ -119,7 +122,7 @@ export function MainTabs() {
         tabBarActiveTintColor: colors.active,
         tabBarInactiveTintColor: colors.inactive,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 12,
           fontFamily: "Pretendard",
           fontWeight: "600",
           marginTop: 4,
@@ -132,8 +135,8 @@ export function MainTabs() {
           elevation: 0,
           shadowOpacity: 0,
           paddingTop: 8,
-          paddingBottom: 12,
-          height: 65,
+          paddingBottom: 12 + insets.bottom,
+          height: 65 + insets.bottom,
         },
       })}
     >
@@ -163,5 +166,6 @@ export function MainTabs() {
         options={{ tabBarLabel: t("tabs.my") }}
       />
     </Tab.Navigator>
+    </View>
   );
 }

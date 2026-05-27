@@ -162,7 +162,7 @@ export function InterviewScreen() {
             {content.title}
           </Text>
         </View>
-        <Text className="text-text-secondary text-sm">
+        <Text className="text-text-secondary text-[15px]">
           {t("review.interview.questionCount", { count: questionCount })}
         </Text>
       </View>
@@ -216,14 +216,14 @@ export function InterviewScreen() {
           {/* Error state */}
           {error === "retry" && (
             <View className="items-center py-4">
-              <Text className="text-text-secondary text-sm mb-2">
+              <Text className="text-text-secondary text-[15px] mb-2">
                 {t("review.interview.errorLoad")}
               </Text>
               <Pressable
                 className="bg-primary/10 px-4 py-2 rounded-full"
                 onPress={() => { setError(null); fetchQuestion(conversation, questionCount); }}
               >
-                <Text className="text-primary font-medium text-sm">
+                <Text className="text-primary font-medium text-[15px]">
                   {t("review.interview.retry")}
                 </Text>
               </Pressable>
@@ -231,14 +231,14 @@ export function InterviewScreen() {
           )}
           {error === "persist" && (
             <View className="items-center py-4">
-              <Text className="text-text-secondary text-sm mb-2 text-center">
+              <Text className="text-text-secondary text-[15px] mb-2 text-center">
                 {t("review.interview.errorPersist")}
               </Text>
               <Pressable
                 className="bg-primary/10 px-4 py-2 rounded-full"
                 onPress={() => navigation.goBack()}
               >
-                <Text className="text-primary font-medium text-sm">
+                <Text className="text-primary font-medium text-[15px]">
                   {t("review.interview.continueLater")}
                 </Text>
               </Pressable>
@@ -256,7 +256,7 @@ export function InterviewScreen() {
                 onPress={handlePreview}
                 disabled={previewLoading}
               >
-                <Text className="text-text font-medium text-sm">
+                <Text className="text-text font-medium text-[15px]">
                   {previewLoading ? "..." : t("review.interview.previewButton")}
                 </Text>
               </Pressable>
@@ -265,7 +265,7 @@ export function InterviewScreen() {
                 onPress={handleFinish}
                 disabled={isLoading}
               >
-                <Text className="text-white font-medium text-sm">
+                <Text className="text-white font-medium text-[15px]">
                   {t("review.interview.finishButton")}
                 </Text>
               </Pressable>

@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 // import { useFocusEffect } from "@react-navigation/native"; // Temporarily disabled
-import Animated, { FadeIn, FadeInDown, SlideInDown } from "react-native-reanimated";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
@@ -179,7 +179,7 @@ export function HistoryScreen() {
             <Text className="text-text dark:text-text-dark text-lg font-light">←</Text>
           </Pressable>
           <View className="items-center">
-            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs uppercase tracking-widest font-medium">
+            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] uppercase tracking-widest font-medium">
               {lang === "ko" ? "기록" : "History"}
             </Text>
             <Text className="text-text dark:text-text-dark text-xl font-bold mt-1">
@@ -200,7 +200,7 @@ export function HistoryScreen() {
         <View className="flex-row mb-3 px-1">
           {daysOfWeek.map((d) => (
             <View key={d} className="flex-1 items-center">
-              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs font-medium uppercase tracking-wider">{d}</Text>
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] font-medium uppercase tracking-wider">{d}</Text>
             </View>
           ))}
         </View>
@@ -276,7 +276,7 @@ export function HistoryScreen() {
       {/* Elegant Divider */}
       <View className="mx-5 mb-2 flex-row items-center">
         <View className="flex-1 h-px bg-gradient-to-r from-transparent via-surface-border dark:via-surface-dark-border to-transparent" />
-        <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs mx-4 uppercase tracking-widest font-medium">
+        <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mx-4 uppercase tracking-widest font-medium">
           {reviews.length > 0 ? `${reviews.length}편` : '기록'}
         </Text>
         <View className="flex-1 h-px bg-gradient-to-r from-transparent via-surface-border dark:via-surface-dark-border to-transparent" />
@@ -326,12 +326,12 @@ export function HistoryScreen() {
                     >
                       {item.works?.title ?? item.title ?? ""}
                     </Text>
-                    <Text className="text-text-secondary dark:text-text-dark-secondary text-sm">
+                    <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px]">
                       {item.experience_date ?? item.created_at.split("T")[0]}
                     </Text>
                   </View>
                   <View className="items-end">
-                    <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs font-medium">
+                    <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] font-medium">
                       {formatRelativeDate(item.created_at, lang)}
                     </Text>
                     <View className="w-2 h-2 rounded-full mt-2" style={{ backgroundColor: color }} />
@@ -354,22 +354,23 @@ export function HistoryScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={{ flex: 1 }}
         >
-        <Pressable
-          className="flex-1"
-          style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
-          onPress={() => { setSelectedReview(null); setIsEditing(false); }}
-        >
-          <View className="flex-1" />
+        <View style={{ flex: 1 }}>
+          {/* Backdrop — 바텀시트와 분리된 별도 레이어 */}
           <Pressable
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.4)' }}
+            onPress={() => { setSelectedReview(null); setIsEditing(false); }}
+          />
+          {/* Bottom sheet — backdrop Pressable 안에 중첩되지 않음 */}
+          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <View
             className={`${isDark ? 'dark' : ''} rounded-t-[32px] shadow-2xl`}
             style={{
               maxHeight: "88%",
               backgroundColor: isDark ? '#221F1A' : '#FDFCF9'
             }}
-            onPress={(e) => e.stopPropagation()}
           >
             {selectedReview && (
-              <Animated.View entering={SlideInDown.duration(400)} className="flex-1">
+              <Animated.View entering={FadeIn.duration(250)}>
                 {/* Enhanced Category color strip with gradient */}
                 <View
                   className="h-1.5 rounded-t-[32px]"
@@ -393,14 +394,14 @@ export function HistoryScreen() {
                         {CATEGORY_ICONS[selectedCategory as ContentCategory] ?? "📋"}
                       </Text>
                       <Text
-                        className="text-xs font-bold uppercase tracking-wider"
+                        className="text-[13px] font-bold uppercase tracking-wider"
                         style={{ color: accentColor }}
                       >
                         {selectedCategory}
                       </Text>
                     </View>
                     <View className="items-end">
-                      <Text className="text-text-tertiary dark:text-text-dark-tertiary text-xs font-medium">
+                      <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] font-medium">
                         {formatReadableDate(
                           selectedReview.experience_date ?? selectedReview.created_at,
                           lang
@@ -429,8 +430,9 @@ export function HistoryScreen() {
 
                 {/* Enhanced Review body */}
                 <ScrollView
-                  className="flex-1 px-7"
+                  className="px-7"
                   showsVerticalScrollIndicator={false}
+                  nestedScrollEnabled
                   style={{ maxHeight: 320 }}
                 >
                   {isEditing ? (
@@ -502,8 +504,9 @@ export function HistoryScreen() {
                 </View>
               </Animated.View>
             )}
-          </Pressable>
-        </Pressable>
+          </View>
+          </View>
+        </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -514,7 +517,7 @@ export function HistoryScreen() {
           className="absolute bottom-32 self-center mx-8"
         >
           <View className="bg-text/90 dark:bg-text-dark/90 px-6 py-3.5 rounded-3xl shadow-2xl backdrop-blur-sm">
-            <Text className="text-surface dark:text-surface-dark text-sm font-medium text-center">
+            <Text className="text-surface dark:text-surface-dark text-[15px] font-medium text-center">
               {toastMessage}
             </Text>
           </View>

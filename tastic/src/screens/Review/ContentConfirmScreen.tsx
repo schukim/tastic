@@ -123,16 +123,16 @@ export function ContentConfirmScreen() {
       <ScrollView className="flex-1 px-6 pt-8" contentContainerClassName="pb-8">
         {/* Header */}
         <Text className="text-text text-2xl font-bold mb-2">{t("review.confirm.title")}</Text>
-        <Text className="text-text-secondary text-sm mb-6">
+        <Text className="text-text-secondary text-[15px] mb-6">
           {CATEGORY_ICONS[category]} {title}
         </Text>
 
         {/* Fetch error */}
         {fetchError && !isLoading && (
           <View className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-3">
-            <Text className="text-red-600 text-sm mb-2">{fetchError}</Text>
+            <Text className="text-red-600 text-[15px] mb-2">{fetchError}</Text>
             <Pressable onPress={fetchCandidates}>
-              <Text className="text-primary text-sm font-medium">다시 시도</Text>
+              <Text className="text-primary text-[15px] font-medium">다시 시도</Text>
             </Pressable>
           </View>
         )}
@@ -160,18 +160,18 @@ export function ContentConfirmScreen() {
             <View className="flex-row items-center justify-between mb-1">
               <Text className="text-text text-base font-semibold flex-1">{candidate.title}</Text>
               <View className={`px-2 py-0.5 rounded-full ${confidenceColor(candidate.confidence)}`}>
-                <Text className="text-xs font-medium">{candidate.confidence}</Text>
+                <Text className="text-[13px] font-medium">{candidate.confidence}</Text>
               </View>
             </View>
             {candidate.creator && (
-              <Text className="text-text-secondary text-sm">{candidate.creator}</Text>
+              <Text className="text-text-secondary text-[15px]">{candidate.creator}</Text>
             )}
             <View className="flex-row mt-1">
               {candidate.year && (
-                <Text className="text-text-tertiary text-xs mr-3">{candidate.year}</Text>
+                <Text className="text-text-tertiary text-[13px] mr-3">{candidate.year}</Text>
               )}
               {candidate.genre && (
-                <Text className="text-text-tertiary text-xs">{candidate.genre}</Text>
+                <Text className="text-text-tertiary text-[13px]">{candidate.genre}</Text>
               )}
             </View>
           </Pressable>
@@ -183,7 +183,7 @@ export function ContentConfirmScreen() {
             className="border border-dashed border-text-tertiary rounded-2xl p-4 mb-3 items-center"
             onPress={() => setIsManualMode(true)}
           >
-            <Text className="text-text-secondary text-sm">{t("review.confirm.manualInput")}</Text>
+            <Text className="text-text-secondary text-[15px]">{t("review.confirm.manualInput")}</Text>
           </Pressable>
         )}
 
@@ -195,7 +195,7 @@ export function ContentConfirmScreen() {
             }`}
             onPress={() => { setIsManualMode(true); setSelectedIndex(null); }}
           >
-            <Text className="text-text-secondary text-sm">{t("review.confirm.manualInput")}</Text>
+            <Text className="text-text-secondary text-[15px]">{t("review.confirm.manualInput")}</Text>
           </Pressable>
         )}
 
@@ -203,14 +203,14 @@ export function ContentConfirmScreen() {
         {isManualMode && (
           <View className="mt-2 mb-4">
             <TextInput
-              className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-sm mb-3"
+              className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-[15px] mb-3"
               placeholder={user?.language === "en" ? "Creator (optional)" : "창작자 (선택)"}
               placeholderTextColor="#94A3B8"
               value={manualCreator}
               onChangeText={setManualCreator}
             />
             <TextInput
-              className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-sm"
+              className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-[15px]"
               placeholder={user?.language === "en" ? "Year (optional)" : "연도 (선택)"}
               placeholderTextColor="#94A3B8"
               value={manualYear}
@@ -224,7 +224,7 @@ export function ContentConfirmScreen() {
       {/* Bottom button */}
       <View className="px-6 pb-6">
         {saveError && (
-          <Text className="text-red-500 text-sm text-center mb-3">{saveError}</Text>
+          <Text className="text-red-500 text-[15px] text-center mb-3">{saveError}</Text>
         )}
         <Pressable
           className={`rounded-xl py-4 items-center ${isValid && !isSaving ? "bg-primary" : "bg-primary/40"}`}
