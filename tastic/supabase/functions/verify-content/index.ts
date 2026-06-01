@@ -8,7 +8,17 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function callOpenAI(prompt: string, _temperature = 0.1, maxTokens = 2048) {
+async function callOpenAI(
+  prompt: string,
+  _temperature = 0.1,
+  maxTokens = 2048,
+  allowedDomains?: string[],
+) {
+  // 화이트리스트가 있으면 web_search 툴의 도메인 필터로 검색 소스를 제한한다 (Phase 1).
+  // 없으면 필터 없이 넓게 검색한다 (Phase 2 fallback).
+  const tool = allowedDomains?.length
+    ? { type: "web_search", filters: { allowed_domains: allowedDomains } }
+    : { type: "web_search" };
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -17,7 +27,7 @@ async function callOpenAI(prompt: string, _temperature = 0.1, maxTokens = 2048) 
     },
     body: JSON.stringify({
       model: MODEL,
-      tools: [{ type: "web_search_preview" }],
+      tools: [tool],
       input: prompt,
       max_output_tokens: maxTokens,
     }),
@@ -29,6 +39,53 @@ async function callOpenAI(prompt: string, _temperature = 0.1, maxTokens = 2048) 
   const raw = message.content[0].text as string;
   const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
   return JSON.parse(jsonMatch ? jsonMatch[1] : raw);
+}
+
+// Phase 1 화이트리스트: 카테고리별 신뢰 소스. 프롬프트 유도(이름)와 도메인 필터(domain)에 함께 쓴다.
+const SOURCE_WHITELIST: Record<string, { name: string; domain: string }[]> = {
+  movie: [
+    { name: "KMDb 한국영화DB", domain: "kmdb.or.kr" },
+    { name: "TMDB", domain: "themoviedb.org" },
+    { name: "IMDb", domain: "imdb.com" },
+    { name: "왓챠피디아", domain: "pedia.watcha.com" },
+    { name: "Letterboxd", domain: "letterboxd.com" },
+    { name: "위키피디아", domain: "wikipedia.org" },
+  ],
+  series: [
+    { name: "TMDB", domain: "themoviedb.org" },
+    { name: "IMDb", domain: "imdb.com" },
+    { name: "왓챠피디아", domain: "pedia.watcha.com" },
+    { name: "위키피디아", domain: "wikipedia.org" },
+  ],
+  music: [
+    { name: "멜론", domain: "melon.com" },
+    { name: "벅스", domain: "bugs.co.kr" },
+    { name: "MusicBrainz", domain: "musicbrainz.org" },
+    { name: "Discogs", domain: "discogs.com" },
+    { name: "AllMusic", domain: "allmusic.com" },
+    { name: "위키피디아", domain: "wikipedia.org" },
+  ],
+  book: [
+    { name: "교보문고", domain: "kyobobook.co.kr" },
+    { name: "알라딘", domain: "aladin.co.kr" },
+    { name: "예스24", domain: "yes24.com" },
+    { name: "국립중앙도서관", domain: "nl.go.kr" },
+    { name: "Google Books", domain: "books.google.com" },
+    { name: "Goodreads", domain: "goodreads.com" },
+  ],
+  art: [
+    { name: "위키피디아", domain: "wikipedia.org" },
+    { name: "WikiArt", domain: "wikiart.org" },
+    { name: "Google Arts & Culture", domain: "artsandculture.google.com" },
+    { name: "국립현대미술관", domain: "mmca.go.kr" },
+    { name: "The Met", domain: "metmuseum.org" },
+  ],
+};
+
+function buildSourceList(category: string): string {
+  return (SOURCE_WHITELIST[category] ?? [])
+    .map((s) => `- ${s.name} (${s.domain})`)
+    .join("\n");
 }
 
 function buildMetadataSchema(category: string): string {
@@ -110,6 +167,16 @@ Deno.serve(async (req) => {
 
     const metadataSchema = buildMetadataSchema(category);
 
+    const sourceList = buildSourceList(category);
+    const sourceBlock = sourceList
+      ? `\n반드시 web_search로 아래 "우선 참조 소스"를 먼저 조회해 사실을 확인하라. 기억에만 의존하지 말 것.
+창작자·발표 연도 등 핵심 정보는 가능하면 2개 이상의 소스에서 교차 확인하라.
+
+우선 참조 소스 (${category}):
+${sourceList}
+`
+      : "";
+
     const prompt = `너는 문화 콘텐츠 식별 전문가다.
 사용자가 입력한 정보를 바탕으로 실제 존재하는 작품을 찾아라.
 
@@ -121,7 +188,7 @@ Deno.serve(async (req) => {
 - 확신할 수 없는 필드는 null로 반환 (추측 금지)
 - 해당 작품을 찾을 수 없으면 빈 배열 반환
 - ${language === "ko" ? "한국어" : "English"}로 응답
-
+${sourceBlock}
 ${metadataSchema}
 
 반드시 아래 JSON 형식으로만 응답하라:
@@ -143,7 +210,14 @@ ${metadataSchema}
 카테고리: ${category}
 ${creatorLine}`;
 
-    const parsed = await callOpenAI(prompt, 0.1);
+    // Phase 1: 화이트리스트 도메인으로 제한해 정확도 우선 탐색
+    const allowedDomains = (SOURCE_WHITELIST[category] ?? []).map((s) => s.domain);
+    let parsed = await callOpenAI(prompt, 0.1, 2048, allowedDomains.length ? allowedDomains : undefined);
+
+    // Phase 2: Phase 1이 빈 결과면 필터를 풀고 넓게 재탐색 (프롬프트 소스 유도는 유지)
+    if (allowedDomains.length && !parsed?.candidates?.length) {
+      parsed = await callOpenAI(prompt, 0.1, 2048);
+    }
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS, "Content-Type": "application/json" },
