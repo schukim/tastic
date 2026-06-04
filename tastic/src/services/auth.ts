@@ -91,21 +91,9 @@ export async function signInWithGoogle() {
     );
 
     if (result.type === "success") {
-      const url = result.url;
-      // Extract the session from the URL
-      const urlObj = new URL(url);
-      const access_token = urlObj.searchParams.get("access_token");
-      const refresh_token = urlObj.searchParams.get("refresh_token");
-
-      if (access_token) {
-        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-          access_token,
-          refresh_token: refresh_token || "",
-        });
-
-        if (sessionError) throw sessionError;
-        return sessionData;
-      }
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
+      if (sessionError) throw sessionError;
+      return sessionData;
     }
   }
 
@@ -134,21 +122,9 @@ export async function signInWithApple() {
     );
 
     if (result.type === "success") {
-      const url = result.url;
-      // Extract the session from the URL
-      const urlObj = new URL(url);
-      const access_token = urlObj.searchParams.get("access_token");
-      const refresh_token = urlObj.searchParams.get("refresh_token");
-
-      if (access_token) {
-        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-          access_token,
-          refresh_token: refresh_token || "",
-        });
-
-        if (sessionError) throw sessionError;
-        return sessionData;
-      }
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
+      if (sessionError) throw sessionError;
+      return sessionData;
     }
   }
 
