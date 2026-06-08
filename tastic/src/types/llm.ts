@@ -6,6 +6,8 @@ export interface VerifyContentRequest {
   creator?: string;
   category: ContentCategory;
   language: "ko" | "en";
+  // true면 글로벌 캐시를 건너뛰고 웹서치 강제('재검색' 버튼)
+  skipCache?: boolean;
 }
 
 export interface ContentCandidate {
@@ -18,8 +20,25 @@ export interface ContentCandidate {
   confidence: "high" | "medium" | "low";
 }
 
+// verify-content 엣지 함수가 응답에 싣는 웹서치 탐색 트레이스(디버그용).
+// 모델이 실제 인용한 출처/검색 횟수 등을 담는다.
+export interface VerifyContentDebug {
+  // 캐시 히트 여부 — '재검색' 버튼 노출 판단에 사용
+  cache_hit?: boolean;
+  source_work_id?: string;
+  similarity?: number;
+  ms: number;
+  search_count: number;
+  cited_domains: string[];
+  citations?: { url: string; title: string | null }[];
+  status?: string | null;
+  incomplete_reason?: string | null;
+  format_status?: string | null;
+}
+
 export interface VerifyContentResponse {
   candidates: ContentCandidate[];
+  _debug?: VerifyContentDebug;
 }
 
 // ── generate-question ──

@@ -51,6 +51,42 @@ export async function fetchWorksByUser(userId: string): Promise<Work[]> {
   return data;
 }
 
+// 작품 확정(후보 선택) 시: verify-content로 식별된 작품을 is_verified=true로 저장/승격해
+// 전역 캐시로 공유한다. is_verified는 클라가 직접 못 세우므로 service-role 엣지 함수에 위임.
+// (수동 입력 경로는 이 함수 대신 createWork(is_verified=false)를 그대로 사용)
+export async function saveVerifiedWork(
+  userId: string,
+  contentInfo: {
+    title: string;
+    category: ContentCategory;
+    originalTitle?: string;
+    creator?: string;
+    year?: number;
+    genre?: string;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<Work> {
+  const { data, error } = await supabase.functions.invoke("save-verified-work", {
+    body: {
+      userId,
+      title: contentInfo.title,
+      category: contentInfo.category,
+      originalTitle: contentInfo.originalTitle ?? null,
+      creator: contentInfo.creator ?? null,
+      year: contentInfo.year ?? null,
+      genre: contentInfo.genre ?? null,
+      metadata: contentInfo.metadata ?? {},
+    },
+  });
+
+  if (error) {
+    console.error("saveVerifiedWork error:", error);
+    throw new Error("작품 정보 저장에 실패했습니다.");
+  }
+  if (!data?.work) throw new Error("작품 정보 저장에 실패했습니다.");
+  return data.work as Work;
+}
+
 // 동일 작품이 카탈로그에 있으면 재사용, 없으면 새로 생성.
 // search_works RPC로 외부 ingestion 작품도 매칭한다.
 export async function findOrCreateWork(

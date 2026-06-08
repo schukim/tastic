@@ -62,6 +62,7 @@
     "next": "Next",
     "confirm": {
       "title": "Is this the right one?",
+      "research": "Not the work you're looking for? Search again",
       "manualInput": "Can't find it. I'll enter it manually",
       "manualInputFirst": "Enter manually",
       "loading": "Searching for the work..."

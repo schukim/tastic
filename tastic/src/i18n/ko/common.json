@@ -62,6 +62,7 @@
     "next": "다음",
     "confirm": {
       "title": "이 작품이 맞나요?",
+      "research": "찾는 작품이 없나요? 재검색",
       "manualInput": "작품을 찾지 못했어요. 직접 입력할게요",
       "manualInputFirst": "직접 입력하기",
       "loading": "작품을 찾고 있어요..."

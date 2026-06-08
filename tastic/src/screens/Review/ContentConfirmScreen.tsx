@@ -16,6 +16,7 @@ import type { ContentCandidate } from "../../types/llm";
 import type { ContentCategory } from "../../types/database";
 import { verifyContent } from "../../services/claude";
 import { createContent } from "../../services/content";
+import { saveVerifiedWork } from "../../services/work";
 import { SkeletonCard } from "../../components/common/SkeletonCard";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
 import { useAuthStore } from "../../stores/authStore";
@@ -40,22 +41,38 @@ export function ContentConfirmScreen() {
   const [isManualMode, setIsManualMode] = useState(false);
   const [manualCreator, setManualCreator] = useState(inputCreator);
   const [manualYear, setManualYear] = useState("");
+  // 결과가 글로벌 캐시에서 왔는지 — true일 때만 '재검색' 버튼 노출
+  const [cacheHit, setCacheHit] = useState(false);
 
   useEffect(() => {
     fetchCandidates();
   }, []);
 
-  const fetchCandidates = async () => {
+  // skipCache=true면 캐시를 건너뛰고 웹서치 강제('재검색')
+  const fetchCandidates = async (skipCache = false) => {
     setIsLoading(true);
     setFetchError(null);
+    setSelectedIndex(null);
     try {
       const response = await verifyContent({
         title,
         creator: inputCreator || undefined,
         category,
         language: user?.language ?? "ko",
+        skipCache,
       });
       setCandidates(response.candidates);
+      setCacheHit(response._debug?.cache_hit === true);
+
+      // 웹서칭 출처 확인용 — 브라우저 콘솔에 실제 인용 도메인/URL을 찍는다(테스트 전용).
+      if (response._debug) {
+        const d = response._debug;
+        console.log(
+          `[verify-content] "${title}" — 검색 ${d.search_count}회 / ${d.ms}ms / 출처 도메인:`,
+          d.cited_domains
+        );
+        console.table(d.citations);
+      }
 
       // Auto-select if single high-confidence result
       if (response.candidates.length === 1 && response.candidates[0].confidence === "high") {
@@ -88,8 +105,8 @@ export function ContentConfirmScreen() {
         });
       } else if (selectedIndex !== null) {
         const candidate = candidates[selectedIndex];
-        contentData = await createContent({
-          userId: user.id,
+        // 후보를 확정하면 is_verified=true로 승격해 전역 캐시로 공유 (service-role 엣지 함수)
+        contentData = await saveVerifiedWork(user.id, {
           title: candidate.title,
           originalTitle: candidate.original_title ?? undefined,
           category,
@@ -131,7 +148,7 @@ export function ContentConfirmScreen() {
         {fetchError && !isLoading && (
           <View className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-3">
             <Text className="text-red-600 text-[15px] mb-2">{fetchError}</Text>
-            <Pressable onPress={fetchCandidates}>
+            <Pressable onPress={() => fetchCandidates()}>
               <Text className="text-primary text-[15px] font-medium">다시 시도</Text>
             </Pressable>
           </View>
@@ -176,6 +193,18 @@ export function ContentConfirmScreen() {
             </View>
           </Pressable>
         ))}
+
+        {/* 재검색: 캐시에서 온 결과일 때만 노출. 웹서치 결과에는 표시 안 함 */}
+        {!isLoading && cacheHit && candidates.length > 0 && (
+          <Pressable
+            className="border border-primary/40 rounded-2xl p-4 mb-3 items-center"
+            onPress={() => fetchCandidates(true)}
+          >
+            <Text className="text-primary text-[15px] font-medium">
+              🔍 {t("review.confirm.research")}
+            </Text>
+          </Pressable>
+        )}
 
         {/* No results or manual input */}
         {!isLoading && candidates.length === 0 && (

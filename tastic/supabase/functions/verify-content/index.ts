@@ -1,25 +1,164 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
-const MODEL = "gpt-4o";
+const MODEL = "gpt-4.1";
+
+// 글로벌 콘텐츠 캐시: 동일/유사 작품을 다른 유저가 검색하면 웹서치를 스킵하고
+// 기존 신뢰 작품(works.is_verified=true 또는 외부 ingestion)의 메타데이터를 재사용한다.
+// service_role로 RLS를 우회해 전체 카탈로그를 조회한다.
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+// 새 API 키 체계 프로젝트에선 SUPABASE_SERVICE_ROLE_KEY가 함수 env에 자동 주입되지 않을 수 있어,
+// 명시적 시크릿 SB_SERVICE_ROLE_KEY를 우선 사용하고 없으면 자동 주입분으로 폴백한다.
+const SERVICE_ROLE_KEY = Deno.env.get("SB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// 임계값 0.85: 근접 매칭으로 false positive가 생길 수 있으나, 캐시 히트 시 클라이언트가
+// '재검색'(skipCache=true) 버튼으로 웹서치를 강제할 수 있어 안전망이 된다.
+const CACHE_SIMILARITY_THRESHOLD = 0.85;
+
+// deno-lint-ignore no-explicit-any
+let _sb: any = null;
+function supabase() {
+  if (!_sb) _sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  return _sb;
+}
+
+// search_works RPC로 카탈로그를 훑어, 신뢰할 수 있는 캐시 작품이 있으면 candidate로 합성해 반환.
+// 없으면 null → 호출부에서 웹서치로 폴백.
+async function lookupCache(title: string, category: string) {
+  // 캐시 조회는 절대 함수를 죽이면 안 된다 — 어떤 실패(키 누락·RPC 에러·지연)든 null 반환 후 웹서치로 폴백.
+  try {
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+      console.error("lookupCache: service-role env 누락 — 캐시 비활성, 웹서치로 폴백");
+      return null;
+    }
+    // 임베딩을 넘기지 않으므로 제목 trigram 유사도만으로 0~1 스케일이 되도록 가중치를 조정한다.
+    // (기본값 trigram 0.4 / embedding 0.6이면 임베딩 없는 호출은 점수가 최대 0.55로 묶여 0.85 도달 불가)
+    // 캐시 조회가 느리거나 멈춰도 전체 예산을 먹지 않도록 3초 자체 타임아웃 후 웹서치로 폴백.
+    const rpc = supabase().rpc("search_works", {
+      query_text: title,
+      target_category: category,
+      trigram_weight: 1.0,
+      embedding_weight: 0.0,
+      limit_count: 5,
+    });
+    const timeout = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: "cache lookup timeout" } }), 3000)
+    );
+    // deno-lint-ignore no-explicit-any
+    const { data, error } = (await Promise.race([rpc, timeout])) as any;
+    if (error) {
+      console.error("lookupCache search_works error:", error);
+      return null;
+    }
+    const best = data?.[0];
+    if (!best) return null;
+    // 신뢰 행만 캐시로 인정: 유저가 확정해 승격된 행(is_verified) 또는 외부 ingestion(primary_source)
+    const trusted = best.is_verified === true || best.primary_source != null;
+    if (best.similarity_score < CACHE_SIMILARITY_THRESHOLD || !trusted) return null;
+    const candidate = {
+      title: best.title,
+      original_title: best.original_title ?? null,
+      creator: best.creator ?? null,
+      year: best.year ?? null,
+      genre: best.genre ?? null,
+      metadata: best.metadata ?? {},
+      confidence: "high",
+    };
+    return { candidate, source_work_id: best.id as string, similarity: best.similarity_score as number };
+  } catch (e) {
+    console.error("lookupCache failed — 웹서치로 폴백:", e);
+    return null;
+  }
+}
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function callOpenAI(
-  prompt: string,
-  _temperature = 0.1,
-  maxTokens = 2048,
-  allowedDomains?: string[],
-) {
-  // 화이트리스트가 있으면 web_search 툴의 도메인 필터로 검색 소스를 제한한다 (Phase 1).
-  // 없으면 필터 없이 넓게 검색한다 (Phase 2 fallback).
-  const tool = allowedDomains?.length
+// 탐색 트레이스: OpenAI Responses API의 output 배열에서 웹서치 과정/지표를 뽑아낸다.
+// 응답에 _debug로 실어 앱에서 검색 과정을 로그 분석하듯 추적한다.
+// deno-lint-ignore no-explicit-any
+function buildTrace(data: any, ms: number, ok: boolean) {
+  const output = Array.isArray(data?.output) ? data.output : [];
+  // deno-lint-ignore no-explicit-any
+  const searches = output.filter((o: any) => o.type === "web_search_call");
+  return {
+    ms,
+    http_ok: ok,
+    // 캐시 히트 여부 — 클라이언트가 '재검색' 버튼 노출 판단에 사용
+    cache_hit: false,
+    // OpenAI가 요청을 거부(non-2xx)했을 때의 실제 에러 본문 — 원인 추적용
+    openai_error: ok ? null : (data?.error ?? data ?? null),
+    status: data?.status ?? null,
+    // 잘림 여부: "max_output_tokens"면 출력이 토큰 한도로 끊긴 것
+    incomplete_reason: data?.incomplete_details?.reason ?? null,
+    usage: data?.usage ?? null,
+    search_count: searches.length,
+    // deno-lint-ignore no-explicit-any
+    searches: searches.map((s: any) => ({ status: s.status, action: s.action })),
+    // deno-lint-ignore no-explicit-any
+    output_types: output.map((o: any) => o.type),
+    raw_text: null as string | null,
+    // 모델이 실제 인용한 출처 URL/도메인. 우리가 준 소스를 실제로 봤는지 확인하는 직접 증거.
+    cited_domains: [] as string[],
+    citations: [] as { url: string; title: string | null }[],
+    // 2단계(정형화) 호출 지표 — Structured Outputs로 JSON을 강제하는 단계
+    format_status: null as string | null,
+    format_incomplete: null as string | null,
+  };
+}
+
+// 에러에 트레이스를 실어 throw — catch 경로에서 _debug로 회수한다.
+function withTrace(e: Error, trace: unknown): Error {
+  (e as Error & { trace?: unknown }).trace = trace;
+  return e;
+}
+
+// 메시지 annotation에서 인용 URL을 뽑아 트레이스에 채운다.
+// deno-lint-ignore no-explicit-any
+function extractCitations(message: any, trace: ReturnType<typeof buildTrace>) {
+  // deno-lint-ignore no-explicit-any
+  const annotations = (message?.content ?? []).flatMap((c: any) => c.annotations ?? []);
+  const citations = annotations
+    // deno-lint-ignore no-explicit-any
+    .filter((a: any) => a.type === "url_citation" && a.url)
+    // deno-lint-ignore no-explicit-any
+    .map((a: any) => ({ url: a.url as string, title: a.title ?? null }));
+  trace.citations = citations;
+  trace.cited_domains = [
+    ...new Set(
+      citations.map((c: { url: string }) => {
+        try {
+          return new URL(c.url).hostname.replace(/^www\./, "");
+        } catch {
+          return c.url;
+        }
+      })
+    ),
+  ];
+}
+
+const OPENAI_URL = "https://api.openai.com/v1/responses";
+
+// deno-lint-ignore no-explicit-any
+function textOf(message: any): string | null {
+  // deno-lint-ignore no-explicit-any
+  const item = (message?.content ?? []).find((c: any) => typeof c.text === "string");
+  return item?.text ?? null;
+}
+
+// ── 1단계: 탐색 ──
+// GA web_search로 조사한다. allowed_domains 필터로 검색을 신뢰 소스(화이트리스트)로 강제 제한한다.
+// gpt-4.1은 GA web_search + 도메인 필터를 지원한다 (gpt-4.1/nano, gpt-4o는 filters 미지원).
+// temperature 0으로 변동성 최소화.
+async function searchStep(prompt: string, allowedDomains: string[]) {
+  const t0 = Date.now();
+  // 도메인이 있으면 그 도메인들로 검색을 제한(강제), 없으면 필터 없이 넓게 검색.
+  const webSearch = allowedDomains.length
     ? { type: "web_search", filters: { allowed_domains: allowedDomains } }
     : { type: "web_search" };
-  const res = await fetch("https://api.openai.com/v1/responses", {
+  const res = await fetch(OPENAI_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -27,21 +166,65 @@ async function callOpenAI(
     },
     body: JSON.stringify({
       model: MODEL,
-      tools: [tool],
+      tools: [webSearch],
       input: prompt,
-      max_output_tokens: maxTokens,
+      temperature: 0,
+      max_output_tokens: 2048,
     }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
+  const trace = buildTrace(data, Date.now() - t0, res.ok);
+  if (!res.ok) throw withTrace(new Error(data.error?.message ?? "OpenAI error (search)"), trace);
   const message = data.output?.find((o: { type: string }) => o.type === "message");
-  if (!message) throw new Error("No message in response");
-  const raw = message.content[0].text as string;
-  const jsonMatch = raw.match(/```json\s*([\s\S]*?)```/) ?? raw.match(/(\{[\s\S]*\})/);
-  return JSON.parse(jsonMatch ? jsonMatch[1] : raw);
+  const findings = textOf(message) ?? "";
+  trace.raw_text = findings;
+  if (message) extractCitations(message, trace);
+  return { findings, trace };
 }
 
-// Phase 1 화이트리스트: 카테고리별 신뢰 소스. 프롬프트 유도(이름)와 도메인 필터(domain)에 함께 쓴다.
+// ── 2단계: 정형화 ──
+// 툴 없이, Structured Outputs(strict json_schema)로만 호출한다.
+// 디코더가 스키마 밖 토큰을 생성할 수 없으므로 산문 출력이 원천 불가능하고,
+// "못 찾음"은 구조적으로 candidates:[]가 된다.
+// deno-lint-ignore no-explicit-any
+async function formatStep(prompt: string, schema: any, trace: ReturnType<typeof buildTrace>) {
+  const res = await fetch(OPENAI_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      input: prompt,
+      temperature: 0,
+      max_output_tokens: 2048,
+      text: {
+        format: { type: "json_schema", name: "content_candidates", strict: true, schema },
+      },
+    }),
+  });
+  const data = await res.json();
+  trace.format_status = data?.status ?? null;
+  trace.format_incomplete = data?.incomplete_details?.reason ?? null;
+  if (data?.incomplete_details?.reason) trace.incomplete_reason = data.incomplete_details.reason;
+  if (!res.ok) throw withTrace(new Error(data.error?.message ?? "OpenAI error (format)"), trace);
+  const message = data.output?.find((o: { type: string }) => o.type === "message");
+  // deno-lint-ignore no-explicit-any
+  const refusal = (message?.content ?? []).find((c: any) => c.type === "refusal");
+  if (refusal) throw withTrace(new Error(`Model refused: ${refusal.refusal}`), trace);
+  const raw = textOf(message);
+  if (raw == null) throw withTrace(new Error("No text in format step"), trace);
+  try {
+    // strict 스키마 통과분이라 항상 유효 JSON
+    return { parsed: JSON.parse(raw) };
+  } catch (parseErr) {
+    throw withTrace(new Error(`JSON parse failed (format): ${(parseErr as Error).message}`), trace);
+  }
+}
+
+// 카테고리별 신뢰 소스. domain은 web_search의 allowed_domains 필터(검색 강제 제한)에,
+// name은 프롬프트 소스 목록 표기에 함께 쓴다.
 const SOURCE_WHITELIST: Record<string, { name: string; domain: string }[]> = {
   movie: [
     { name: "KMDb 한국영화DB", domain: "kmdb.or.kr" },
@@ -155,77 +338,214 @@ function buildMetadataSchema(category: string): string {
   }
 }
 
+// ── Structured Outputs 스키마 (해결책 1) ──
+// 카테고리별 metadata는 strict 모드 제약(모든 키 required + additionalProperties:false)을 지킨다.
+// nullable은 type:["string","null"], 분기형(music/book)은 anyOf로 표현한다.
+const STR_OR_NULL = { type: ["string", "null"] };
+const STR_ARRAY = { type: "array", items: { type: "string" } };
+
+function strictObject(props: Record<string, unknown>) {
+  return {
+    type: "object",
+    properties: props,
+    required: Object.keys(props),
+    additionalProperties: false,
+  };
+}
+
+function buildMetadataJsonSchema(category: string): Record<string, unknown> {
+  switch (category) {
+    case "movie":
+    case "series":
+      return strictObject({
+        creator_style: STR_OR_NULL,
+        cast: STR_ARRAY,
+        synopsis: STR_OR_NULL,
+        keywords: STR_ARRAY,
+      });
+    case "art":
+      return strictObject({
+        creator_style: STR_OR_NULL,
+        medium: STR_OR_NULL,
+        movement: STR_OR_NULL,
+        keywords: STR_ARRAY,
+      });
+    case "music":
+      return {
+        anyOf: [
+          strictObject({
+            music_type: { type: "string", enum: ["album"] },
+            creator_style: STR_OR_NULL,
+            track_count: { type: ["integer", "null"] },
+            keywords: STR_ARRAY,
+          }),
+          strictObject({
+            music_type: { type: "string", enum: ["song"] },
+            creator_style: STR_OR_NULL,
+            release_format: STR_OR_NULL,
+            keywords: STR_ARRAY,
+          }),
+        ],
+      };
+    case "book":
+      return {
+        anyOf: [
+          strictObject({
+            book_type: { type: "string", enum: ["fiction"] },
+            creator_style: STR_OR_NULL,
+            setting: STR_OR_NULL,
+            perspective: STR_OR_NULL,
+            keywords: STR_ARRAY,
+          }),
+          strictObject({
+            book_type: { type: "string", enum: ["nonfiction"] },
+            creator_style: STR_OR_NULL,
+            field: STR_OR_NULL,
+            core_argument: STR_OR_NULL,
+            keywords: STR_ARRAY,
+          }),
+        ],
+      };
+    default:
+      return strictObject({});
+  }
+}
+
+function buildResponseJsonSchema(category: string): Record<string, unknown> {
+  const candidate = strictObject({
+    title: { type: "string" },
+    original_title: STR_OR_NULL,
+    creator: STR_OR_NULL,
+    year: { type: ["integer", "null"] },
+    genre: STR_OR_NULL,
+    metadata: buildMetadataJsonSchema(category),
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
+  });
+  return strictObject({
+    candidates: { type: "array", items: candidate },
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: { ...CORS } });
   }
 
   try {
-    const { title, creator, category, language } = await req.json();
+    const { title, creator, category, language, skipCache } = await req.json();
+    const t0 = Date.now();
+
+    // ── 0단계: 글로벌 캐시 조회 ──
+    // skipCache=true('재검색')면 건너뛰고 바로 웹서치. 아니면 캐시 히트 시 웹서치 스킵.
+    if (!skipCache) {
+      const hit = await lookupCache(title, category);
+      if (hit) {
+        const ms = Date.now() - t0;
+        console.log("verify-content cache hit:", JSON.stringify({
+          title, category, ms, source_work_id: hit.source_work_id, similarity: hit.similarity,
+        }));
+        return new Response(
+          JSON.stringify({
+            candidates: [hit.candidate],
+            _debug: {
+              cache_hit: true,
+              ms,
+              source_work_id: hit.source_work_id,
+              similarity: hit.similarity,
+              search_count: 0,
+              cited_domains: [],
+            },
+          }),
+          { headers: { ...CORS, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     const creatorLine = creator ? `창작자 힌트: ${creator}\n` : "";
-
+    const lang = language === "ko" ? "한국어" : "English";
     const metadataSchema = buildMetadataSchema(category);
-
     const sourceList = buildSourceList(category);
-    const sourceBlock = sourceList
-      ? `\n반드시 web_search로 아래 "우선 참조 소스"를 먼저 조회해 사실을 확인하라. 기억에만 의존하지 말 것.
-창작자·발표 연도 등 핵심 정보는 가능하면 2개 이상의 소스에서 교차 확인하라.
+    // 검색을 강제 제한할 도메인 (allowed_domains 필터). 모델이 임의로 site:로 더 좁히지 못하게 한다.
+    const allowedDomains = (SOURCE_WHITELIST[category] ?? []).map((s) => s.domain);
 
-우선 참조 소스 (${category}):
+    // ── 1단계 프롬프트: 자유 조사 (형식 강제 없음) ──
+    // web_search 자체가 아래 도메인으로 제한되므로, 프롬프트에선 site: 지정 대신 검색어 다변화를 유도한다.
+    const sourceBlock = sourceList
+      ? `\nweb_search는 아래 신뢰 소스 도메인으로만 검색되도록 이미 제한되어 있다(별도로 site: 를 붙이지 말 것).
+한 번의 검색으로 못 찾으면 포기하지 말고 검색어를 바꿔 여러 번 시도하라:
+원제·영문 표기, 창작자명 단독, 로마자 표기 등 다양한 형태로 검색하라.
+핵심 정보(창작자·발표 연도)는 가능하면 2개 이상의 소스에서 교차 확인하라.
+
+검색 대상 신뢰 소스 (${category}):
 ${sourceList}
 `
       : "";
 
-    const prompt = `너는 문화 콘텐츠 식별 전문가다.
-사용자가 입력한 정보를 바탕으로 실제 존재하는 작품을 찾아라.
+    const searchPrompt = `너는 문화 콘텐츠 식별 전문가다.
+web_search를 사용해 아래 작품을 조사하라.
 
 규칙:
 - 창작자 힌트가 있으면 해당 창작자의 작품을 우선 탐색
-- 동일 제목의 작품이 여러 개 있으면 최대 5개까지 후보를 반환
-- 각 후보에 대해 아래 카테고리별 metadata 구조를 반드시 채울 것
-- keywords는 최소 1개 이상 반드시 포함
-- 확신할 수 없는 필드는 null로 반환 (추측 금지)
-- 해당 작품을 찾을 수 없으면 빈 배열 반환
-- ${language === "ko" ? "한국어" : "English"}로 응답
+- 동일 제목의 작품이 여러 개 있으면 최대 5개까지 조사
+- 확신할 수 없는 정보는 "불명"으로 표시 (추측 금지)
+- 작품을 전혀 찾을 수 없으면 "식별 불가"라고 분명히 밝혀라
 ${sourceBlock}
+조사가 끝나면 각 후보에 대해 아래 항목을 사실 위주로 정리해 보고하라(서술 형식은 자유):
+제목 / 원제 / 창작자 / 발표 연도 / 장르 / 확신도(high·medium·low)
+그리고 카테고리별 특성:
 ${metadataSchema}
-
-반드시 아래 JSON 형식으로만 응답하라:
-{
-  "candidates": [
-    {
-      "title": "string",
-      "original_title": "string | null",
-      "creator": "string | null",
-      "year": number | null,
-      "genre": "string | null",
-      "metadata": { /* 위 카테고리별 구조 그대로 */ },
-      "confidence": "high | medium | low"
-    }
-  ]
-}
 
 제목: ${title}
 카테고리: ${category}
 ${creatorLine}`;
 
-    // Phase 1: 화이트리스트 도메인으로 제한해 정확도 우선 탐색
-    const allowedDomains = (SOURCE_WHITELIST[category] ?? []).map((s) => s.domain);
-    let parsed = await callOpenAI(prompt, 0.1, 2048, allowedDomains.length ? allowedDomains : undefined);
+    const { findings, trace } = await searchStep(searchPrompt, allowedDomains);
 
-    // Phase 2: Phase 1이 빈 결과면 필터를 풀고 넓게 재탐색 (프롬프트 소스 유도는 유지)
-    if (allowedDomains.length && !parsed?.candidates?.length) {
-      parsed = await callOpenAI(prompt, 0.1, 2048);
-    }
+    // ── 2단계 프롬프트: 조사 결과를 strict JSON으로 정형화 ──
+    const formatPrompt = `아래 "조사 결과"를 content_candidates JSON 스키마에 맞춰 변환하라.
 
-    return new Response(JSON.stringify(parsed), {
+규칙:
+- 조사 결과에 근거해서만 채울 것. 조사 결과에 없는 정보를 추측·창작하지 말 것
+- 확신할 수 없는 필드는 null
+- keywords는 각 후보마다 최소 1개 이상
+- 조사 결과가 "식별 불가"이거나 유효한 후보가 없으면 candidates를 빈 배열([])로 둘 것
+- 모든 서술형 텍스트는 ${lang}로 작성
+
+카테고리별 metadata 작성 지침:
+${metadataSchema}
+
+조사 결과:
+"""
+${findings}
+"""
+
+원본 입력 — 제목: ${title} / 카테고리: ${category}`;
+
+    const { parsed } = await formatStep(formatPrompt, buildResponseJsonSchema(category), trace);
+    trace.ms = Date.now() - t0; // 두 단계 합산
+
+    console.log("verify-content trace:", JSON.stringify({
+      title, category,
+      ms: trace.ms,
+      search_count: trace.search_count,
+      cited_domains: trace.cited_domains,
+      candidate_count: parsed?.candidates?.length ?? 0,
+      format_status: trace.format_status,
+      incomplete_reason: trace.incomplete_reason,
+    }));
+
+    return new Response(JSON.stringify({ ...parsed, _debug: trace }), {
       headers: { ...CORS, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("verify-content error:", error);
+    const trace = (error as { trace?: unknown }).trace ?? { error: String(error) };
+    console.error("verify-content error:", error, JSON.stringify(trace));
     return new Response(
-      JSON.stringify({ error: "generation_failed", message: "작품을 검색하지 못했습니다." }),
+      JSON.stringify({
+        error: "generation_failed",
+        message: "작품을 검색하지 못했습니다.",
+        _debug: trace,
+      }),
       { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
     );
   }

@@ -59,7 +59,8 @@ export async function verifyContent(
   return invokeFunction<VerifyContentRequest, VerifyContentResponse>(
     "verify-content",
     request,
-    25_000
+    // 캐시 조회 + 웹서치(~13s) + 콜드스타트 여유. 캐시 히트 시엔 1~2초로 끝남.
+    35_000
   );
 }
 
