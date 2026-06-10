@@ -43,8 +43,22 @@ export function MyScreen() {
     React.useCallback(() => {
       if (user) {
         getReviewCount(user.id).then(setReviewCount);
+        // 구독(plan) 등 프로필이 DB에서 변경됐을 수 있으니 진입 시 새로 읽어 반영
+        supabase
+          .from("users")
+          .select("*")
+          .eq("id", user.id)
+          .single()
+          .then(({ data, error }) => {
+            const current = useAuthStore.getState().user;
+            if (!error && data && current && data.plan !== current.plan) {
+              setUser({ ...current, ...data });
+            }
+          });
       }
-    }, [user])
+      // user 전체를 deps에 넣으면 setUser로 인한 무한 refetch가 생길 수 있어 id만 추적
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id])
   );
 
   const updateProfile = async (updates: Record<string, unknown>) => {
@@ -202,7 +216,9 @@ export function MyScreen() {
             {t("my.subscription")}
           </Text>
           <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl px-4 py-3.5 border border-surface-border dark:border-surface-dark-border">
-            <Text className="text-text dark:text-text-dark text-base">{t("my.freePlan")}</Text>
+            <Text className="text-text dark:text-text-dark text-base">
+              {user.plan === "membership" ? t("my.membershipPlan") : t("my.freePlan")}
+            </Text>
           </View>
         </View>
 

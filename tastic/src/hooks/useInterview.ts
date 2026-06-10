@@ -1,16 +1,22 @@
 import { useState, useCallback, useRef } from "react";
 import type { Content, ConversationEntry } from "../types/database";
 import type { GenerateQuestionResponse } from "../types/llm";
-import { generateQuestion, generateReview } from "../services/claude";
+import { generateQuestion } from "../services/claude";
 import { createInterview, updateInterview } from "../services/review";
 import { saveDraft, clearDraft } from "../utils/storage";
 import { useAuthStore } from "../stores/authStore";
 import { getFirstQuestion } from "../prompts/firstQuestions";
 
 const MAX_RETRIES = 3;
+// 무료 플랜: 5번째 답변 즉시 평론 자동 생성·세션 종료
+const FREE_MAX_QUESTIONS = 5;
+// 멤버십: 6번째 질문 이상 진행 가능 — 비용 안전 상한만 둠
+const MEMBERSHIP_MAX_QUESTIONS = 10;
 
 export function useInterview(content: Content) {
   const user = useAuthStore((s) => s.user);
+  // developer는 내부용 플랜 — 기능상 멤버십과 동일하게 동작 (UI 비노출)
+  const isMembership = user?.plan === "membership" || user?.plan === "developer";
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const [questionCount, setQuestionCount] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState<GenerateQuestionResponse | null>(null);
@@ -18,9 +24,11 @@ export function useInterview(content: Content) {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isInterviewComplete, setIsInterviewComplete] = useState(false);
+  // 멤버십: 5문답 이후 '미리보기/계속하기' 선택 대기 상태
+  const [awaitingChoice, setAwaitingChoice] = useState(false);
   const interviewIdRef = useRef<string | null>(null);
 
-  const canPreview = questionCount >= 5;
+  const canPreview = isMembership && questionCount >= FREE_MAX_QUESTIONS;
 
   // Initialize interview in DB
   const initInterview = useCallback(async () => {
@@ -68,7 +76,7 @@ export function useInterview(content: Content) {
       }
 
       // Only honor should_end after the user has answered at least 5 questions
-      if (response.should_end && qCount >= 5) {
+      if (response.should_end && qCount >= FREE_MAX_QUESTIONS) {
         setIsInterviewComplete(true);
         setRetryCount(0);
         return response;
@@ -107,8 +115,14 @@ export function useInterview(content: Content) {
     setConversation(updatedConv);
     setQuestionCount(newCount);
 
-    // Max 6 turns — guard against extra calls
-    if (newCount >= 6) {
+    // Sync to DB
+    if (interviewIdRef.current) {
+      updateInterview(interviewIdRef.current, updatedConv, newCount).catch(() => {});
+    }
+
+    // 플랜별 상한: 무료는 5문답 즉시 종료, 멤버십은 안전 상한까지
+    const maxQuestions = isMembership ? MEMBERSHIP_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
+    if (newCount >= maxQuestions) {
       setIsInterviewComplete(true);
       return null;
     }
@@ -122,46 +136,30 @@ export function useInterview(content: Content) {
       savedAt: new Date().toISOString(),
     });
 
-    // Sync to DB
-    if (interviewIdRef.current) {
-      updateInterview(interviewIdRef.current, updatedConv, newCount).catch(() => {});
+    // 멤버십: 5문답부터는 자동 진행하지 않고 미리보기/계속하기 선택을 기다린다
+    if (isMembership && newCount >= FREE_MAX_QUESTIONS) {
+      setAwaitingChoice(true);
+      return null;
     }
 
     // Fetch next question
     return fetchQuestion(updatedConv, newCount);
-  }, [conversation, questionCount, content, fetchQuestion]);
+  }, [conversation, questionCount, content, fetchQuestion, isMembership]);
 
-  // Generate review from conversation
-  const finishInterview = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await generateReview({
-        content: {
-          title: content.title,
-          category: content.category,
-          creator: content.creator,
-          year: content.year,
-          genre: content.genre,
-        },
-        conversation_history: conversation,
-        language: user?.language ?? "ko",
-      });
+  // 멤버십: '인터뷰 계속하기' — 다음 질문 요청
+  const continueInterview = useCallback(async () => {
+    setAwaitingChoice(false);
+    return fetchQuestion(conversation, questionCount);
+  }, [conversation, questionCount, fetchQuestion]);
 
-      // Mark interview completed
-      if (interviewIdRef.current) {
-        updateInterview(interviewIdRef.current, conversation, questionCount, "completed").catch(() => {});
-      }
-
-      await clearDraft();
-      return response;
-    } catch {
-      setError("generate_failed");
-      return null;
-    } finally {
-      setIsLoading(false);
+  // 인터뷰 종료 처리 — 평론 생성은 ReviewCompleteScreen에서 수행
+  const completeInterview = useCallback(async () => {
+    setAwaitingChoice(false);
+    if (interviewIdRef.current) {
+      updateInterview(interviewIdRef.current, conversation, questionCount, "completed").catch(() => {});
     }
-  }, [content, conversation, questionCount, user]);
+    await clearDraft();
+  }, [conversation, questionCount]);
 
   // Restore from draft
   const restoreFromDraft = useCallback((
@@ -185,7 +183,17 @@ export function useInterview(content: Content) {
         topic_label: lastQuestion.topic_label ?? "",
       });
     }
-  }, []);
+
+    // 5문답 이후 답변까지 마친 드래프트 복원: 플랜에 따라 선택 대기 / 즉시 종료
+    const lastEntry = savedConversation[savedConversation.length - 1];
+    if (lastEntry?.role === "user" && savedQuestionCount >= FREE_MAX_QUESTIONS) {
+      if (isMembership && savedQuestionCount < MEMBERSHIP_MAX_QUESTIONS) {
+        setAwaitingChoice(true);
+      } else {
+        setIsInterviewComplete(true);
+      }
+    }
+  }, [isMembership]);
 
   return {
     conversation,
@@ -195,11 +203,14 @@ export function useInterview(content: Content) {
     error,
     canPreview,
     isInterviewComplete,
+    awaitingChoice,
+    isMembership,
     interviewId: interviewIdRef.current,
     initInterview,
     fetchQuestion,
     submitAnswer,
-    finishInterview,
+    continueInterview,
+    completeInterview,
     restoreFromDraft,
     setError,
   };

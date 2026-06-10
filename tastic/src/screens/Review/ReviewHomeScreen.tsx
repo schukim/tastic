@@ -27,6 +27,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
 import { loadDraft, clearDraft } from "../../utils/storage";
 import { toISODateString } from "../../utils/formatDate";
+import { checkUsageLimit } from "../../services/usage";
 
 type Nav = NativeStackNavigationProp<ReviewStackParamList, "ReviewHome">;
 
@@ -56,6 +57,7 @@ export function ReviewHomeScreen() {
   const [experienceDate] = useState(toISODateString(new Date()));
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDraftDialog, setShowDraftDialog] = useState(false);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
 
   const titleRef = useRef<TextInput>(null);
@@ -159,8 +161,14 @@ export function ReviewHomeScreen() {
 
   const isValid = title.trim().length > 0 && category !== null;
 
-  const handleNext = () => {
-    if (!isValid || !category) return;
+  const handleNext = async () => {
+    if (!isValid || !category || !user) return;
+    // 무료 플랜 하루 1편 사전 체크 (최종 검증은 서버사이드)
+    const allowed = await checkUsageLimit(user.id, user.plan, "review");
+    if (!allowed) {
+      setShowLimitDialog(true);
+      return;
+    }
     navigation.navigate("ContentConfirm", {
       title: title.trim(),
       creator: creator.trim(),
@@ -275,6 +283,16 @@ export function ReviewHomeScreen() {
           </Animated.View>
         </Animated.ScrollView>
       </KeyboardAvoidingView>
+
+      <ConfirmDialog
+        visible={showLimitDialog}
+        title={t("membership.limitTitle")}
+        message={t("membership.limitReview")}
+        actions={[
+          { label: t("common.confirm"), onPress: () => setShowLimitDialog(false), variant: "primary" },
+        ]}
+        onClose={() => setShowLimitDialog(false)}
+      />
 
       <ConfirmDialog
         visible={showDraftDialog}

@@ -63,6 +63,7 @@
     "confirm": {
       "title": "Is this the right one?",
       "research": "Not the work you're looking for? Search again",
+      "researchLimit": "You can search again up to 3 times",
       "manualInput": "Can't find it. I'll enter it manually",
       "manualInputFirst": "Enter manually",
       "loading": "Searching for the work..."
@@ -72,6 +73,8 @@
       "answerPlaceholder": "Type your answer...",
       "previewButton": "Preview Review",
       "finishButton": "Finish Interview",
+      "continueButton": "Keep Going",
+      "finishFromPreview": "Finish with This Review",
       "exitConfirmTitle": "Leave Interview",
       "exitConfirmMessage": "Save progress and leave?",
       "exitConfirmSave": "Save & Leave",
@@ -124,6 +127,12 @@
     "error": "Analysis failed",
     "newReviewBadge": "{{count}} new reviews available"
   },
+  "membership": {
+    "limitTitle": "Usage Limit",
+    "limitReview": "The free plan allows 1 review per day.\nUpgrade to Membership (₩3,900/mo) for unlimited reviews.",
+    "limitAnalysis": "The free plan allows 1 taste analysis per week.\nUpgrade to Membership (₩3,900/mo) for unlimited analyses.",
+    "limitRecommend": "The free plan allows 1 recommendation per day.\nUpgrade to Membership (₩3,900/mo) for unlimited recommendations."
+  },
   "my": {
     "profile": "Profile",
     "categories": "Interests",
@@ -132,6 +141,7 @@
     "language": "Language",
     "subscription": "Subscription",
     "freePlan": "Free Plan",
+    "membershipPlan": "Membership (₩3,900/mo)",
     "logout": "Log Out",
     "logoutConfirm": "Are you sure you want to log out?",
     "deleteAccount": "Delete Account",

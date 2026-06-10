@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { enforceUsageLimit } from "../_shared/usage.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const MODEL = "gpt-4o";
@@ -9,6 +10,10 @@ const CORS = {
 };
 
 async function callOpenAI(prompt: string, temperature = 0.4, maxTokens = 2048) {
+  // 로컬 E2E용 mock — MOCK_LLM=true일 때만 동작 (배포 환경엔 미설정)
+  if (Deno.env.get("MOCK_LLM") === "true") {
+    return { review_text: "[mock] 평론 본문", suggested_title: "[mock] 제목" };
+  }
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -34,7 +39,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { content, conversation_history, language } = await req.json();
+    const { content, conversation_history, language, interview_id, is_preview } = await req.json();
+
+    // 미리보기는 멤버십 전용, 최종 생성은 free 하루 1편 제한.
+    // 같은 인터뷰(ref_id)의 재생성은 추가 카운트하지 않는다.
+    const gate = await enforceUsageLimit(req, "review", {
+      refId: interview_id ?? null,
+      requireMembership: is_preview === true,
+      language,
+      cors: CORS,
+    });
+    if (!gate.ok) return gate.response;
 
     const conversationText = conversation_history
       .map((e: { role: string; text: string }) =>
@@ -81,6 +96,8 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 ${conversationText}`;
 
     const parsed = await callOpenAI(prompt, 0.4);
+
+    if (is_preview !== true) await gate.logUsage();
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS, "Content-Type": "application/json" },

@@ -1,0 +1,226 @@
+// claude.ts 서비스 테스트
+// AI(Edge Function) 호출 레이어의 타임아웃, 에러 파싱, 정상 응답을 검증합니다.
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// vi.hoisted()로 먼저 선언해야 vi.mock() 팩토리 안에서 참조 가능
+const { mockInvoke } = vi.hoisted(() => ({
+  mockInvoke: vi.fn(),
+}));
+
+vi.mock("../../services/supabase", () => ({
+  supabase: {
+    functions: { invoke: mockInvoke },
+  },
+}));
+
+import {
+  verifyContent,
+  generateQuestion,
+  generateReview,
+  analyzeTaste,
+  recommendContent,
+} from "../../services/claude";
+
+// 테스트용 더미 데이터
+const dummyContent = {
+  title: "기생충",
+  category: "movie" as const,
+  creator: "봉준호",
+  year: 2019,
+  genre: "드라마",
+  metadata: {},
+};
+
+const dummyConversation = [
+  { role: "interviewer" as const, text: "이 영화의 첫인상은 어땠나요?" },
+  { role: "user" as const, text: "충격적이었습니다." },
+];
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.clearAllTimers();
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+// ────────────────────────────────────────────────────────────
+// 1. 정상 응답
+// ────────────────────────────────────────────────────────────
+
+describe("정상 응답", () => {
+  it("verifyContent: 성공 시 데이터 반환", async () => {
+    const expected = { is_valid: true, work_id: "abc-123", title: "기생충" };
+    mockInvoke.mockResolvedValueOnce({ data: expected, error: null });
+
+    const result = await verifyContent({ title: "기생충", category: "movie", language: "ko" });
+    expect(result).toEqual(expected);
+    expect(mockInvoke).toHaveBeenCalledWith("verify-content", expect.any(Object));
+  });
+
+  it("generateQuestion: 성공 시 질문 반환", async () => {
+    const expected = { question: "주인공에게 공감했나요?", question_type: "deep", topic_label: "감정" };
+    mockInvoke.mockResolvedValueOnce({ data: expected, error: null });
+
+    const result = await generateQuestion({
+      content: dummyContent,
+      conversation_history: dummyConversation,
+      question_count: 1,
+      language: "ko",
+    });
+    expect(result.question).toBe("주인공에게 공감했나요?");
+  });
+
+  it("generateReview: 성공 시 평론 텍스트 반환", async () => {
+    const expected = { suggested_title: "계급의 균열", review_text: "봉준호 감독은..." };
+    mockInvoke.mockResolvedValueOnce({ data: expected, error: null });
+
+    const result = await generateReview({
+      content: dummyContent,
+      conversation_history: dummyConversation,
+      language: "ko",
+    });
+    expect(result.review_text).toBe("봉준호 감독은...");
+  });
+});
+
+// ────────────────────────────────────────────────────────────
+// 2. 타임아웃
+// ────────────────────────────────────────────────────────────
+
+describe("타임아웃 처리", () => {
+  it("verifyContent: 35초 초과 시 타임아웃 에러", async () => {
+    mockInvoke.mockReturnValueOnce(new Promise(() => {}));
+    const resultPromise = verifyContent({ title: "기생충", category: "movie", language: "ko" });
+    // rejection handler를 먼저 붙인 뒤 타이머를 진행해야 unhandled rejection 경고 없음
+    const assertion = expect(resultPromise).rejects.toThrow("요청 시간이 초과되었습니다.");
+    await vi.advanceTimersByTimeAsync(35_001);
+    await assertion;
+  });
+
+  it("generateQuestion: 15초 초과 시 타임아웃 에러", async () => {
+    mockInvoke.mockReturnValueOnce(new Promise(() => {}));
+    const resultPromise = generateQuestion({
+      content: dummyContent,
+      conversation_history: dummyConversation,
+      question_count: 1,
+      language: "ko",
+    });
+    const assertion = expect(resultPromise).rejects.toThrow("요청 시간이 초과되었습니다.");
+    await vi.advanceTimersByTimeAsync(15_001);
+    await assertion;
+  });
+
+  it("generateReview: 30초 초과 시 타임아웃 에러", async () => {
+    mockInvoke.mockReturnValueOnce(new Promise(() => {}));
+    const resultPromise = generateReview({
+      content: dummyContent,
+      conversation_history: dummyConversation,
+      language: "ko",
+    });
+    const assertion = expect(resultPromise).rejects.toThrow("요청 시간이 초과되었습니다.");
+    await vi.advanceTimersByTimeAsync(30_001);
+    await assertion;
+  });
+
+  it("analyzeTaste: 30초 초과 시 타임아웃 에러", async () => {
+    mockInvoke.mockReturnValueOnce(new Promise(() => {}));
+    const resultPromise = analyzeTaste({ reviews: [], previous_profile: null, language: "ko" });
+    const assertion = expect(resultPromise).rejects.toThrow("요청 시간이 초과되었습니다.");
+    await vi.advanceTimersByTimeAsync(30_001);
+    await assertion;
+  });
+
+  it("recommendContent: 20초 초과 시 타임아웃 에러", async () => {
+    mockInvoke.mockReturnValueOnce(new Promise(() => {}));
+    const resultPromise = recommendContent({ taste_profile: [], user_prompt: "잔잔한 영화", review_history: [], language: "ko" });
+    const assertion = expect(resultPromise).rejects.toThrow("요청 시간이 초과되었습니다.");
+    await vi.advanceTimersByTimeAsync(20_001);
+    await assertion;
+  });
+
+  it("29초에는 타임아웃 발생 안 함 (generateReview)", async () => {
+    const expected = { suggested_title: "제목", review_text: "내용" };
+    mockInvoke.mockReturnValueOnce(
+      new Promise((resolve) =>
+        setTimeout(() => resolve({ data: expected, error: null }), 29_000)
+      )
+    );
+
+    const resultPromise = generateReview({
+      content: dummyContent,
+      conversation_history: dummyConversation,
+      language: "ko",
+    });
+    await vi.advanceTimersByTimeAsync(29_000);
+
+    const result = await resultPromise;
+    expect(result.review_text).toBe("내용");
+  });
+});
+
+// ────────────────────────────────────────────────────────────
+// 3. 에러 파싱
+// ────────────────────────────────────────────────────────────
+
+describe("에러 파싱", () => {
+  it("Supabase error 객체 → error.message로 에러 throw", async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: { message: "Function not found" },
+    });
+
+    await expect(
+      verifyContent({ title: "기생충", category: "movie", language: "ko" })
+    ).rejects.toThrow("Function not found");
+  });
+
+  it("FunctionsHttpError: context.json에서 message 파싱", async () => {
+    const jsonBody = { error: true, message: "콘텐츠를 확인할 수 없습니다." };
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: "Edge Function returned a non-2xx status code",
+        context: { json: async () => jsonBody },
+      },
+    });
+
+    await expect(
+      verifyContent({ title: "기생충", category: "movie", language: "ko" })
+    ).rejects.toThrow("콘텐츠를 확인할 수 없습니다.");
+  });
+
+  it("data.error 필드가 true이면 data.message로 에러 throw", async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: { error: true, message: "AI 서버 오류가 발생했습니다." },
+      error: null,
+    });
+
+    await expect(
+      generateQuestion({
+        content: dummyContent,
+        conversation_history: dummyConversation,
+        question_count: 1,
+        language: "ko",
+      })
+    ).rejects.toThrow("AI 서버 오류가 발생했습니다.");
+  });
+
+  it("context.json 파싱 실패 시 원래 error.message 사용", async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: "원본 에러 메시지",
+        context: {
+          json: async () => { throw new Error("원본 에러 메시지"); },
+        },
+      },
+    });
+
+    await expect(
+      verifyContent({ title: "기생충", category: "movie", language: "ko" })
+    ).rejects.toThrow("원본 에러 메시지");
+  });
+});

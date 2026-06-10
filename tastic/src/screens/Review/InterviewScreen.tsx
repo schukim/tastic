@@ -46,11 +46,14 @@ export function InterviewScreen() {
     isLoading,
     error,
     canPreview,
+    isInterviewComplete,
+    awaitingChoice,
     interviewId,
     initInterview,
     fetchQuestion,
     submitAnswer,
-    finishInterview,
+    continueInterview,
+    completeInterview,
     restoreFromDraft,
     setError,
   } = useInterview(content);
@@ -74,8 +77,9 @@ export function InterviewScreen() {
       if (draft && draft.content.id === content.id) {
         restoreFromDraft(draft.conversation, draft.questionCount, draft.interviewId);
         // If last entry is a user answer, fetch next question
+        // (5문답 이후는 훅이 플랜에 따라 선택 대기/종료 처리하므로 자동 진행하지 않음)
         const lastEntry = draft.conversation[draft.conversation.length - 1];
-        if (lastEntry?.role === "user") {
+        if (lastEntry?.role === "user" && draft.questionCount < 5) {
           fetchQuestion(draft.conversation, draft.questionCount);
         }
       } else {
@@ -84,6 +88,20 @@ export function InterviewScreen() {
       }
     })();
   }, [initialized, content.id, initInterview, fetchQuestion, restoreFromDraft]);
+
+  // 인터뷰 종료(무료 5문답 도달, 멤버십 상한/should_end) 시 평론 생성 화면으로 이동
+  useEffect(() => {
+    if (!isInterviewComplete) return;
+    (async () => {
+      await completeInterview();
+      navigation.replace("ReviewComplete", {
+        content,
+        conversation,
+        interviewId: interviewId ?? "",
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInterviewComplete]);
 
   const handleSubmitAnswer = async () => {
     if (!answerText.trim()) return;
@@ -107,24 +125,25 @@ export function InterviewScreen() {
         },
         conversation_history: conversation,
         language: user?.language ?? "ko",
+        interview_id: interviewId || null,
+        is_preview: true,
       });
       setPreviewText(result?.review_text ?? "");
-    } catch {
-      setPreviewText(t("review.complete.generateFailed"));
+    } catch (e) {
+      setPreviewText(e instanceof Error && e.message ? e.message : t("review.complete.generateFailed"));
     } finally {
       setPreviewLoading(false);
     }
   };
 
   const handleFinish = async () => {
-    const result = await finishInterview();
-    if (result) {
-      navigation.replace("ReviewComplete", {
-        content,
-        conversation,
-        interviewId: interviewId ?? "",
-      });
-    }
+    setShowPreview(false);
+    await completeInterview();
+    navigation.replace("ReviewComplete", {
+      content,
+      conversation,
+      interviewId: interviewId ?? "",
+    });
   };
 
   const handleExitSave = async () => {
@@ -248,8 +267,8 @@ export function InterviewScreen() {
 
         {/* Bottom: Answer input + action buttons */}
         <View className="px-6 pb-4 pt-2 border-t border-surface-tertiary">
-          {/* Action buttons (visible after 5 answers) */}
-          {canPreview && (
+          {/* 멤버십: 5문답 이후 미리보기/계속하기 선택 (무료는 자동 생성·종료) */}
+          {awaitingChoice && canPreview && (
             <View className="flex-row mb-3 gap-3">
               <Pressable
                 className={`flex-1 rounded-xl py-3 items-center ${previewLoading ? "bg-surface-tertiary/50" : "bg-surface-tertiary"}`}
@@ -262,37 +281,39 @@ export function InterviewScreen() {
               </Pressable>
               <Pressable
                 className="flex-1 bg-primary rounded-xl py-3 items-center"
-                onPress={handleFinish}
+                onPress={continueInterview}
                 disabled={isLoading}
               >
                 <Text className="text-white font-medium text-[15px]">
-                  {t("review.interview.finishButton")}
+                  {t("review.interview.continueButton")}
                 </Text>
               </Pressable>
             </View>
           )}
 
-          {/* Answer input */}
-          <View className="flex-row items-end">
-            <TextInput
-              className="flex-1 bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-base mr-3 max-h-24"
-              placeholder={t("review.interview.answerPlaceholder")}
-              placeholderTextColor="#94A3B8"
-              value={answerText}
-              onChangeText={setAnswerText}
-              multiline
-              editable={!isLoading && !error}
-            />
-            <Pressable
-              className={`rounded-xl px-5 py-3 ${
-                answerText.trim() && !isLoading ? "bg-primary" : "bg-primary/40"
-              }`}
-              onPress={handleSubmitAnswer}
-              disabled={!answerText.trim() || isLoading}
-            >
-              <Text className="text-white font-semibold">→</Text>
-            </Pressable>
-          </View>
+          {/* Answer input — 선택 대기/종료 중에는 숨김 */}
+          {!awaitingChoice && !isInterviewComplete && (
+            <View className="flex-row items-end">
+              <TextInput
+                className="flex-1 bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-base mr-3 max-h-24"
+                placeholder={t("review.interview.answerPlaceholder")}
+                placeholderTextColor="#94A3B8"
+                value={answerText}
+                onChangeText={setAnswerText}
+                multiline
+                editable={!isLoading && !error}
+              />
+              <Pressable
+                className={`rounded-xl px-5 py-3 ${
+                  answerText.trim() && !isLoading ? "bg-primary" : "bg-primary/40"
+                }`}
+                onPress={handleSubmitAnswer}
+                disabled={!answerText.trim() || isLoading}
+              >
+                <Text className="text-white font-semibold">→</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </View>
 
@@ -304,6 +325,7 @@ export function InterviewScreen() {
           message={previewText}
           loading={previewLoading}
           actions={[
+            { label: t("review.interview.finishFromPreview"), onPress: handleFinish, variant: "primary" },
             { label: t("common.close"), onPress: () => setShowPreview(false) },
           ]}
           onClose={() => setShowPreview(false)}

@@ -18,6 +18,8 @@ import { useTheme } from "../../hooks/useTheme";
 import { getLatestTasteProfile, saveTasteProfile, getReviewCount } from "../../services/taste";
 import { fetchReviews } from "../../services/review";
 import { analyzeTaste } from "../../services/claude";
+import { checkUsageLimit } from "../../services/usage";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 
 type Nav = BottomTabNavigationProp<MainTabParamList, "AnalysisTab">;
 
@@ -55,6 +57,7 @@ export function AnalysisScreen() {
   const [loadingMessageIdx, setLoadingMessageIdx] = useState(0);
   const [error, setError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -91,6 +94,12 @@ export function AnalysisScreen() {
 
   const handleAnalyze = async () => {
     if (!user) return;
+    // 무료 플랜 주 1회 사전 체크 (최종 검증은 서버사이드)
+    const allowed = await checkUsageLimit(user.id, user.plan, "analysis");
+    if (!allowed) {
+      setShowLimitDialog(true);
+      return;
+    }
     setIsAnalyzing(true);
     setError(false);
     setLoadingMessageIdx(0);
@@ -254,6 +263,16 @@ export function AnalysisScreen() {
             )}
           </Animated.View>
         </ScrollView>
+
+        <ConfirmDialog
+          visible={showLimitDialog}
+          title={t("membership.limitTitle")}
+          message={t("membership.limitAnalysis")}
+          actions={[
+            { label: t("common.confirm"), onPress: () => setShowLimitDialog(false), variant: "primary" },
+          ]}
+          onClose={() => setShowLimitDialog(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -388,6 +407,16 @@ export function AnalysisScreen() {
           </Animated.View>
         )}
       </ScrollView>
+
+      <ConfirmDialog
+        visible={showLimitDialog}
+        title={t("membership.limitTitle")}
+        message={t("membership.limitAnalysis")}
+        actions={[
+          { label: t("common.confirm"), onPress: () => setShowLimitDialog(false), variant: "primary" },
+        ]}
+        onClose={() => setShowLimitDialog(false)}
+      />
     </SafeAreaView>
   );
 }

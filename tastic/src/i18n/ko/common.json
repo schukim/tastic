@@ -63,6 +63,7 @@
     "confirm": {
       "title": "이 작품이 맞나요?",
       "research": "찾는 작품이 없나요? 재검색",
+      "researchLimit": "재검색은 최대 3회까지 가능해요",
       "manualInput": "작품을 찾지 못했어요. 직접 입력할게요",
       "manualInputFirst": "직접 입력하기",
       "loading": "작품을 찾고 있어요..."
@@ -72,6 +73,8 @@
       "answerPlaceholder": "답변을 입력하세요...",
       "previewButton": "평론 미리보기",
       "finishButton": "답변 종료하기",
+      "continueButton": "인터뷰 계속하기",
+      "finishFromPreview": "이 평론으로 완성하기",
       "exitConfirmTitle": "인터뷰 나가기",
       "exitConfirmMessage": "진행 중인 인터뷰를 저장하고 나갈까요?",
       "exitConfirmSave": "저장하고 나가기",
@@ -124,6 +127,12 @@
     "error": "분석을 완료하지 못했어요",
     "newReviewBadge": "새 평론 {{count}}개 반영 가능"
   },
+  "membership": {
+    "limitTitle": "이용 한도 안내",
+    "limitReview": "무료 플랜은 평론을 하루에 1편 작성할 수 있어요.\n멤버십(월 3,900원)으로 업그레이드하면 무제한으로 작성할 수 있어요.",
+    "limitAnalysis": "무료 플랜은 취향 분석을 주 1회 이용할 수 있어요.\n멤버십(월 3,900원)으로 업그레이드하면 무제한으로 분석할 수 있어요.",
+    "limitRecommend": "무료 플랜은 추천을 하루에 1회 받을 수 있어요.\n멤버십(월 3,900원)으로 업그레이드하면 무제한으로 추천받을 수 있어요."
+  },
   "my": {
     "profile": "프로필",
     "categories": "관심 카테고리",
@@ -132,6 +141,7 @@
     "language": "언어 설정",
     "subscription": "구독",
     "freePlan": "무료 플랜",
+    "membershipPlan": "멤버십 (월 3,900원)",
     "logout": "로그아웃",
     "logoutConfirm": "로그아웃 하시겠습니까?",
     "deleteAccount": "계정 삭제",

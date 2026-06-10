@@ -21,8 +21,10 @@ import { fetchReviews } from "../../services/review";
 import { getReviewCount } from "../../services/taste";
 import { recommendContent } from "../../services/claude";
 import { saveRecommendation } from "../../services/recommendation";
+import { checkUsageLimit } from "../../services/usage";
 import { SkeletonCard } from "../../components/common/SkeletonCard";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 
 interface RecommendItem {
   title: string;
@@ -61,6 +63,7 @@ export function RecommendScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(false);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
 
   useEffect(() => {
     const params = route.params as { autoPrompt?: string } | undefined;
@@ -79,6 +82,13 @@ export function RecommendScreen() {
   const handleSubmit = async (overridePrompt?: string) => {
     const queryPrompt = overridePrompt ?? prompt;
     if (!queryPrompt.trim() || !user) return;
+
+    // 무료 플랜 하루 1회 사전 체크 (최종 검증은 서버사이드)
+    const allowed = await checkUsageLimit(user.id, user.plan, "recommendation");
+    if (!allowed) {
+      setShowLimitDialog(true);
+      return;
+    }
 
     setIsLoading(true);
     setError(false);
@@ -394,6 +404,16 @@ export function RecommendScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ConfirmDialog
+        visible={showLimitDialog}
+        title={t("membership.limitTitle")}
+        message={t("membership.limitRecommend")}
+        actions={[
+          { label: t("common.confirm"), onPress: () => setShowLimitDialog(false), variant: "primary" },
+        ]}
+        onClose={() => setShowLimitDialog(false)}
+      />
     </SafeAreaView>
   );
 }

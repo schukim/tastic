@@ -74,6 +74,10 @@ export interface GenerateReviewRequest {
   };
   conversation_history: ConversationEntry[];
   language: "ko" | "en";
+  // 사용량 카운트 멱등 처리용 — 같은 인터뷰의 재생성은 중복 카운트하지 않음
+  interview_id?: string | null;
+  // true면 멤버십 전용 미리보기 (사용량 미차감)
+  is_preview?: boolean;
 }
 
 export interface GenerateReviewResponse {

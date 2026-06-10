@@ -43,6 +43,9 @@ export function ContentConfirmScreen() {
   const [manualYear, setManualYear] = useState("");
   // 결과가 글로벌 캐시에서 왔는지 — true일 때만 '재검색' 버튼 노출
   const [cacheHit, setCacheHit] = useState(false);
+  // 재검색은 플랜 무관 세션당 최대 3회
+  const MAX_RESEARCH = 3;
+  const [researchCount, setResearchCount] = useState(0);
 
   useEffect(() => {
     fetchCandidates();
@@ -50,6 +53,10 @@ export function ContentConfirmScreen() {
 
   // skipCache=true면 캐시를 건너뛰고 웹서치 강제('재검색')
   const fetchCandidates = async (skipCache = false) => {
+    if (skipCache) {
+      if (researchCount >= MAX_RESEARCH) return;
+      setResearchCount((c) => c + 1);
+    }
     setIsLoading(true);
     setFetchError(null);
     setSelectedIndex(null);
@@ -194,8 +201,8 @@ export function ContentConfirmScreen() {
           </Pressable>
         ))}
 
-        {/* 재검색: 캐시에서 온 결과일 때만 노출. 웹서치 결과에는 표시 안 함 */}
-        {!isLoading && cacheHit && candidates.length > 0 && (
+        {/* 재검색: 캐시에서 온 결과일 때만 노출. 웹서치 결과에는 표시 안 함. 세션당 최대 3회 */}
+        {!isLoading && cacheHit && candidates.length > 0 && researchCount < MAX_RESEARCH && (
           <Pressable
             className="border border-primary/40 rounded-2xl p-4 mb-3 items-center"
             onPress={() => fetchCandidates(true)}
@@ -206,14 +213,30 @@ export function ContentConfirmScreen() {
           </Pressable>
         )}
 
-        {/* No results or manual input */}
+        {/* No results: 재검색(최대 3회) + manual input */}
         {!isLoading && candidates.length === 0 && (
-          <Pressable
-            className="border border-dashed border-text-tertiary rounded-2xl p-4 mb-3 items-center"
-            onPress={() => setIsManualMode(true)}
-          >
-            <Text className="text-text-secondary text-[15px]">{t("review.confirm.manualInput")}</Text>
-          </Pressable>
+          <>
+            {researchCount < MAX_RESEARCH ? (
+              <Pressable
+                className="border border-primary/40 rounded-2xl p-4 mb-3 items-center"
+                onPress={() => fetchCandidates(true)}
+              >
+                <Text className="text-primary text-[15px] font-medium">
+                  🔍 {t("review.confirm.research")}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text className="text-text-tertiary text-[13px] text-center mb-3">
+                {t("review.confirm.researchLimit")}
+              </Text>
+            )}
+            <Pressable
+              className="border border-dashed border-text-tertiary rounded-2xl p-4 mb-3 items-center"
+              onPress={() => setIsManualMode(true)}
+            >
+              <Text className="text-text-secondary text-[15px]">{t("review.confirm.manualInput")}</Text>
+            </Pressable>
+          </>
         )}
 
         {/* Manual input */}

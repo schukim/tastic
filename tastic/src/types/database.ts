@@ -9,12 +9,26 @@ export type InterviewStatus = "in_progress" | "completed" | "abandoned";
 
 export type Language = "ko" | "en";
 
+// developer는 DB에서 직접 부여하는 내부용 플랜 — UI에 노출하지 않음
+export type UserPlan = "free" | "membership" | "developer";
+
+export type UsageAction = "review" | "analysis" | "recommendation";
+
 export interface User {
   id: string;
   nickname: string;
   avatar_url: string | null;
   preferred_categories: ContentCategory[];
   language: Language;
+  plan: UserPlan;
+  created_at: string;
+}
+
+export interface UsageLog {
+  id: string;
+  user_id: string;
+  action: UsageAction;
+  ref_id: string | null;
   created_at: string;
 }
 

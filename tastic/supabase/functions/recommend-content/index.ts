@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { enforceUsageLimit } from "../_shared/usage.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const MODEL = "gpt-4o";
@@ -9,6 +10,14 @@ const CORS = {
 };
 
 async function callOpenAI(prompt: string, _temperature = 0.5, maxTokens = 2048) {
+  // 로컬 E2E용 mock — MOCK_LLM=true일 때만 동작 (배포 환경엔 미설정)
+  if (Deno.env.get("MOCK_LLM") === "true") {
+    return {
+      recommendations: [
+        { title: "[mock] 추천작", category: "movie", creator: "mock", year: 2024, reason: "mock", reason_short: "mock" },
+      ],
+    };
+  }
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -38,6 +47,10 @@ Deno.serve(async (req) => {
 
   try {
     const { taste_profile, user_prompt, review_history, language } = await req.json();
+
+    // free 플랜은 추천 하루 1회 (membership 무제한)
+    const gate = await enforceUsageLimit(req, "recommendation", { language, cors: CORS });
+    if (!gate.ok) return gate.response;
 
     const historyText = review_history
       .map((r: { content_title: string; category: string }) => `- [${r.category}] ${r.content_title}`)
@@ -81,6 +94,8 @@ ${taste_profile.join("\n")}
 ${historyText}`;
 
     const parsed = await callOpenAI(prompt, 0.5);
+
+    await gate.logUsage();
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS, "Content-Type": "application/json" },

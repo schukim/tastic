@@ -35,6 +35,7 @@ export function ReviewCompleteScreen() {
   const [isGenerating, setIsGenerating] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [generateError, setGenerateError] = useState(false);
+  const [generateErrorMessage, setGenerateErrorMessage] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export function ReviewCompleteScreen() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setGenerateError(false);
+    setGenerateErrorMessage(null);
     try {
       const result = await generateReview({
         content: {
@@ -55,6 +57,8 @@ export function ReviewCompleteScreen() {
         },
         conversation_history: conversation,
         language: user?.language ?? "ko",
+        // 같은 인터뷰의 재생성은 사용량을 추가 차감하지 않도록 서버에 전달
+        interview_id: interviewId || null,
       });
       if (result) {
         setReviewText(result.review_text);
@@ -62,7 +66,9 @@ export function ReviewCompleteScreen() {
       } else {
         setGenerateError(true);
       }
-    } catch {
+    } catch (e) {
+      // 서버 한도 초과(limit_exceeded) 등의 메시지는 그대로 노출
+      setGenerateErrorMessage(e instanceof Error && e.message ? e.message : null);
       setGenerateError(true);
     } finally {
       setIsGenerating(false);
@@ -121,7 +127,7 @@ export function ReviewCompleteScreen() {
     return (
       <SafeAreaView className="flex-1 bg-surface justify-center items-center px-6">
         <Text className="text-text-secondary text-base text-center mb-4">
-          {t("review.complete.generateFailed")}
+          {generateErrorMessage ?? t("review.complete.generateFailed")}
         </Text>
         <View className="flex-row gap-3">
           <Pressable
