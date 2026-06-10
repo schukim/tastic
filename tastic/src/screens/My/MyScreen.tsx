@@ -217,7 +217,9 @@ export function MyScreen() {
           </Text>
           <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl px-4 py-3.5 border border-surface-border dark:border-surface-dark-border">
             <Text className="text-text dark:text-text-dark text-base">
-              {user.plan === "membership" ? t("my.membershipPlan") : t("my.freePlan")}
+              {user.plan === "membership" || user.plan === "developer"
+                ? t("my.membershipPlan")
+                : t("my.freePlan")}
             </Text>
           </View>
         </View>
