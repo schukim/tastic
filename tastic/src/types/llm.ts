@@ -58,7 +58,7 @@ export interface GenerateQuestionRequest {
 
 export interface GenerateQuestionResponse {
   question: string;
-  question_type: "initial" | "deep" | "wide" | "wrap_up";
+  question_type: "initial" | "deep" | "bridge" | "wide" | "wrap_up";
   topic_label: string;
   should_end?: boolean;
 }

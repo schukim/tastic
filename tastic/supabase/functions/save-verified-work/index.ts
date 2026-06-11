@@ -15,6 +15,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 // 새 API 키 체계 프로젝트에선 SUPABASE_SERVICE_ROLE_KEY가 자동 주입되지 않을 수 있어 명시적 시크릿 우선.
 const SERVICE_ROLE_KEY = Deno.env.get("SB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const REUSE_SIMILARITY_THRESHOLD = 0.85;
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
+const FIRST_QUESTION_MODEL = "gpt-4o";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +32,94 @@ interface SaveWorkBody {
   year?: number | null;
   genre?: string | null;
   metadata?: Record<string, unknown> | null;
+}
+
+interface WorkInfo {
+  title: string;
+  category: string;
+  creator?: string | null;
+  year?: number | null;
+  genre?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+// 작품 확정 시점에 이 작품에 특화된 인터뷰 첫 질문 후보를 미리 생성해 metadata.first_questions에 캐싱한다.
+// works 행은 전역 캐시로 공유되므로 작품당 1회 비용으로 모든 유저가 재사용한다.
+// 실패해도 작품 저장을 막지 않는다 — 클라이언트가 하드코딩 템플릿으로 폴백.
+async function generateFirstQuestions(work: WorkInfo): Promise<string[] | null> {
+  if (!OPENAI_API_KEY) return null;
+  try {
+    const meta = work.metadata ?? {};
+    const metaLines = Object.entries(meta)
+      .filter(([k, v]) => k !== "first_questions" && v !== null && v !== undefined && v !== "")
+      .map(([k, v]) => {
+        if (Array.isArray(v)) return `- ${k}: ${(v as unknown[]).join(", ")}`;
+        if (typeof v === "object") return `- ${k}: ${JSON.stringify(v)}`;
+        return `- ${k}: ${v}`;
+      })
+      .join("\n");
+
+    const prompt = `너는 문화 콘텐츠 감상 인터뷰어다. 사용자가 방금 감상을 마친 작품에 대한 인터뷰의 "첫 질문" 후보 3개를 만들어라.
+
+조건:
+1. 이 작품에서만 물을 수 있는 질문일 것 — 아래 작품 정보의 구체 요소(키워드, 창작자 스타일, 시놉시스 등)를 자연스럽게 녹일 것
+   - 나쁜 예: "이 영화에서 가장 인상적인 장면은 무엇이었나요?" (어느 작품에나 붙일 수 있음)
+   - 좋은 예: "기생충에서 반지하와 저택, 두 공간을 오갈 때 어떤 감정이 들었나요?"
+2. 첫 질문이므로 부담 없이 답할 수 있을 것 — 첫인상, 감정, 기억에 남는 순간을 묻되 작품의 구체 요소에 닿아 있을 것
+3. 결말·반전 등 핵심 전개를 질문에 직접 언급하지 말 것
+4. 평론가가 아닌 일반 감상자의 언어로, 질문은 한 문장으로
+5. 한국어로 작성
+
+반드시 아래 JSON 형식으로만 응답하라:
+{"first_questions": ["질문1", "질문2", "질문3"]}
+
+작품 정보:
+- 제목: ${work.title}
+- 카테고리: ${work.category}
+- 창작자: ${work.creator ?? "정보 없음"}
+- 연도: ${work.year ?? "정보 없음"}
+- 장르: ${work.genre ?? "정보 없음"}
+${metaLines}`;
+
+    // 자체 타임아웃: 첫 질문 생성이 매달려도 작품 저장(핵심 플로우)을 막지 않는다 — 초과 시 템플릿 폴백
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: FIRST_QUESTION_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+        max_tokens: 512,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("generateFirstQuestions OpenAI error:", data.error?.message ?? data);
+      return null;
+    }
+    const parsed = JSON.parse(data.choices[0].message.content);
+    const questions = (Array.isArray(parsed.first_questions) ? parsed.first_questions : [])
+      .filter((q: unknown): q is string => typeof q === "string" && q.trim().length > 0)
+      .slice(0, 5);
+    return questions.length > 0 ? questions : null;
+  } catch (e) {
+    console.error("generateFirstQuestions failed — 템플릿 폴백:", e);
+    return null;
+  }
+}
+
+function hasFirstQuestions(metadata: unknown): boolean {
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    Array.isArray((metadata as Record<string, unknown>).first_questions) &&
+    ((metadata as Record<string, unknown>).first_questions as unknown[]).length > 0
+  );
 }
 
 Deno.serve(async (req) => {
@@ -76,6 +166,20 @@ Deno.serve(async (req) => {
         if (body.genre != null) patch.genre = body.genre;
         if (body.metadata && Object.keys(body.metadata).length > 0) patch.metadata = body.metadata;
       }
+      // 첫 질문 캐시 보강: 최종 저장될 metadata에 first_questions가 없으면 생성해 병합
+      const effectiveMetadata = (patch.metadata ?? best.metadata ?? {}) as Record<string, unknown>;
+      if (!hasFirstQuestions(effectiveMetadata)) {
+        // search_works RPC는 creator/year/genre를 반환하지 않으므로 확정된 후보 정보(body)로 보완
+        const firstQuestions = await generateFirstQuestions({
+          title: best.title ?? title,
+          category,
+          creator: (patch.creator ?? body.creator) as string | null,
+          year: (patch.year ?? body.year) as number | null,
+          genre: (patch.genre ?? body.genre) as string | null,
+          metadata: effectiveMetadata,
+        });
+        if (firstQuestions) patch.metadata = { ...effectiveMetadata, first_questions: firstQuestions };
+      }
       const { data: updated, error: updErr } = await sb
         .from("works")
         .update(patch)
@@ -92,6 +196,19 @@ Deno.serve(async (req) => {
     }
 
     // 3. 신규 생성 (검증 캐시로)
+    // 첫 질문 캐시: 작품 특화 인터뷰 첫 질문을 함께 생성해 metadata에 저장
+    let newMetadata = (body.metadata ?? {}) as Record<string, unknown>;
+    if (!hasFirstQuestions(newMetadata)) {
+      const firstQuestions = await generateFirstQuestions({
+        title,
+        category,
+        creator: body.creator,
+        year: body.year,
+        genre: body.genre,
+        metadata: newMetadata,
+      });
+      if (firstQuestions) newMetadata = { ...newMetadata, first_questions: firstQuestions };
+    }
     const { data: created, error: insErr } = await sb
       .from("works")
       .insert({
@@ -102,7 +219,7 @@ Deno.serve(async (req) => {
         creator: body.creator ?? null,
         year: body.year ?? null,
         genre: body.genre ?? null,
-        metadata: body.metadata ?? {},
+        metadata: newMetadata,
         is_verified: true,
         verified_at: new Date().toISOString(),
         primary_source: "llm_verified",

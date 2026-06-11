@@ -47,10 +47,25 @@ const FIRST_QUESTIONS_MUSIC_SONG: string[] = [
   "이 곡을 처음 들은 순간을 기억하나요? 어떤 상황이었나요?",
 ];
 
+// save-verified-work가 작품 확정 시 생성해 metadata.first_questions에 캐싱한
+// 작품 특화 첫 질문을 우선 사용하고, 없으면(수동 입력·생성 실패) 카테고리 템플릿으로 폴백.
+function getCachedFirstQuestion(metadata?: Record<string, unknown>): string | null {
+  const cached = metadata?.first_questions;
+  if (!Array.isArray(cached)) return null;
+  const valid = cached.filter(
+    (q): q is string => typeof q === "string" && q.trim().length > 0
+  );
+  if (valid.length === 0) return null;
+  return valid[Math.floor(Math.random() * valid.length)];
+}
+
 export function getFirstQuestion(
   category: ContentCategory,
   metadata?: Record<string, unknown>
 ): string {
+  const cached = getCachedFirstQuestion(metadata);
+  if (cached) return cached;
+
   if (category === "music") {
     const questions =
       metadata?.music_type === "song"

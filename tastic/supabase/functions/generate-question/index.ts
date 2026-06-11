@@ -29,16 +29,21 @@ async function callOpenAI(prompt: string, temperature = 0.7, maxTokens = 512) {
 }
 
 const TURN_ROLE: Record<number, string> = {
-  2: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단. should_end는 반드시 false",
-  3: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단. should_end는 반드시 false",
-  4: "탐색 — deep(깊이) 또는 wide(넓이) 중 사용자 답변에 따라 판단. should_end는 반드시 false",
+  2: "탐색 — deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
+  3: "탐색 — deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
+  4: "탐색 — deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
   5: "정리(wrap_up) — 감상의 조각들을 사용자 스스로 연결하게 만드는 마무리 질문. 이 답변이 리뷰의 핵심 문장이 된다. should_end는 반드시 false",
   6: "조건부 추가 — 아래 6번째 질문 조건 섹션 참고",
 };
 
+// first_questions는 인터뷰 첫 질문 캐시(클라이언트용)라 작품 정보가 아님 — 프롬프트에서 제외
+const METADATA_EXCLUDE_KEYS = new Set(["first_questions"]);
+
 function formatMetadata(metadata: Record<string, unknown> | null | undefined): string {
   if (!metadata) return "";
-  const entries = Object.entries(metadata).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  const entries = Object.entries(metadata).filter(
+    ([k, v]) => !METADATA_EXCLUDE_KEYS.has(k) && v !== null && v !== undefined && v !== ""
+  );
   if (entries.length === 0) return "";
 
   const lines = entries.map(([k, v]) => {
@@ -47,12 +52,13 @@ function formatMetadata(metadata: Record<string, unknown> | null | undefined): s
     return `- ${k}: ${v}`;
   });
 
-  return `\n추가 작품 정보 (질문 생성에 활용):\n${lines.join("\n")}`;
+  return `\n추가 작품 정보 (질문 재료로 활용):\n${lines.join("\n")}`;
 }
 
 function buildPrompt(
   content: { title: string; category: string; creator: string | null; year: number | null; genre: string | null; metadata: Record<string, unknown> },
   conversationText: string,
+  askedQuestionsText: string,
   questionCount: number,
   language: string,
 ): string {
@@ -82,11 +88,34 @@ function buildPrompt(
 ## 현재 턴: ${turnNumber}번째 질문
 역할: ${turnRole}
 ${extraTurnSection}
-## 깊이(deep) vs 넓이(wide) 판단
-- deep: 구체적인 장면/감정/요소가 언급됐지만 "왜"가 아직 드러나지 않았을 때
+## 질문 재료 — 작품 정보 활용 (가장 중요)
+하단 "작품 정보"의 creator_style(창작자 고유 스타일), keywords(작품 고유 키워드), synopsis 등은 질문을 이 작품에 특화시키기 위한 재료다.
+- 매 질문은 (a) 직전 답변의 구체적 키워드, (b) 작품의 고유 요소, 둘 중 최소 하나에 기반해야 한다. 둘을 연결하면 가장 좋은 질문이 된다.
+- 작품의 알려진 요소를 네가 먼저 제시하고 사용자의 반응을 묻는 방식을 적극 사용하라.
+  - 좋은 예: "기생충은 반지하와 저택의 공간 대비가 두드러지는데, 두 공간을 오갈 때 어떤 감정이 들었나요?"
+  - 나쁜 예: "이 영화에서 가장 인상적인 장면은 무엇이었나요?" (어느 작품에나 붙일 수 있는 질문)
+- 단, 사용자가 답할 수 없는 사실을 묻지 말 것. 사실은 네가 제시하고, 그에 대한 감상을 물어라.
+
+## 질문 유형 (question_type)
+- deep: 직전 답변에서 흥미로운 지점을 깊이 파고든다.
+  사용 기준: 구체적인 장면/감정/요소가 언급됐지만 "왜"가 아직 드러나지 않았을 때.
   예: "그 장면이 긴장됐어요" → "어떤 종류의 긴장이었나요?"
-- wide: 하나의 포인트에 대해 충분히 풀었을 때, 또는 더 파면 막힐 것 같을 때
-  예: 캐릭터에 대해 충분히 이야기했으면 → 다른 축(분위기, 연출, 음악)으로 전환
+- bridge: 사용자의 감상을 작품의 고유 요소(creator_style, keywords, 구성)와 연결한다.
+  사용 기준: 사용자의 감상이 작품의 알려진 특성과 맞닿아 있어서, 그 연결을 짚어주면 감상이 더 선명해질 때.
+  예: 사용자가 "분위기가 무거웠어요"라고 답함 + creator_style에 "길게 끊지 않는 롱테이크 연출" → "그 무거움이 장면을 길게 끊지 않고 이어가는 연출 때문이었을까요, 아니면 이야기 자체 때문이었을까요?"
+- wide: 새로운 주제 축으로 전환한다.
+  사용 기준: 이전 주제가 충분히 탐색되었거나, 답변이 짧고 건조하여 다른 각도가 필요할 때. 아래 카테고리별 질문 관점 중 아직 다루지 않은 축을 고른다.
+- wrap_up: 감상의 조각들을 사용자 스스로 연결하게 만드는 마무리 질문.
+
+## topic_label 규칙
+- deep/bridge: 직전 질문과 동일한 topic_label을 유지
+- wide: 새 주제를 나타내는 짧은 라벨 (예: "공간의 대비", "사운드", "캐릭터")
+
+## 카테고리별 질문 관점 (wide 전환 시 참고)
+- 영화/시리즈: 연출, 촬영/미장센, 서사 구조, 캐릭터, 사운드/음악, 사회적 맥락
+- 음악: 사운드 텍스처, 가사, 감정 곡선, 트랙 간 흐름(앨범), 청취 맥락(언제/어디서)
+- 책: 문체, 서사 시점, 캐릭터 심리, 주제의식, 읽기 경험(속도, 몰입)
+- 미술: 매체/기법, 시각 요소, 공간감, 작가 의도에 대한 개인 해석
 ${musicScopeSection}${bookScopeSection}
 ## 톤 적응
 사용자 답변 스타일을 그대로 따라간다:
@@ -98,7 +127,7 @@ ${musicScopeSection}${bookScopeSection}
 다음 세 전략 중 맥락에 맞게 하나를 선택:
 1. 선택지 제시: "캐릭터가 좋았는지, 분위기가 좋았는지, 스토리 전개가 좋았는지?"
 2. 구체적 순간: "어떤 장면에서 그런 느낌이 들었나요?"
-3. 작품 정보 활용: 작품의 구체적 요소를 언급해서 물기 (스포일러 주의)
+3. 작품 요소 제시(bridge): 작품 정보의 구체 요소를 제시하고 그에 대한 반응을 묻기 (결말·반전 언급 주의)
 
 ## 답변 처리 원칙
 - 사용자 답변의 핵심 키워드를 자연스럽게 되돌려줄 것 ("내 말을 이해했구나" 느낌)
@@ -106,30 +135,32 @@ ${musicScopeSection}${bookScopeSection}
 - 단, 사용자가 말하지 않은 것을 과도하게 덧붙이지 말 것
 
 ## 좋은 질문 조건
-1. 직전 답변의 구체적 키워드에 기반할 것 (그 답변이 있어야만 나올 수 있는 질문)
+1. 직전 답변의 구체적 키워드 또는 작품의 고유 요소에 기반할 것 (그 답변/그 작품이어야만 나올 수 있는 질문)
 2. 답변이 리뷰의 한 문장이 될 수 있을 것
 3. 사용자 언어 수준과 스타일에 맞출 것
 4. 하나의 질문만 던질 것
 
 ## 금지 패턴
-1. 이미 답한 내용을 다시 묻는 질문
+1. 이미 답한 내용을 다시 묻거나, "지금까지 던진 질문"과 주제·표현이 겹치는 질문
 2. 어떤 답변 뒤에도 붙일 수 있는 범용 질문 ("어떻게 느끼셨나요?", "더 말씀해주실 수 있나요?")
-3. 사용자가 알 수 없는 질문 ("감독의 의도는?", "미술사적 맥락은?")
+3. 사용자가 답할 수 없는 사실을 요구하는 질문 ("감독의 의도는 무엇이었을까요?", "미술사적 맥락은?")
+   — 단, 알려진 사실을 네가 제시하고 그에 대한 사용자의 감상을 묻는 것은 금지가 아니라 권장이다.
 4. 범위가 너무 넓고 모호한 질문 ("이 작품이 당신의 삶에 미친 영향은?")
 5. 한 턴에 두 개 이상의 질문
 
 ## 자기 검증 (질문 확정 전 반드시 확인)
-① 이 질문은 직전 답변의 구체적 키워드에 기반하고 있는가?
-② 이 질문의 답변이 최종 리뷰에 실제로 쓸 수 있는 재료를 만들어내는가?
-③ 이 질문이 금지 패턴에 해당하지 않는가?
-세 가지 모두 통과해야만 질문을 확정한다.
+① 이 질문은 직전 답변의 구체적 키워드 또는 작품의 고유 요소에 기반하고 있는가? (둘 다 아니면 탈락)
+② 이 질문은 "지금까지 던진 질문"과 주제·표현이 겹치지 않는가?
+③ 이 질문의 답변이 최종 리뷰에 실제로 쓸 수 있는 재료를 만들어내는가?
+④ 이 질문이 금지 패턴에 해당하지 않는가?
+네 가지 모두 통과해야만 질문을 확정한다.
 
 ${language === "ko" ? "한국어" : "English"}로 질문을 생성하라.
 
 반드시 아래 JSON 형식으로만 응답하라:
 {
   "question": "string (should_end가 true이면 빈 문자열)",
-  "question_type": "deep | wide | wrap_up",
+  "question_type": "deep | bridge | wide | wrap_up",
   "topic_label": "string (should_end가 true이면 빈 문자열)",
   "should_end": false
 }
@@ -140,6 +171,9 @@ ${language === "ko" ? "한국어" : "English"}로 질문을 생성하라.
 - 창작자: ${content.creator ?? "정보 없음"}
 - 연도: ${content.year ?? "정보 없음"}
 - 장르: ${content.genre ?? "정보 없음"}${formatMetadata(content.metadata)}
+
+지금까지 던진 질문 (중복 금지):
+${askedQuestionsText}
 
 이전 대화:
 ${conversationText}
@@ -172,7 +206,21 @@ Deno.serve(async (req) => {
             .join("\n")
         : "(이전 대화 없음)";
 
-    const prompt = buildPrompt(content, conversationText, question_count, language);
+    // 중복 방지용 — 지금까지 던진 질문을 topic_label과 함께 별도 목록으로 제공
+    const askedQuestions = conversation_history.filter(
+      (e: { role: string }) => e.role === "interviewer"
+    );
+    const askedQuestionsText =
+      askedQuestions.length > 0
+        ? askedQuestions
+            .map(
+              (e: { text: string; topic_label?: string }, i: number) =>
+                `${i + 1}. [${e.topic_label || "-"}] ${e.text}`
+            )
+            .join("\n")
+        : "(없음)";
+
+    const prompt = buildPrompt(content, conversationText, askedQuestionsText, question_count, language);
     const parsed = await callOpenAI(prompt, 0.7, 512);
 
     return new Response(JSON.stringify(parsed), {
