@@ -8,7 +8,7 @@ Tastic — 문화 콘텐츠(영화, 음악, 책, 미술, 전시, 공연) 감상 
 - **State**: Zustand
 - **Navigation**: React Navigation (bottom tabs + stack)
 - **Backend**: Supabase (Auth, PostgreSQL, Edge Functions)
-- **LLM**: Anthropic Claude API (claude-sonnet-4-20250514)
+- **LLM**: 하이브리드 — DeepSeek API (deepseek-chat: 질문/평론/취향분석/첫질문) + OpenAI (gpt-4.1/gpt-4o + web_search: verify-content, recommend-content). 공통 호출은 `supabase/functions/_shared/llm.ts`
 - **Styling**: NativeWind (Tailwind for RN)
 - **Testing**: Vitest (unit), Detox (e2e)
 - **Language**: 한국어 기본, i18n 지원 (ko, en)

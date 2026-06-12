@@ -1,36 +1,19 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { enforceUsageLimit } from "../_shared/usage.ts";
-
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
-const MODEL = "gpt-4o";
+import { callJsonLLM } from "../_shared/llm.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function callOpenAI(prompt: string, temperature = 0.2, maxTokens = 1024) {
+async function callLLM(prompt: string, temperature = 0.2, maxTokens = 1024) {
   // 로컬 E2E용 mock — MOCK_LLM=true일 때만 동작 (배포 환경엔 미설정)
   if (Deno.env.get("MOCK_LLM") === "true") {
     return { profile_sentences: ["[mock] 취향 문장"], recommendation_hook: "[mock] 훅" };
   }
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
-  return JSON.parse(data.choices[0].message.content);
+  // 클라이언트 타임아웃 30초 — 콜드스타트·전송 여유를 남기고 25초
+  return callJsonLLM(prompt, { temperature, maxTokens, timeoutMs: 25_000 });
 }
 
 Deno.serve(async (req) => {
@@ -79,7 +62,7 @@ ${reviewsText}
 
 이전 분석 결과: ${previous_profile ?? "없음"}`;
 
-    const parsed = await callOpenAI(prompt, 0.2);
+    const parsed = await callLLM(prompt, 0.2);
 
     await gate.logUsage();
 

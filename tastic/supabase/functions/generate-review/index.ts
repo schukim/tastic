@@ -1,36 +1,19 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { enforceUsageLimit } from "../_shared/usage.ts";
-
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
-const MODEL = "gpt-4o";
+import { callJsonLLM } from "../_shared/llm.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function callOpenAI(prompt: string, temperature = 0.4, maxTokens = 2048) {
+async function callLLM(prompt: string, temperature = 0.4, maxTokens = 2048) {
   // 로컬 E2E용 mock — MOCK_LLM=true일 때만 동작 (배포 환경엔 미설정)
   if (Deno.env.get("MOCK_LLM") === "true") {
     return { review_text: "[mock] 평론 본문", suggested_title: "[mock] 제목" };
   }
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
-  return JSON.parse(data.choices[0].message.content);
+  // 클라이언트 타임아웃 30초 — 콜드스타트·전송 여유를 남기고 25초
+  return callJsonLLM(prompt, { temperature, maxTokens, timeoutMs: 25_000 });
 }
 
 Deno.serve(async (req) => {
@@ -65,7 +48,10 @@ Deno.serve(async (req) => {
 2. 감상 중심: 작품 줄거리 요약이 아닌, 사용자가 느끼고 생각한 것을 중심으로.
 3. 인터뷰 내용 반영: 사용자가 실제로 언급한 내용만 포함. LLM이 임의로 감상을 추가하거나 과장하지 않는다.
 4. 자연스러운 구성: 단순히 Q&A를 나열하지 않고, 하나의 흐름 있는 글로 재구성.
-5. 문체: 개인 에세이에 가까운 톤. 학술적이거나 저널리즘적 문체는 피한다.
+5. 문체: 문어체 평서문 — 모든 문장은 반드시 "~다"로 끝나는 평서형 종결어미("~했다", "~였다", "~싶다" 등)로 쓴다.
+   - "~요", "~어요", "~습니다" 같은 구어체·경어체 종결은 절대 사용하지 않는다.
+   - 인터뷰 답변이 구어체("좋았어요", "그랬던 것 같아요")여도 평론에서는 문어체("좋았다", "그랬다")로 변환한다.
+   - 개인 에세이에 가까운 톤을 유지하되, 학술적이거나 저널리즘적 문체는 피한다.
 
 ## 구성 가이드
 
@@ -95,7 +81,7 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 인터뷰 대화:
 ${conversationText}`;
 
-    const parsed = await callOpenAI(prompt, 0.4);
+    const parsed = await callLLM(prompt, 0.4);
 
     if (is_preview !== true) await gate.logUsage();
 

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { callJsonLLM } from "../_shared/llm.ts";
 
 // 작품 확정(ContentConfirmScreen에서 후보 선택) 시 호출.
 // verify-content(웹서치 또는 캐시)로 식별된 작품을 works에 is_verified=true로 저장/승격해
@@ -15,8 +16,6 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 // 새 API 키 체계 프로젝트에선 SUPABASE_SERVICE_ROLE_KEY가 자동 주입되지 않을 수 있어 명시적 시크릿 우선.
 const SERVICE_ROLE_KEY = Deno.env.get("SB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const REUSE_SIMILARITY_THRESHOLD = 0.85;
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
-const FIRST_QUESTION_MODEL = "gpt-4o";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -47,7 +46,6 @@ interface WorkInfo {
 // works 행은 전역 캐시로 공유되므로 작품당 1회 비용으로 모든 유저가 재사용한다.
 // 실패해도 작품 저장을 막지 않는다 — 클라이언트가 하드코딩 템플릿으로 폴백.
 async function generateFirstQuestions(work: WorkInfo): Promise<string[] | null> {
-  if (!OPENAI_API_KEY) return null;
   try {
     const meta = work.metadata ?? {};
     const metaLines = Object.entries(meta)
@@ -81,28 +79,13 @@ async function generateFirstQuestions(work: WorkInfo): Promise<string[] | null> 
 - 장르: ${work.genre ?? "정보 없음"}
 ${metaLines}`;
 
-    // 자체 타임아웃: 첫 질문 생성이 매달려도 작품 저장(핵심 플로우)을 막지 않는다 — 초과 시 템플릿 폴백
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: FIRST_QUESTION_MODEL,
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-        max_tokens: 512,
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      console.error("generateFirstQuestions OpenAI error:", data.error?.message ?? data);
-      return null;
-    }
-    const parsed = JSON.parse(data.choices[0].message.content);
+    // 8초 타임아웃: 첫 질문 생성이 매달려도 작품 저장(핵심 플로우)을 막지 않는다
+    // — 실패 시 템플릿 폴백
+    const parsed = (await callJsonLLM(prompt, {
+      temperature: 0.7,
+      maxTokens: 512,
+      timeoutMs: 8_000,
+    })) as { first_questions?: unknown };
     const questions = (Array.isArray(parsed.first_questions) ? parsed.first_questions : [])
       .filter((q: unknown): q is string => typeof q === "string" && q.trim().length > 0)
       .slice(0, 5);

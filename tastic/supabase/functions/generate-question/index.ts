@@ -1,32 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
-const MODEL = "gpt-4o";
+import { callJsonLLM } from "../_shared/llm.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-async function callOpenAI(prompt: string, temperature = 0.7, maxTokens = 512) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
-  return JSON.parse(data.choices[0].message.content);
-}
 
 const TURN_ROLE: Record<number, string> = {
   2: "탐색 — deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
@@ -85,6 +63,13 @@ function buildPrompt(
 ## 타겟 유저
 별점은 남기지만 글로 쓰는 건 낯선 미들 유저. "말하고 싶은데 어떻게 시작할지 모르겠는" 사람들. 평론가가 아닌 감상자를 위한 질문이어야 한다.
 
+## 답변 부담 원칙 (가장 먼저 지킬 것)
+- 모든 질문은 사용자가 감상을 떠올리는 것만으로 1~3문장으로 답할 수 있어야 한다.
+- 기억에 남는 순간, 첫인상, 감정, 호불호처럼 "겪은 것"을 묻는다. 해석, 분석, 의미 부여처럼 "생각해내야 하는 것"을 요구하지 않는다.
+- 작품의 구체 요소는 질문을 그 작품에 특화시키는 재료다. 그 요소를 사용자에게 분석시키는 도구가 아니다.
+  - 부담 큰 예: "그 불안함이 공간의 이질감 때문이었을까요, 아니면 곧 무너질 것 같은 예감 때문이었을까요?" (감정의 원인을 정밀 분석하게 만듦)
+  - 가벼운 예: "저택 장면 중에서 그 불안한 느낌이 제일 셌던 순간이 있나요?" (장면을 떠올리기만 하면 답할 수 있음)
+
 ## 현재 턴: ${turnNumber}번째 질문
 역할: ${turnRole}
 ${extraTurnSection}
@@ -97,12 +82,14 @@ ${extraTurnSection}
 - 단, 사용자가 답할 수 없는 사실을 묻지 말 것. 사실은 네가 제시하고, 그에 대한 감상을 물어라.
 
 ## 질문 유형 (question_type)
-- deep: 직전 답변에서 흥미로운 지점을 깊이 파고든다.
-  사용 기준: 구체적인 장면/감정/요소가 언급됐지만 "왜"가 아직 드러나지 않았을 때.
-  예: "그 장면이 긴장됐어요" → "어떤 종류의 긴장이었나요?"
+- deep: 직전 답변에서 흥미로운 지점을 한 걸음만 더 들어간다.
+  사용 기준: 감정/인상이 언급됐지만 구체적인 장면·순간이 아직 나오지 않았을 때.
+  깊이는 "왜?"라는 원인 분석이 아니라, 그 감정이 닿아 있는 장면·순간·구체적 기억으로 좁히는 방식으로 만든다.
+  예: "그 장면이 긴장됐어요" → "그 긴장감이 제일 셌던 순간이 어디였나요?"
 - bridge: 사용자의 감상을 작품의 고유 요소(creator_style, keywords, 구성)와 연결한다.
   사용 기준: 사용자의 감상이 작품의 알려진 특성과 맞닿아 있어서, 그 연결을 짚어주면 감상이 더 선명해질 때.
-  예: 사용자가 "분위기가 무거웠어요"라고 답함 + creator_style에 "길게 끊지 않는 롱테이크 연출" → "그 무거움이 장면을 길게 끊지 않고 이어가는 연출 때문이었을까요, 아니면 이야기 자체 때문이었을까요?"
+  작품의 사실을 네가 짧게 제시하고, 그에 대한 사용자의 체감을 가볍게 묻는다 (원인 분석을 시키지 않는다).
+  예: 사용자가 "분위기가 무거웠어요"라고 답함 + creator_style에 "길게 끊지 않는 롱테이크 연출" → "이 감독이 장면을 길게 끊지 않고 이어가는 연출로 유명한데, 보면서 그 호흡이 느껴지셨나요?"
 - wide: 새로운 주제 축으로 전환한다.
   사용 기준: 이전 주제가 충분히 탐색되었거나, 답변이 짧고 건조하여 다른 각도가 필요할 때. 아래 카테고리별 질문 관점 중 아직 다루지 않은 축을 고른다.
 - wrap_up: 감상의 조각들을 사용자 스스로 연결하게 만드는 마무리 질문.
@@ -147,13 +134,16 @@ ${musicScopeSection}${bookScopeSection}
    — 단, 알려진 사실을 네가 제시하고 그에 대한 사용자의 감상을 묻는 것은 금지가 아니라 권장이다.
 4. 범위가 너무 넓고 모호한 질문 ("이 작품이 당신의 삶에 미친 영향은?")
 5. 한 턴에 두 개 이상의 질문
+6. 철학적·추상적 질문 — 작품의 의미, 본질, 메시지에 대한 해석을 요구하는 질문 ("이 작품에서 공간은 어떤 의미였을까요?")
+7. 감정·이유를 정밀하게 분석해야만 답할 수 있는 질문 — 선택지가 모두 분석적 개념인 양자택일 포함 ("이질감 때문이었을까요, 예감 때문이었을까요?")
 
 ## 자기 검증 (질문 확정 전 반드시 확인)
 ① 이 질문은 직전 답변의 구체적 키워드 또는 작품의 고유 요소에 기반하고 있는가? (둘 다 아니면 탈락)
 ② 이 질문은 "지금까지 던진 질문"과 주제·표현이 겹치지 않는가?
 ③ 이 질문의 답변이 최종 리뷰에 실제로 쓸 수 있는 재료를 만들어내는가?
 ④ 이 질문이 금지 패턴에 해당하지 않는가?
-네 가지 모두 통과해야만 질문을 확정한다.
+⑤ 사용자가 깊은 분석 없이, 감상을 떠올리는 것만으로 가볍게 답할 수 있는가?
+다섯 가지 모두 통과해야만 질문을 확정한다.
 
 ${language === "ko" ? "한국어" : "English"}로 질문을 생성하라.
 
@@ -221,7 +211,8 @@ Deno.serve(async (req) => {
         : "(없음)";
 
     const prompt = buildPrompt(content, conversationText, askedQuestionsText, question_count, language);
-    const parsed = await callOpenAI(prompt, 0.7, 512);
+    // 클라이언트 타임아웃 15초 — 콜드스타트·전송 여유를 남기고 12초
+    const parsed = await callJsonLLM(prompt, { temperature: 0.7, maxTokens: 512, timeoutMs: 12_000 });
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS, "Content-Type": "application/json" },
