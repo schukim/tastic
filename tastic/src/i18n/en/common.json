@@ -41,6 +41,12 @@
     "resendEmailFailedTitle": "Send Failed",
     "goToLogin": "Go to Login"
   },
+  "onboarding": {
+    "title": "Complete your profile",
+    "subtitle": "Tell us your nickname and interests for tailored recommendations and taste analysis.",
+    "save": "Get Started",
+    "saveError": "Failed to save your profile. Please try again."
+  },
   "tabs": {
     "history": "History",
     "recommend": "Discover",

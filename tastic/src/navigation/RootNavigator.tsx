@@ -5,6 +5,7 @@ import { useAuthStore } from "../stores/authStore";
 import type { RootStackParamList } from "../types/navigation";
 import { LoginScreen } from "../screens/Auth/LoginScreen";
 import { SignUpScreen } from "../screens/Auth/SignUpScreen";
+import { OnboardingScreen } from "../screens/Auth/OnboardingScreen";
 import { MainTabs } from "./MainTabs";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -42,16 +43,23 @@ function LoadingScreen() {
 
 export function RootNavigator() {
   const session = useAuthStore((s) => s.session);
+  const user = useAuthStore((s) => s.user);
   const isLoading = useAuthStore((s) => s.isLoading);
+
+  // 소셜 가입 등으로 프로필이 비어있는 유저는 온보딩으로. 이메일 가입 유저는
+  // 트리거가 카테고리를 채워주므로 이 분기에 걸리지 않는다.
+  const needsOnboarding = !!user && (user.preferred_categories?.length ?? 0) === 0;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isLoading ? (
         <Stack.Screen name="Loading" component={LoadingScreen} />
-      ) : session ? (
-        <Stack.Screen name="Main" component={MainTabs} />
-      ) : (
+      ) : !session ? (
         <Stack.Screen name="Auth" component={AuthNavigator} />
+      ) : needsOnboarding ? (
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      ) : (
+        <Stack.Screen name="Main" component={MainTabs} />
       )}
     </Stack.Navigator>
   );

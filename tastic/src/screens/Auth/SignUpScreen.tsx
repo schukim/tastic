@@ -14,16 +14,10 @@ import { useTranslation } from "react-i18next";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../types/navigation";
-import type { ContentCategory } from "../../types/database";
-import { CategoryChip } from "../../components/common/CategoryChip";
 import { signUp, resendConfirmation } from "../../services/auth";
 import { supabase } from "../../services/supabase";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "SignUp">;
-
-const ALL_CATEGORIES: ContentCategory[] = [
-  "movie", "music", "book", "art", "series",
-];
 
 export function SignUpScreen() {
   const { t } = useTranslation();
@@ -37,7 +31,6 @@ export function SignUpScreen() {
 
   // Step 2 state
   const [nickname, setNickname] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<ContentCategory[]>([]);
 
   // Step 3 state
   const [emailSent, setEmailSent] = useState(false);
@@ -50,13 +43,7 @@ export function SignUpScreen() {
   const passwordValid = password.length >= 8;
   const passwordMatch = password === passwordConfirm;
   const step1Valid = emailValid && passwordValid && passwordMatch;
-  const step2Valid = nickname.trim().length > 0 && selectedCategories.length > 0;
-
-  const toggleCategory = (cat: ContentCategory) => {
-    setSelectedCategories((prev) =>
-      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
-    );
-  };
+  const step2Valid = nickname.trim().length > 0;
 
   // 이메일 인증 상태 감지
   useEffect(() => {
@@ -86,7 +73,6 @@ export function SignUpScreen() {
         email,
         password,
         nickname: nickname.trim(),
-        preferredCategories: selectedCategories,
       });
 
       console.log('회원가입 결과:', result);
@@ -216,24 +202,6 @@ export function SignUpScreen() {
                   onChangeText={setNickname}
                   autoCapitalize="none"
                 />
-              </View>
-
-              {/* Categories */}
-              <View className="mb-6">
-                <Text className="text-text-secondary text-[15px] mb-3">{t("auth.selectCategories")}</Text>
-                <View className="flex-row gap-1.5">
-                  {ALL_CATEGORIES.map((cat) => (
-                    <View key={cat} style={{ flex: 1 }}>
-                      <CategoryChip
-                        key={cat}
-                        category={cat}
-                        selected={selectedCategories.includes(cat)}
-                        onPress={toggleCategory}
-                        fluid
-                      />
-                    </View>
-                  ))}
-                </View>
               </View>
 
               {/* Error */}

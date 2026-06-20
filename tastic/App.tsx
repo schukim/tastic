@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { RootNavigator } from "./src/navigation/RootNavigator";
 import { useAuth } from "./src/hooks/useAuth";
+import { useDeepLinkAuth } from "./src/hooks/useDeepLinkAuth";
 import { useTheme } from "./src/hooks/useTheme";
 import "./src/i18n";
 
@@ -25,6 +26,8 @@ function AppContent() {
 
   // Initialize auth state using real Supabase auth
   useAuth();
+  // 딥링크(이메일 확인 등)로 들어온 인증 코드를 세션으로 교환
+  useDeepLinkAuth();
 
   return (
     <>

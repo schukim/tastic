@@ -4,6 +4,7 @@ import type { ContentCategory, Content, ConversationEntry } from "./database";
 export type RootStackParamList = {
   Loading: undefined;
   Auth: undefined;
+  Onboarding: undefined;
   Main: undefined;
 };
 

@@ -60,8 +60,8 @@ export function LoginScreen() {
       const message = e instanceof Error ? e.message : `${provider} 로그인에 실패했습니다`;
       setError(message);
       Alert.alert(
-        "로그인 오류",
-        `${provider === "google" ? "Google" : "Apple"} 로그인이 현재 설정되지 않았습니다. 이메일로 로그인해주세요.`,
+        `${provider === "google" ? "Google" : "Apple"} 로그인 오류`,
+        message,
         [{ text: "확인" }]
       );
     } finally {

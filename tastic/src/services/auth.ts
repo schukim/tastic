@@ -1,42 +1,36 @@
 import { supabase } from "./supabase";
-import type { ContentCategory } from "../types/database";
 import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 
 WebBrowser.maybeCompleteAuthSession();
 
+// PKCE OAuth/이메일 확인 콜백 URL(예: tastic://auth/callback?code=...)에서 인증 코드를 추출한다.
+// exchangeCodeForSession 은 전체 URL 이 아니라 code 문자열만 받는다.
+export function getAuthCodeFromUrl(url: string): string | null {
+  const match = url.match(/[?&]code=([^&#]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 interface SignUpParams {
   email: string;
   password: string;
   nickname: string;
-  preferredCategories: ContentCategory[];
-  avatarUrl?: string;
 }
 
-export async function signUp({ email, password, nickname, preferredCategories, avatarUrl }: SignUpParams) {
+// 가입 시점에는 인증 + 닉네임만 받는다. 관심 카테고리 등 프로필은 가입 방식
+// (이메일/구글/애플)과 무관하게 온보딩 화면에서 일괄 입력한다.
+export async function signUp({ email, password, nickname }: SignUpParams) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
+      // 이메일 확인 링크를 앱으로 되돌려 useDeepLinkAuth 가 세션을 교환하게 한다.
+      emailRedirectTo: makeRedirectUri({ path: "auth/callback" }),
       data: { nickname },
     },
   });
 
   if (error) throw error;
-
-  // Update profile with additional fields
-  if (data.user) {
-    const { error: profileError } = await supabase
-      .from("users")
-      .update({
-        nickname,
-        preferred_categories: preferredCategories,
-        avatar_url: avatarUrl ?? null,
-      })
-      .eq("id", data.user.id);
-
-    if (profileError) throw profileError;
-  }
 
   return data;
 }
@@ -67,8 +61,9 @@ export async function resendConfirmation(email: string) {
 
 export async function signInWithGoogle() {
   const redirectTo = makeRedirectUri({
-    path: "/auth/callback",
+    path: "auth/callback",
   });
+  console.log("[google] redirectTo =", redirectTo);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -82,6 +77,7 @@ export async function signInWithGoogle() {
   });
 
   if (error) throw error;
+  console.log("[google] oauth url =", data?.url);
 
   // Open the OAuth provider's authentication URL
   if (data.url) {
@@ -89,9 +85,14 @@ export async function signInWithGoogle() {
       data.url,
       redirectTo
     );
+    console.log("[google] browser result.type =", result.type);
+    console.log("[google] browser result.url =", "url" in result ? result.url : "(none)");
 
     if (result.type === "success") {
-      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
+      const code = getAuthCodeFromUrl(result.url);
+      console.log("[google] extracted code =", code);
+      if (!code) throw new Error("인증 코드를 받지 못했습니다");
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
       if (sessionError) throw sessionError;
       return sessionData;
     }
@@ -102,7 +103,7 @@ export async function signInWithGoogle() {
 
 export async function signInWithApple() {
   const redirectTo = makeRedirectUri({
-    path: "/auth/callback",
+    path: "auth/callback",
   });
 
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -122,7 +123,9 @@ export async function signInWithApple() {
     );
 
     if (result.type === "success") {
-      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(result.url);
+      const code = getAuthCodeFromUrl(result.url);
+      if (!code) throw new Error("인증 코드를 받지 못했습니다");
+      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
       if (sessionError) throw sessionError;
       return sessionData;
     }
