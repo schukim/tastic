@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useFocusEffect } from "@react-navigation/native";
+import * as WebBrowser from "expo-web-browser";
 import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
 import { supabase } from "../../services/supabase";
@@ -21,6 +22,8 @@ import { CategoryChip } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import type { ContentCategory, Language } from "../../types/database";
 import i18n from "../../i18n";
+
+const PRIVACY_POLICY_URL = "https://schukim.github.io/tastic/legal/privacy-policy.html";
 
 const ALL_CATEGORIES: ContentCategory[] = [
   "movie", "music", "book", "art", "series",
@@ -232,13 +235,22 @@ export function MyScreen() {
 
             {/* Language */}
             <Pressable
-              className="flex-row items-center justify-between px-4 py-3.5"
+              className="flex-row items-center justify-between px-4 py-3.5 border-b border-surface-tertiary/50 dark:border-surface-dark-tertiary/50"
               onPress={() => setShowLanguageSheet(true)}
             >
               <Text className="text-text dark:text-text-dark text-base">{t("my.language")}</Text>
               <Text className="text-text-secondary dark:text-text-dark-secondary text-base">
                 {user.language === "ko" ? "한국어" : "English"}
               </Text>
+            </Pressable>
+
+            {/* Privacy Policy */}
+            <Pressable
+              className="flex-row items-center justify-between px-4 py-3.5"
+              onPress={() => WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL)}
+            >
+              <Text className="text-text dark:text-text-dark text-base">{t("my.privacyPolicy")}</Text>
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-base">›</Text>
             </Pressable>
           </View>
         </View>
