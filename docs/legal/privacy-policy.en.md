@@ -48,6 +48,7 @@ To provide our features we entrust data processing to the parties below. **Notab
 | DeepSeek (Hangzhou DeepSeek Artificial Intelligence Co., Ltd.) | AI question / review / taste-analysis generation | Review & interview text, reviewed content info |
 | OpenAI, L.L.C. | Content identification & recommendation (incl. web search) | Content titles/metadata, recommendation context |
 | Google LLC | Social login (OAuth) | Auth identifier, email, profile |
+| Sentry, Inc. | Crash & error diagnostics | Error/crash logs, device & OS info, user identifier |
 | RevenueCat, Inc. / Google LLC / Apple Inc. (later) | Payment & subscription processing | Subscription identifier, payment status |
 
 We impose data-protection obligations on sub-processors as required by law.
@@ -63,6 +64,7 @@ We transfer personal data internationally as described below. By signing up and 
 | Supabase, Inc. | Australia (Sydney) | Account and service data | Infrastructure & storage |
 | DeepSeek | China | Review & interview text, content info | AI generation & analysis |
 | OpenAI, L.L.C. | United States | Content titles & context | Content identification & recommendation |
+| Sentry, Inc. | United States | Error/crash logs, device & OS info | Crash & error diagnostics |
 
 > ⚠️ Please note that the impressions and reviews you enter for AI generation are transmitted to the providers above (including those located in China and the United States). We recommend not entering sensitive personal information.
 
