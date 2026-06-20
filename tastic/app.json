@@ -33,7 +33,8 @@
     },
     "plugins": [
       "expo-localization",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@sentry/react-native"
     ],
     "extra": {
       "eas": {

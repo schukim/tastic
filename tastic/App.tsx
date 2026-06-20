@@ -9,7 +9,17 @@ import { useAuth } from "./src/hooks/useAuth";
 import { useDeepLinkAuth } from "./src/hooks/useDeepLinkAuth";
 import { useTheme } from "./src/hooks/useTheme";
 import { initPurchases } from "./src/services/purchases";
+import * as Sentry from "@sentry/react-native";
 import "./src/i18n";
+
+// Sentry 크래시 리포팅 초기화 — 가장 먼저. DSN 미설정 시 자동 비활성(no-op).
+// sendDefaultPii=false 로 IP 등 PII 자동 수집을 끈다(개인정보처리방침 일관성).
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  sendDefaultPii: false,
+  // 트랜잭션 샘플링: 개발 전수, 프로덕션 20%
+  tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+});
 
 // RevenueCat SDK 초기화 — 앱 로드 시 1회. 인증과 무관하게 가장 먼저 설정한다.
 initPurchases();
@@ -41,7 +51,7 @@ function AppContent() {
   );
 }
 
-export default function App() {
+function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
@@ -52,3 +62,6 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap 으로 감싸 네이티브 크래시·성능 계측을 활성화한다.
+export default Sentry.wrap(App);

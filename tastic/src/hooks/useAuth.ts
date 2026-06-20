@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { useAuthStore } from "../stores/authStore";
 import { identifyPurchasesUser, logOutPurchasesUser } from "../services/purchases";
+import * as Sentry from "@sentry/react-native";
 import type { User } from "../types/database";
 
 export function useAuth() {
@@ -20,6 +21,8 @@ export function useAuth() {
           setSession(session);
           // RevenueCat appUserID를 Supabase user.id로 맞춘다 (웹훅 매핑용)
           void identifyPurchasesUser(session.user.id);
+          // 크래시 추적용 user id (PII 최소화 — id만)
+          Sentry.setUser({ id: session.user.id });
         } else {
           setUser(null);
           setSession(null);
@@ -44,10 +47,12 @@ export function useAuth() {
             await fetchProfile(session.user.id);
             setSession(session);
             void identifyPurchasesUser(session.user.id);
+            Sentry.setUser({ id: session.user.id });
           } else {
             setUser(null);
             setSession(null);
             void logOutPurchasesUser();
+            Sentry.setUser(null);
           }
           setLoading(false);
         }, 0);
