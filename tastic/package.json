@@ -23,7 +23,7 @@
     "expo-clipboard": "~8.0.8",
     "expo-crypto": "~15.0.9",
     "expo-dev-client": "~6.0.21",
-    "expo-localization": "~17.0.8",
+    "expo-localization": "~17.0.9",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.11",
     "i18next": "^26.0.3",
