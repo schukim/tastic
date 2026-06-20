@@ -15,6 +15,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
 import { supabase } from "../../services/supabase";
+import { presentMembershipPaywall } from "../../services/purchases";
 import { getReviewCount } from "../../services/taste";
 import { CategoryChip } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
@@ -38,6 +39,38 @@ export function MyScreen() {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showLanguageSheet, setShowLanguageSheet] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
+  // DB에서 최신 프로필(plan)을 다시 읽어 스토어에 반영.
+  const refetchProfile = useCallback(async () => {
+    const current = useAuthStore.getState().user;
+    if (!current) return;
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", current.id)
+      .single();
+    if (!error && data) setUser({ ...current, ...data });
+  }, [setUser]);
+
+  // 멤버십 업그레이드: RevenueCat 페이월 → 구매 성공 시 웹훅이 users.plan을 갱신한다.
+  // 웹훅 반영에 약간의 지연이 있으므로 몇 차례 재조회한다.
+  const handleUpgrade = async () => {
+    if (isUpgrading) return;
+    setIsUpgrading(true);
+    try {
+      const purchased = await presentMembershipPaywall();
+      if (purchased) {
+        for (let i = 0; i < 5; i++) {
+          await refetchProfile();
+          if (useAuthStore.getState().user?.plan !== "free") break;
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -215,13 +248,49 @@ export function MyScreen() {
           <Text className="text-text dark:text-text-dark text-[15px] font-semibold mb-3 uppercase tracking-widest opacity-50">
             {t("my.subscription")}
           </Text>
-          <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl px-4 py-3.5 border border-surface-border dark:border-surface-dark-border">
-            <Text className="text-text dark:text-text-dark text-base">
-              {user.plan === "membership" || user.plan === "developer"
-                ? t("my.membershipPlan")
-                : t("my.freePlan")}
-            </Text>
-          </View>
+          {user.plan === "free" ? (
+            <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl border border-surface-border dark:border-surface-dark-border p-5">
+              <View className="flex-row items-baseline justify-between mb-4">
+                <Text className="text-text dark:text-text-dark text-[17px] font-bold">
+                  {t("my.membershipTitle")}
+                </Text>
+                <Text className="text-text dark:text-text-dark text-[15px] font-semibold">
+                  {t("my.membershipPrice")}
+                </Text>
+              </View>
+              <View className="gap-2.5 mb-5">
+                {[t("my.membershipBenefit1"), t("my.membershipBenefit2"), t("my.membershipBenefit3")].map((b) => (
+                  <View key={b} className="flex-row items-center">
+                    <Text className="text-primary dark:text-primary-dm text-[13px] font-bold mr-2.5">✓</Text>
+                    <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px]">{b}</Text>
+                  </View>
+                ))}
+              </View>
+              <Pressable
+                className="bg-primary dark:bg-primary-dm rounded-xl py-3.5 items-center active:opacity-80"
+                onPress={handleUpgrade}
+                disabled={isUpgrading}
+              >
+                <Text className="text-surface dark:text-surface-dark text-base font-semibold">
+                  {isUpgrading ? t("my.upgrading") : t("my.upgradeMembership")}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl border border-surface-border dark:border-surface-dark-border px-4 py-4 flex-row items-center">
+              <View className="w-9 h-9 rounded-full bg-primary dark:bg-primary-dm items-center justify-center mr-3">
+                <Text className="text-surface dark:text-surface-dark text-base font-bold">✓</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-text dark:text-text-dark text-base font-semibold">
+                  {t("my.membershipActive")}
+                </Text>
+                <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mt-0.5">
+                  {t("my.membershipActiveDesc")}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* ── Account ── */}

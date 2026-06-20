@@ -8,7 +8,11 @@ import { RootNavigator } from "./src/navigation/RootNavigator";
 import { useAuth } from "./src/hooks/useAuth";
 import { useDeepLinkAuth } from "./src/hooks/useDeepLinkAuth";
 import { useTheme } from "./src/hooks/useTheme";
+import { initPurchases } from "./src/services/purchases";
 import "./src/i18n";
+
+// RevenueCat SDK 초기화 — 앱 로드 시 1회. 인증과 무관하게 가장 먼저 설정한다.
+initPurchases();
 
 // Disable React DevTools in development to prevent navigation context issues
 if (__DEV__) {
