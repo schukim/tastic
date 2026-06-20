@@ -4,8 +4,6 @@
 
 Tastic ("the Service") respects your privacy and complies with applicable data protection laws. This Privacy Policy explains what personal data we collect, how we use it, and your rights.
 
-> ⚠️ Items in 〔 〕 must be filled in with operator details before launch.
-
 ---
 
 ## 1. Personal Data We Collect
@@ -62,7 +60,7 @@ We transfer personal data internationally as described below. By signing up and 
 
 | Recipient | Country | Data | Purpose |
 |---|---|---|---|
-| Supabase, Inc. | 〔server region: e.g., US / Singapore〕 | Account and service data | Infrastructure & storage |
+| Supabase, Inc. | Australia (Sydney) | Account and service data | Infrastructure & storage |
 | DeepSeek | China | Review & interview text, content info | AI generation & analysis |
 | OpenAI, L.L.C. | United States | Content titles & context | Content identification & recommendation |
 
@@ -105,8 +103,8 @@ The Service does not knowingly collect personal data from children under 14. If 
 
 ## 9. Data Protection Officer & Contact
 
-- Data Protection Officer: 〔name / title〕
-- Operator: 〔business / entity name〕
+- Data Protection Officer: Taewoo Cheong / Developer
+- Operator: Taewoo Cheong
 - Contact (email): twcheong99@gmail.com
 
 For privacy inquiries, complaints, or remedies, please contact us using the details above.
