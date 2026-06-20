@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Supabase CLI temp/local state
+supabase/.temp/
+
+# Image backups
+*.png.backup
+
+# Claude Code agent tooling (local only)
+.agents/
+AGENTS.md
+
+# Env
+.env
+.env*.local
