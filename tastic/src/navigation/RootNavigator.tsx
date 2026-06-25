@@ -2,6 +2,7 @@ import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuthStore } from "../stores/authStore";
+import { resolveAuthRoute } from "../utils/authRoute";
 import type { RootStackParamList } from "../types/navigation";
 import { LoginScreen } from "../screens/Auth/LoginScreen";
 import { SignUpScreen } from "../screens/Auth/SignUpScreen";
@@ -46,17 +47,17 @@ export function RootNavigator() {
   const user = useAuthStore((s) => s.user);
   const isLoading = useAuthStore((s) => s.isLoading);
 
-  // 소셜 가입 등으로 프로필이 비어있는 유저는 온보딩으로. 이메일 가입 유저는
-  // 트리거가 카테고리를 채워주므로 이 분기에 걸리지 않는다.
-  const needsOnboarding = !!user && (user.preferred_categories?.length ?? 0) === 0;
+  // 가입/로그인 구분 없이 프로필이 비어있는 유저(소셜 첫 가입 등)는 온보딩으로 보낸다.
+  // 분기 로직은 resolveAuthRoute 로 분리해 단위 테스트로 검증한다.
+  const route = resolveAuthRoute({ isLoading, hasSession: !!session, user });
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {isLoading ? (
+      {route === "Loading" ? (
         <Stack.Screen name="Loading" component={LoadingScreen} />
-      ) : !session ? (
+      ) : route === "Auth" ? (
         <Stack.Screen name="Auth" component={AuthNavigator} />
-      ) : needsOnboarding ? (
+      ) : route === "Onboarding" ? (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       ) : (
         <Stack.Screen name="Main" component={MainTabs} />
