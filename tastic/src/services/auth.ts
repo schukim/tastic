@@ -1,6 +1,8 @@
+import { Platform } from "react-native";
 import { supabase } from "./supabase";
 import { makeRedirectUri } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import * as AppleAuthentication from "expo-apple-authentication";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -102,6 +104,43 @@ export async function signInWithGoogle() {
 }
 
 export async function signInWithApple() {
+  // iOS: 네이티브 Sign in with Apple 시트(ASAuthorizationController)를 사용한다.
+  // App Store 심사 가이드라인은 iOS에서 웹 리다이렉트 방식을 허용하지 않으므로
+  // identityToken 을 받아 supabase.auth.signInWithIdToken 으로 교환한다.
+  if (Platform.OS === "ios") {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error("Apple 인증 토큰을 받지 못했습니다");
+      }
+
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.signInWithIdToken({
+          provider: "apple",
+          token: credential.identityToken,
+        });
+      if (sessionError) throw sessionError;
+      return sessionData;
+    } catch (e) {
+      // 사용자가 시트를 닫은 경우는 오류로 취급하지 않고 조용히 종료한다.
+      if (
+        e instanceof Error &&
+        "code" in e &&
+        (e as { code?: string }).code === "ERR_REQUEST_CANCELED"
+      ) {
+        return null;
+      }
+      throw e;
+    }
+  }
+
+  // Android/웹: 네이티브 Apple SDK 가 없으므로 OAuth 웹 리다이렉트 플로우를 쓴다.
   const redirectTo = makeRedirectUri({
     path: "auth/callback",
   });
