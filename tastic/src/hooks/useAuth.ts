@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { useAuthStore } from "../stores/authStore";
+import { loadProfile } from "../services/profile";
 import { identifyPurchasesUser, logOutPurchasesUser } from "../services/purchases";
 import * as Sentry from "@sentry/react-native";
-import type { User } from "../types/database";
 
 export function useAuth() {
   const { setSession, setUser, setLoading } = useAuthStore();
@@ -17,7 +17,7 @@ export function useAuth() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          await loadProfile(session.user.id);
           setSession(session);
           // RevenueCat appUserID를 Supabase user.id로 맞춘다 (웹훅 매핑용)
           void identifyPurchasesUser(session.user.id);
@@ -44,7 +44,7 @@ export function useAuth() {
         // 락 밖으로 빼서 처리한다 — Supabase 공식 권장 패턴.
         setTimeout(async () => {
           if (session?.user) {
-            await fetchProfile(session.user.id);
+            await loadProfile(session.user.id);
             setSession(session);
             void identifyPurchasesUser(session.user.id);
             Sentry.setUser({ id: session.user.id });
@@ -61,19 +61,4 @@ export function useAuth() {
 
     return () => subscription.unsubscribe();
   }, [setSession, setUser, setLoading]);
-
-  async function fetchProfile(userId: string) {
-    try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      if (error) throw error;
-      setUser(data as User);
-    } catch {
-      setUser(null);
-    }
-  }
 }

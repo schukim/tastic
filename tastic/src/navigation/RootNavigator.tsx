@@ -7,6 +7,7 @@ import type { RootStackParamList } from "../types/navigation";
 import { LoginScreen } from "../screens/Auth/LoginScreen";
 import { SignUpScreen } from "../screens/Auth/SignUpScreen";
 import { OnboardingScreen } from "../screens/Auth/OnboardingScreen";
+import { ProfileErrorScreen } from "../screens/Auth/ProfileErrorScreen";
 import { MainTabs } from "./MainTabs";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -46,10 +47,11 @@ export function RootNavigator() {
   const session = useAuthStore((s) => s.session);
   const user = useAuthStore((s) => s.user);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const profileStatus = useAuthStore((s) => s.profileStatus);
 
   // 가입/로그인 구분 없이 프로필이 비어있는 유저(소셜 첫 가입 등)는 온보딩으로 보낸다.
   // 분기 로직은 resolveAuthRoute 로 분리해 단위 테스트로 검증한다.
-  const route = resolveAuthRoute({ isLoading, hasSession: !!session, user });
+  const route = resolveAuthRoute({ isLoading, hasSession: !!session, profileStatus, user });
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -57,6 +59,8 @@ export function RootNavigator() {
         <Stack.Screen name="Loading" component={LoadingScreen} />
       ) : route === "Auth" ? (
         <Stack.Screen name="Auth" component={AuthNavigator} />
+      ) : route === "ProfileError" ? (
+        <Stack.Screen name="ProfileError" component={ProfileErrorScreen} />
       ) : route === "Onboarding" ? (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       ) : (

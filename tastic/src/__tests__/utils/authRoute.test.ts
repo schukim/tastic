@@ -12,20 +12,30 @@ function userWith(categories: User["preferred_categories"]): Pick<User, "preferr
 describe("resolveAuthRoute", () => {
   it("로딩 중이면 세션·유저와 무관하게 Loading", () => {
     expect(
-      resolveAuthRoute({ isLoading: true, hasSession: true, user: userWith(["movie"]) })
+      resolveAuthRoute({
+        isLoading: true,
+        hasSession: true,
+        profileStatus: "loaded",
+        user: userWith(["movie"]),
+      })
     ).toBe("Loading");
   });
 
   it("세션이 없으면 Auth(로그인/가입)", () => {
     expect(
-      resolveAuthRoute({ isLoading: false, hasSession: false, user: null })
+      resolveAuthRoute({ isLoading: false, hasSession: false, profileStatus: "loading", user: null })
     ).toBe("Auth");
   });
 
   it("애플/구글 첫 가입: 세션은 있고 프로필 카테고리가 비어있으면 Onboarding", () => {
     // 트리거가 만든 직후의 상태(닉네임 'User', 카테고리 빈 배열)
     expect(
-      resolveAuthRoute({ isLoading: false, hasSession: true, user: userWith([]) })
+      resolveAuthRoute({
+        isLoading: false,
+        hasSession: true,
+        profileStatus: "loaded",
+        user: userWith([]),
+      })
     ).toBe("Onboarding");
   });
 
@@ -34,16 +44,28 @@ describe("resolveAuthRoute", () => {
       resolveAuthRoute({
         isLoading: false,
         hasSession: true,
+        profileStatus: "loaded",
         user: userWith(["movie", "book"]),
       })
     ).toBe("Main");
   });
 
-  it("세션은 있으나 프로필 fetch 전(user=null)이면 아직 온보딩 아님 → Main 분기로 보내지 않고 Onboarding 도 아님", () => {
-    // user 가 아직 null 이면 needsOnboarding=false 라 Main 으로 떨어진다.
-    // (fetchProfile 완료 후 onAuthStateChange 가 다시 평가하므로 깜빡임은 짧다)
+  it("세션은 있으나 프로필을 아직 불러오는 중(loading)이면 Loading", () => {
     expect(
-      resolveAuthRoute({ isLoading: false, hasSession: true, user: null })
-    ).toBe("Main");
+      resolveAuthRoute({ isLoading: false, hasSession: true, profileStatus: "loading", user: null })
+    ).toBe("Loading");
+  });
+
+  it("세션은 있으나 프로필 조회 실패(error)면 Main 이 아니라 ProfileError", () => {
+    // user=null 인 채 Main 으로 들어가 빈 화면이 되는 회귀를 방지한다.
+    expect(
+      resolveAuthRoute({ isLoading: false, hasSession: true, profileStatus: "error", user: null })
+    ).toBe("ProfileError");
+  });
+
+  it("방어: status=loaded 인데 user 가 null 이면 ProfileError", () => {
+    expect(
+      resolveAuthRoute({ isLoading: false, hasSession: true, profileStatus: "loaded", user: null })
+    ).toBe("ProfileError");
   });
 });
