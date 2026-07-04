@@ -69,7 +69,17 @@
   },
   "review": {
     "greeting": "{{name}}, what did you experience today?",
-    "titlePlaceholder": "Enter the title",
+    "titlePlaceholder": "Title",
+    "selectCategory": "Select a category",
+    "musicAlbum": "Album",
+    "musicSong": "Song",
+    "creatorLabel": {
+      "movie": "Director",
+      "music": "Artist",
+      "book": "Author",
+      "art": "Artist",
+      "series": "Creator/Director"
+    },
     "experienceDate": "Date experienced",
     "next": "Next",
     "confirm": {
@@ -78,7 +88,11 @@
       "researchLimit": "You can search again up to 3 times",
       "manualInput": "Can't find it. I'll enter it manually",
       "manualInputFirst": "Enter manually",
-      "loading": "Searching for the work..."
+      "loading": "Searching for the work...",
+      "searchError": "Something went wrong while searching.",
+      "saveError": "Failed to save the work.",
+      "creatorOptional": "Creator (optional)",
+      "yearOptional": "Year (optional)"
     },
     "interview": {
       "questionCount": "Question {{count}}",
@@ -99,12 +113,13 @@
     },
     "complete": {
       "title": "Your Review",
+      "titlePlaceholder": "Title",
       "regenerate": "Regenerate",
       "save": "Save",
       "saved": "Review saved!",
       "saveFailed": "Save failed. Please try again",
       "generateFailed": "Couldn't generate the review. Try again?",
-      "backToInterview": "Back to Interview"
+      "goHome": "Go to Home"
     },
     "draft": {
       "title": "Previous Interview",
@@ -115,7 +130,9 @@
   },
   "history": {
     "empty": "No reviews yet",
-    "goToReview": "Write a Review"
+    "goToReview": "Write a Review",
+    "header": "History",
+    "countLabel": "{{count}} entries"
   },
   "recommend": {
     "title": "What are you looking for?",
@@ -125,7 +142,11 @@
     "chipMovie": "Movie",
     "chipBook": "Book",
     "chipMusic": "Music",
-    "chipNew": "New Genre"
+    "chipNew": "New Genre",
+    "chipMoviePrompt": "Recommend me a movie",
+    "chipBookPrompt": "Recommend me a book",
+    "chipMusicPrompt": "Recommend me some music",
+    "chipNewPrompt": "I want to try a new genre"
   },
   "analysis": {
     "empty": "No taste analysis yet. Shall we analyze your taste?",
@@ -137,7 +158,8 @@
     "loading2": "Finding patterns...",
     "loading3": "Composing your profile...",
     "error": "Analysis failed",
-    "newReviewBadge": "{{count}} new reviews available"
+    "newReviewBadge": "{{count}} new reviews available",
+    "reviewProgress": "{{current}} / {{min}} reviews"
   },
   "membership": {
     "limitTitle": "Usage Limit",
@@ -167,16 +189,23 @@
     "logout": "Log Out",
     "logoutConfirm": "Are you sure you want to log out?",
     "deleteAccount": "Delete Account",
-    "deleteConfirm": "All data will be deleted. Are you sure?"
+    "deleteConfirm": "All data will be deleted. Are you sure?",
+    "deleteFailed": "Failed to delete your account. Please check your network and try again.",
+    "deleting": "Deleting...",
+    "reviewCount": "{{count}} reviews"
   },
   "common": {
     "cancel": "Cancel",
     "confirm": "OK",
     "save": "Save",
+    "saving": "Saving...",
     "delete": "Delete",
     "edit": "Edit",
     "close": "Close",
+    "copy": "Copy",
     "copied": "Copied",
+    "retry": "Try Again",
+    "generating": "Generating...",
     "networkOffline": "No internet connection",
     "serverError": "Service temporarily unavailable"
   }

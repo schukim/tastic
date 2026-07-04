@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useRoute, useNavigation } from "@react-navigation/native";
+import { useRoute, useNavigation, useFocusEffect } from "@react-navigation/native";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import type { ContentCategory } from "../../types/database";
 import type { RecommendContentResponse } from "../../types/llm";
@@ -35,11 +35,12 @@ interface RecommendItem {
   reason_short: string;
 }
 
+// prompt 는 LLM 에 그대로 전달되므로 사용자 언어에 맞는 i18n 키(<key>Prompt)로 해석한다
 const QUICK_CHIPS = [
-  { key: "chipMovie", prompt: "영화 추천해줘", icon: "🎬" },
-  { key: "chipBook", prompt: "책 추천해줘", icon: "📚" },
-  { key: "chipMusic", prompt: "음악 추천해줘", icon: "🎵" },
-  { key: "chipNew", prompt: "새로운 장르 도전하고 싶어", icon: "✦" },
+  { key: "chipMovie", icon: "🎬" },
+  { key: "chipBook", icon: "📚" },
+  { key: "chipMusic", icon: "🎵" },
+  { key: "chipNew", icon: "✦" },
 ];
 
 const CATEGORY_ACCENT: Record<string, string> = {
@@ -73,11 +74,14 @@ export function RecommendScreen() {
     }
   }, [route.params]);
 
-  useEffect(() => {
-    if (user) {
-      getReviewCount(user.id).then(setReviewCount);
-    }
-  }, [user]);
+  // 평론을 새로 쓰고 돌아와도 3편 게이트가 풀리도록 포커스마다 다시 센다
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        getReviewCount(user.id).then(setReviewCount);
+      }
+    }, [user])
+  );
 
   const handleSubmit = async (overridePrompt?: string) => {
     const queryPrompt = overridePrompt ?? prompt;
@@ -254,8 +258,9 @@ export function RecommendScreen() {
                     <Pressable
                       className="bg-surface-secondary dark:bg-surface-dark-secondary border-2 border-surface-border/50 dark:border-surface-dark-border/50 rounded-2xl px-5 py-3 flex-row items-center active:scale-95 transition-transform shadow-sm"
                       onPress={() => {
-                        setPrompt(chip.prompt);
-                        handleSubmit(chip.prompt);
+                        const chipPrompt = t(`recommend.${chip.key}Prompt`);
+                        setPrompt(chipPrompt);
+                        handleSubmit(chipPrompt);
                       }}
                     >
                       <Text className="text-base mr-2">{chip.icon}</Text>

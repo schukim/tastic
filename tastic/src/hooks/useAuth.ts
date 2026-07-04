@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { useAuthStore } from "../stores/authStore";
 import { loadProfile } from "../services/profile";
+import { syncUnsavedReviews } from "../services/review";
 import { identifyPurchasesUser, logOutPurchasesUser } from "../services/purchases";
 import * as Sentry from "@sentry/react-native";
 
@@ -21,6 +22,8 @@ export function useAuth() {
           setSession(session);
           // RevenueCat appUserID를 Supabase user.id로 맞춘다 (웹훅 매핑용)
           void identifyPurchasesUser(session.user.id);
+          // 저장 실패로 로컬에 남은 평론이 있으면 재업로드 (실패해도 다음 기회에 재시도)
+          syncUnsavedReviews(session.user.id).catch(() => {});
           // 크래시 추적용 user id (PII 최소화 — id만)
           Sentry.setUser({ id: session.user.id });
         } else {

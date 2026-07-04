@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { useAuthStore } from "../stores/authStore";
+import i18n from "../i18n";
 import type { User } from "../types/database";
 
 // PostgREST 가 "0 rows" 일 때 .single() 에서 내는 코드.
@@ -67,4 +68,9 @@ export async function loadProfile(userId: string): Promise<void> {
 
   setUser(data);
   setProfileStatus("loaded");
+
+  // 저장된 언어 설정을 UI에 반영 — 이게 없으면 en 유저도 앱을 켤 때마다 ko로 시작한다.
+  if (data.language && i18n.language !== data.language) {
+    void i18n.changeLanguage(data.language);
+  }
 }

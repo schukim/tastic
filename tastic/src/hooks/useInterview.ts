@@ -152,6 +152,18 @@ export function useInterview(content: Content) {
     return fetchQuestion(conversation, questionCount);
   }, [conversation, questionCount, fetchQuestion]);
 
+  // 이탈("저장하고 나가기") 시 현재 상태를 드래프트로 저장.
+  // submitAnswer 의 자동 저장과 달리 답변 전(질문만 있는) 상태도 저장한다.
+  const saveDraftNow = useCallback(async () => {
+    await saveDraft({
+      content,
+      conversation,
+      questionCount,
+      interviewId: interviewIdRef.current,
+      savedAt: new Date().toISOString(),
+    });
+  }, [content, conversation, questionCount]);
+
   // 인터뷰 종료 처리 — 평론 생성은 ReviewCompleteScreen에서 수행
   const completeInterview = useCallback(async () => {
     setAwaitingChoice(false);
@@ -211,6 +223,7 @@ export function useInterview(content: Content) {
     submitAnswer,
     continueInterview,
     completeInterview,
+    saveDraftNow,
     restoreFromDraft,
     setError,
   };

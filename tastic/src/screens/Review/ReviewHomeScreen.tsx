@@ -35,14 +35,6 @@ const ALL_CATEGORIES: ContentCategory[] = [
   "movie", "music", "book", "art", "series",
 ];
 
-const CREATOR_LABEL: Record<ContentCategory, string> = {
-  movie: "감독",
-  music: "아티스트",
-  book: "작가",
-  art: "아티스트",
-  series: "크리에이터/감독",
-};
-
 export function ReviewHomeScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
@@ -204,7 +196,7 @@ export function ReviewHomeScreen() {
           {!isExpanded && (
             <Animated.View style={subtitleStyle}>
               <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px] mb-3">
-                카테고리를 선택하세요
+                {t("review.selectCategory")}
               </Text>
             </Animated.View>
           )}
@@ -236,7 +228,7 @@ export function ReviewHomeScreen() {
             <TextInput
               ref={titleRef}
               className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-tertiary dark:border-surface-dark-border rounded-xl px-4 py-3.5 text-text dark:text-text-dark text-base mb-3"
-              placeholder="제목"
+              placeholder={t("review.titlePlaceholder")}
               placeholderTextColor={isDark ? '#7A7268' : '#9C9589'}
               value={title}
               onChangeText={setTitle}
@@ -249,7 +241,7 @@ export function ReviewHomeScreen() {
                   onPress={() => setMusicType("album")}
                 >
                   <Text className={`text-[15px] font-medium ${musicType === "album" ? "text-white" : "text-text-secondary dark:text-text-dark-secondary"}`}>
-                    앨범
+                    {t("review.musicAlbum")}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -257,7 +249,7 @@ export function ReviewHomeScreen() {
                   onPress={() => setMusicType("song")}
                 >
                   <Text className={`text-[15px] font-medium ${musicType === "song" ? "text-white" : "text-text-secondary dark:text-text-dark-secondary"}`}>
-                    곡
+                    {t("review.musicSong")}
                   </Text>
                 </Pressable>
               </View>
@@ -266,7 +258,7 @@ export function ReviewHomeScreen() {
             {category && (
               <TextInput
                 className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-tertiary dark:border-surface-dark-border rounded-xl px-4 py-3.5 text-text dark:text-text-dark text-base mb-6"
-                placeholder={CREATOR_LABEL[category]}
+                placeholder={t(`review.creatorLabel.${category}`)}
                 placeholderTextColor={isDark ? '#7A7268' : '#9C9589'}
                 value={creator}
                 onChangeText={setCreator}

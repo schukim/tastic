@@ -54,6 +54,7 @@ export function InterviewScreen() {
     submitAnswer,
     continueInterview,
     completeInterview,
+    saveDraftNow,
     restoreFromDraft,
     setError,
   } = useInterview(content);
@@ -65,6 +66,23 @@ export function InterviewScreen() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const [initialized, setInitialized] = useState(false);
+  // 이탈 확인을 통과시킬지(의도된 이동: 종료/저장 후 나가기) 여부
+  const allowLeaveRef = useRef(false);
+  // beforeRemove 가 막아둔 내비게이션 액션 — 확인 후 재실행
+  const pendingActionRef = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
+
+  // 뒤로가기(하드웨어 백/닫기 버튼)를 가로채 이탈 확인 다이얼로그를 띄운다.
+  // 답변이 하나도 없으면 저장할 것이 없으니 그대로 내보낸다.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+      if (allowLeaveRef.current || isInterviewComplete) return;
+      if (!conversation.some((entry) => entry.role === "user")) return;
+      e.preventDefault();
+      pendingActionRef.current = e.data.action;
+      setShowExitDialog(true);
+    });
+    return unsubscribe;
+  }, [navigation, isInterviewComplete, conversation]);
 
   // Initialize
   useEffect(() => {
@@ -93,6 +111,7 @@ export function InterviewScreen() {
   useEffect(() => {
     if (!isInterviewComplete) return;
     (async () => {
+      allowLeaveRef.current = true;
       await completeInterview();
       navigation.replace("ReviewComplete", {
         content,
@@ -138,6 +157,7 @@ export function InterviewScreen() {
 
   const handleFinish = async () => {
     setShowPreview(false);
+    allowLeaveRef.current = true;
     await completeInterview();
     navigation.replace("ReviewComplete", {
       content,
@@ -146,15 +166,29 @@ export function InterviewScreen() {
     });
   };
 
-  const handleExitSave = async () => {
+  // 확인 후 실제 이탈 — beforeRemove 가 막아둔 액션이 있으면 그대로 재실행
+  const leaveScreen = () => {
+    allowLeaveRef.current = true;
     setShowExitDialog(false);
-    navigation.goBack();
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    if (action) navigation.dispatch(action);
+    else navigation.goBack();
+  };
+
+  const handleExitSave = async () => {
+    await saveDraftNow();
+    leaveScreen();
   };
 
   const handleExitDiscard = async () => {
     await clearDraft();
+    leaveScreen();
+  };
+
+  const handleExitCancel = () => {
+    pendingActionRef.current = null;
     setShowExitDialog(false);
-    navigation.goBack();
   };
 
   // Group conversation for display
@@ -184,6 +218,14 @@ export function InterviewScreen() {
         <Text className="text-text-secondary text-[15px]">
           {t("review.interview.questionCount", { count: questionCount })}
         </Text>
+        {/* 닫기 — 답변이 있으면 beforeRemove 가 이탈 확인 다이얼로그로 가로챈다 */}
+        <Pressable
+          className="ml-4"
+          hitSlop={8}
+          onPress={() => navigation.goBack()}
+        >
+          <Text className="text-text-secondary text-lg">✕</Text>
+        </Pressable>
       </View>
 
       <View className="flex-1">
@@ -340,9 +382,9 @@ export function InterviewScreen() {
         actions={[
           { label: t("review.interview.exitConfirmSave"), onPress: handleExitSave, variant: "primary" },
           { label: t("review.interview.exitConfirmDiscard"), onPress: handleExitDiscard, variant: "destructive" },
-          { label: t("review.interview.exitConfirmCancel"), onPress: () => setShowExitDialog(false) },
+          { label: t("review.interview.exitConfirmCancel"), onPress: handleExitCancel },
         ]}
-        onClose={() => setShowExitDialog(false)}
+        onClose={handleExitCancel}
       />
     </SafeAreaView>
     </KeyboardAvoidingView>

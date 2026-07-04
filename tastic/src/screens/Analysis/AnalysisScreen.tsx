@@ -36,13 +36,6 @@ const LOADING_MESSAGES_EN = [
 
 const MIN_REVIEWS = 3;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  movie: "영화",
-  music: "음악",
-  book: "책",
-  art: "미술",
-};
-
 export function AnalysisScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
@@ -242,7 +235,7 @@ export function AnalysisScreen() {
                   </View>
                 </View>
                 <Text className="text-text-secondary dark:text-text-dark-secondary text-base mb-12 font-semibold">
-                  {reviewCount} / {MIN_REVIEWS} 평론
+                  {t("analysis.reviewProgress", { current: reviewCount, min: MIN_REVIEWS })}
                 </Text>
 
                 <Pressable

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-// import { useFocusEffect } from "@react-navigation/native"; // Temporarily disabled
+import { useFocusEffect } from "@react-navigation/native";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useAuthStore } from "../../stores/authStore";
@@ -20,6 +20,7 @@ import { useTheme } from "../../hooks/useTheme";
 import {
   fetchReviewsByMonth,
   updateReview,
+  syncUnsavedReviews,
   type ReviewWithContent,
 } from "../../services/review";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
@@ -79,6 +80,8 @@ export function HistoryScreen() {
   const loadReviews = useCallback(async () => {
     if (!user) return;
     try {
+      // 저장 실패로 로컬에 남은 평론이 있으면 먼저 재업로드 후 조회
+      await syncUnsavedReviews(user.id).catch(() => {});
       const data = await fetchReviewsByMonth(user.id, year, month);
       setReviews(data);
     } catch {
@@ -86,10 +89,12 @@ export function HistoryScreen() {
     }
   }, [user, year, month]);
 
-  // Use useEffect instead of useFocusEffect to avoid NavigationContainer context issues
-  useEffect(() => {
-    loadReviews();
-  }, [loadReviews]);
+  // 탭 재진입 시에도 새 평론이 반영되도록 포커스마다 로드
+  useFocusEffect(
+    useCallback(() => {
+      loadReviews();
+    }, [loadReviews])
+  );
 
   const prevMonth = () => {
     if (month === 1) { setMonth(12); setYear(year - 1); }
@@ -180,7 +185,7 @@ export function HistoryScreen() {
           </Pressable>
           <View className="items-center">
             <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] uppercase tracking-widest font-medium">
-              {lang === "ko" ? "기록" : "History"}
+              {t("history.header")}
             </Text>
             <Text className="text-text dark:text-text-dark text-xl font-bold mt-1">
               {lang === "ko"
@@ -277,7 +282,7 @@ export function HistoryScreen() {
       <View className="mx-5 mb-2 flex-row items-center">
         <View className="flex-1 h-px bg-gradient-to-r from-transparent via-surface-border dark:via-surface-dark-border to-transparent" />
         <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mx-4 uppercase tracking-widest font-medium">
-          {reviews.length > 0 ? `${reviews.length}편` : '기록'}
+          {reviews.length > 0 ? t("history.countLabel", { count: reviews.length }) : t("history.header")}
         </Text>
         <View className="flex-1 h-px bg-gradient-to-r from-transparent via-surface-border dark:via-surface-dark-border to-transparent" />
       </View>
@@ -496,7 +501,7 @@ export function HistoryScreen() {
                         onPress={handleCopy}
                       >
                         <Text className="text-text dark:text-text-dark font-semibold text-base">
-                          {lang === "ko" ? "복사" : "Copy"}
+                          {t("common.copy")}
                         </Text>
                       </Pressable>
                     </View>

@@ -78,7 +78,8 @@ export function ContentConfirmScreen() {
           `[verify-content] "${title}" — 검색 ${d.search_count}회 / ${d.ms}ms / 출처 도메인:`,
           d.cited_domains
         );
-        console.table(d.citations);
+        // Hermes 등 console.table 미지원 런타임에서 크래시하지 않도록 가드
+        console.table?.(d.citations);
       }
 
       // Auto-select if single high-confidence result
@@ -87,7 +88,7 @@ export function ContentConfirmScreen() {
       }
     } catch (e) {
       console.error("verifyContent error:", e);
-      setFetchError(e instanceof Error ? e.message : "작품 검색 중 오류가 발생했습니다.");
+      setFetchError(e instanceof Error ? e.message : t("review.confirm.searchError"));
       setCandidates([]);
     } finally {
       setIsLoading(false);
@@ -128,7 +129,7 @@ export function ContentConfirmScreen() {
       navigation.navigate("Interview", { content: contentData });
     } catch (e) {
       console.error("handleNext error:", e);
-      setSaveError(e instanceof Error ? e.message : "작품 저장에 실패했습니다.");
+      setSaveError(e instanceof Error ? e.message : t("review.confirm.saveError"));
     } finally {
       setIsSaving(false);
     }
@@ -156,7 +157,7 @@ export function ContentConfirmScreen() {
           <View className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-3">
             <Text className="text-red-600 text-[15px] mb-2">{fetchError}</Text>
             <Pressable onPress={() => fetchCandidates()}>
-              <Text className="text-primary text-[15px] font-medium">다시 시도</Text>
+              <Text className="text-primary text-[15px] font-medium">{t("common.retry")}</Text>
             </Pressable>
           </View>
         )}
@@ -256,14 +257,14 @@ export function ContentConfirmScreen() {
           <View className="mt-2 mb-4">
             <TextInput
               className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-[15px] mb-3"
-              placeholder={user?.language === "en" ? "Creator (optional)" : "창작자 (선택)"}
+              placeholder={t("review.confirm.creatorOptional")}
               placeholderTextColor="#94A3B8"
               value={manualCreator}
               onChangeText={setManualCreator}
             />
             <TextInput
               className="bg-surface-secondary border border-surface-tertiary rounded-xl px-4 py-3 text-text text-[15px]"
-              placeholder={user?.language === "en" ? "Year (optional)" : "연도 (선택)"}
+              placeholder={t("review.confirm.yearOptional")}
               placeholderTextColor="#94A3B8"
               value={manualYear}
               onChangeText={setManualYear}
@@ -284,7 +285,7 @@ export function ContentConfirmScreen() {
           disabled={!isValid || isSaving}
         >
           <Text className="text-white font-semibold text-base">
-            {isSaving ? "저장 중..." : t("review.next")}
+            {isSaving ? t("common.saving") : t("review.next")}
           </Text>
         </Pressable>
       </View>

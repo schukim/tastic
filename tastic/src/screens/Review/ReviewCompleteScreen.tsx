@@ -136,11 +136,13 @@ export function ReviewCompleteScreen() {
           >
             <Text className="text-white font-medium">{t("review.complete.regenerate")}</Text>
           </Pressable>
+          {/* Interview 는 replace 로 스택에서 제거된 상태라 goBack 하면 작품 확인 화면으로
+              떨어진다(드래프트도 이미 삭제됨) — 홈으로 보내는 게 정직한 동작 */}
           <Pressable
             className="bg-surface-tertiary rounded-xl px-6 py-3"
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.popToTop()}
           >
-            <Text className="text-text font-medium">{t("review.complete.backToInterview")}</Text>
+            <Text className="text-text font-medium">{t("review.complete.goHome")}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -176,7 +178,7 @@ export function ReviewCompleteScreen() {
           className="text-text text-xl font-bold mb-4"
           value={reviewTitle}
           onChangeText={setReviewTitle}
-          placeholder="Title"
+          placeholder={t("review.complete.titlePlaceholder")}
           placeholderTextColor="#94A3B8"
         />
 

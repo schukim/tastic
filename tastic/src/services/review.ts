@@ -1,5 +1,6 @@
 import type { Review, Interview, ConversationEntry } from "../types/database";
 import { supabase } from "./supabase";
+import { getUnsavedReviews, removeUnsavedReview } from "../utils/storage";
 
 // ── Reviews ──
 
@@ -40,6 +41,38 @@ export interface ReviewWithContent extends Review {
     creator: string | null;
     year: number | null;
   } | null;
+}
+
+// 저장 실패로 로컬(AsyncStorage)에 보관된 평론을 서버로 재업로드한다.
+// 앱 시작(로그인 확인 후)과 히스토리 진입 시 호출 — 성공한 건만 로컬에서 제거하고,
+// 실패한 건 다음 기회에 재시도한다.
+let isSyncingUnsaved = false;
+
+export async function syncUnsavedReviews(userId: string): Promise<void> {
+  if (isSyncingUnsaved) return;
+  isSyncingUnsaved = true;
+  try {
+    const pending = await getUnsavedReviews();
+    for (const item of pending) {
+      try {
+        const review = await createReview({
+          userId,
+          workId: item.contentId,
+          title: item.title,
+          body: item.body,
+          experienceDate: item.experienceDate,
+        });
+        if (item.interviewId) {
+          await linkInterviewToReview(item.interviewId, review.id).catch(() => {});
+        }
+        await removeUnsavedReview(item.savedAt);
+      } catch {
+        // 여전히 실패 — 로컬에 남겨두고 다음 동기화 때 재시도
+      }
+    }
+  } finally {
+    isSyncingUnsaved = false;
+  }
 }
 
 export async function fetchReviews(userId: string): Promise<ReviewWithContent[]> {

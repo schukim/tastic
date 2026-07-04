@@ -69,7 +69,17 @@
   },
   "review": {
     "greeting": "{{name}}님, 오늘은 무엇을 감상하셨나요?",
-    "titlePlaceholder": "작품 제목을 입력하세요",
+    "titlePlaceholder": "제목",
+    "selectCategory": "카테고리를 선택하세요",
+    "musicAlbum": "앨범",
+    "musicSong": "곡",
+    "creatorLabel": {
+      "movie": "감독",
+      "music": "아티스트",
+      "book": "작가",
+      "art": "아티스트",
+      "series": "크리에이터/감독"
+    },
     "experienceDate": "감상 일자",
     "next": "다음",
     "confirm": {
@@ -78,7 +88,11 @@
       "researchLimit": "재검색은 최대 3회까지 가능해요",
       "manualInput": "작품을 찾지 못했어요. 직접 입력할게요",
       "manualInputFirst": "직접 입력하기",
-      "loading": "작품을 찾고 있어요..."
+      "loading": "작품을 찾고 있어요...",
+      "searchError": "작품 검색 중 오류가 발생했습니다.",
+      "saveError": "작품 저장에 실패했습니다.",
+      "creatorOptional": "창작자 (선택)",
+      "yearOptional": "연도 (선택)"
     },
     "interview": {
       "questionCount": "질문 {{count}}",
@@ -99,12 +113,13 @@
     },
     "complete": {
       "title": "평론 작성",
+      "titlePlaceholder": "제목",
       "regenerate": "다시 생성",
       "save": "저장하기",
       "saved": "평론이 저장되었습니다!",
       "saveFailed": "저장에 실패했습니다. 다시 시도해주세요",
       "generateFailed": "평론을 생성하지 못했어요. 다시 시도할까요?",
-      "backToInterview": "인터뷰로 돌아가기"
+      "goHome": "홈으로"
     },
     "draft": {
       "title": "이전 인터뷰",
@@ -115,7 +130,9 @@
   },
   "history": {
     "empty": "아직 작성한 평론이 없어요",
-    "goToReview": "평론 작성하러 가기"
+    "goToReview": "평론 작성하러 가기",
+    "header": "기록",
+    "countLabel": "{{count}}편"
   },
   "recommend": {
     "title": "어떤 콘텐츠를 찾고 있나요?",
@@ -125,7 +142,11 @@
     "chipMovie": "영화 추천",
     "chipBook": "책 추천",
     "chipMusic": "음악 추천",
-    "chipNew": "새로운 장르 도전"
+    "chipNew": "새로운 장르 도전",
+    "chipMoviePrompt": "영화 추천해줘",
+    "chipBookPrompt": "책 추천해줘",
+    "chipMusicPrompt": "음악 추천해줘",
+    "chipNewPrompt": "새로운 장르 도전하고 싶어"
   },
   "analysis": {
     "empty": "아직 분석된 취향이 없어요. 취향을 분석해볼까요?",
@@ -137,7 +158,8 @@
     "loading2": "패턴을 찾고 있어요...",
     "loading3": "취향을 정리하고 있어요...",
     "error": "분석을 완료하지 못했어요",
-    "newReviewBadge": "새 평론 {{count}}개 반영 가능"
+    "newReviewBadge": "새 평론 {{count}}개 반영 가능",
+    "reviewProgress": "{{current}} / {{min}} 평론"
   },
   "membership": {
     "limitTitle": "이용 한도 안내",
@@ -167,16 +189,23 @@
     "logout": "로그아웃",
     "logoutConfirm": "로그아웃 하시겠습니까?",
     "deleteAccount": "계정 삭제",
-    "deleteConfirm": "모든 데이터가 삭제됩니다. 정말 삭제하시겠습니까?"
+    "deleteConfirm": "모든 데이터가 삭제됩니다. 정말 삭제하시겠습니까?",
+    "deleteFailed": "계정 삭제에 실패했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.",
+    "deleting": "삭제 중...",
+    "reviewCount": "평론 {{count}}개"
   },
   "common": {
     "cancel": "취소",
     "confirm": "확인",
     "save": "저장",
+    "saving": "저장 중...",
     "delete": "삭제",
     "edit": "수정",
     "close": "닫기",
+    "copy": "복사",
     "copied": "복사되었습니다",
+    "retry": "다시 시도",
+    "generating": "생성 중...",
     "networkOffline": "인터넷 연결이 없습니다",
     "serverError": "잠시 서비스를 이용할 수 없습니다"
   }

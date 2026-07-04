@@ -66,8 +66,9 @@ export async function clearUnsavedReviews(): Promise<void> {
   await AsyncStorage.removeItem(UNSAVED_REVIEWS_KEY);
 }
 
-export async function removeUnsavedReview(interviewId: string): Promise<void> {
+// interviewId 는 비어있을 수 있어("") savedAt 을 키로 쓴다.
+export async function removeUnsavedReview(savedAt: string): Promise<void> {
   const existing = await getUnsavedReviews();
-  const filtered = existing.filter((r) => r.interviewId !== interviewId);
+  const filtered = existing.filter((r) => r.savedAt !== savedAt);
   await AsyncStorage.setItem(UNSAVED_REVIEWS_KEY, JSON.stringify(filtered));
 }

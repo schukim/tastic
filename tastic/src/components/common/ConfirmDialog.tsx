@@ -1,5 +1,6 @@
 import React from "react";
 import { Modal, View, Text, Pressable, ScrollView, ActivityIndicator, Dimensions } from "react-native";
+import { useTranslation } from "react-i18next";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
@@ -13,6 +14,7 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ visible, title, message, loading, actions, onClose }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1 }}>
@@ -31,7 +33,7 @@ export function ConfirmDialog({ visible, title, message, loading, actions, onClo
             {loading ? (
               <View className="items-center py-8 mb-4">
                 <ActivityIndicator size="large" color="#6366F1" />
-                <Text className="text-text-secondary text-[15px] mt-3">평론 생성 중...</Text>
+                <Text className="text-text-secondary text-[15px] mt-3">{t("common.generating")}</Text>
               </View>
             ) : (
               <ScrollView

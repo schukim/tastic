@@ -41,6 +41,8 @@ export function MyScreen() {
   const [nicknameInput, setNicknameInput] = useState(user?.nickname ?? "");
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDeleteFailedDialog, setShowDeleteFailedDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showLanguageSheet, setShowLanguageSheet] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
 
@@ -141,12 +143,26 @@ export function MyScreen() {
     reset();
   };
 
+  // 계정 삭제는 RLS 로 클라이언트에서 불가(users 에 delete 정책 없음) + auth 계정까지
+  // 지워야 하므로 service-role 엣지 함수(delete-account)에서 수행한다.
   const handleDeleteAccount = async () => {
     setShowDeleteDialog(false);
-    if (user) {
-      await supabase.from("users").delete().eq("id", user.id);
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-account");
+      if (error || data?.error) throw error ?? new Error(data.message);
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // 서버 계정은 이미 삭제됨 — 로컬 세션만 정리
+      }
+      reset();
+    } catch (e) {
+      console.error("delete account failed:", e);
+      setShowDeleteFailedDialog(true);
+    } finally {
+      setIsDeleting(false);
     }
-    await supabase.auth.signOut();
   };
 
   if (!user) return null;
@@ -186,7 +202,7 @@ export function MyScreen() {
           )}
 
           <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[15px] mt-1.5">
-            평론 {reviewCount}개
+            {t("my.reviewCount", { count: reviewCount })}
           </Text>
         </View>
 
@@ -316,8 +332,11 @@ export function MyScreen() {
           <Pressable
             className="px-4 py-3.5"
             onPress={() => setShowDeleteDialog(true)}
+            disabled={isDeleting}
           >
-            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-base">{t("my.deleteAccount")}</Text>
+            <Text className="text-text-tertiary dark:text-text-dark-tertiary text-base">
+              {isDeleting ? t("my.deleting") : t("my.deleteAccount")}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -373,6 +392,17 @@ export function MyScreen() {
           { label: t("common.cancel"), onPress: () => setShowDeleteDialog(false) },
         ]}
         onClose={() => setShowDeleteDialog(false)}
+      />
+
+      {/* Delete Failed Dialog */}
+      <ConfirmDialog
+        visible={showDeleteFailedDialog}
+        title={t("my.deleteAccount")}
+        message={t("my.deleteFailed")}
+        actions={[
+          { label: t("common.confirm"), onPress: () => setShowDeleteFailedDialog(false), variant: "primary" },
+        ]}
+        onClose={() => setShowDeleteFailedDialog(false)}
       />
     </SafeAreaView>
   );

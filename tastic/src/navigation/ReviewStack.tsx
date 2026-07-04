@@ -13,7 +13,12 @@ export function ReviewStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ReviewHome" component={ReviewHomeScreen} />
       <Stack.Screen name="ContentConfirm" component={ContentConfirmScreen} />
-      <Stack.Screen name="Interview" component={InterviewScreen} />
+      {/* iOS 스와이프백은 beforeRemove 로 못 막으므로 제스처를 끄고 닫기 버튼으로만 이탈 */}
+      <Stack.Screen
+        name="Interview"
+        component={InterviewScreen}
+        options={{ gestureEnabled: false }}
+      />
       <Stack.Screen
         name="ReviewComplete"
         component={ReviewCompleteScreen}
