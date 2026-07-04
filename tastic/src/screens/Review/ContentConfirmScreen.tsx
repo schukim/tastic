@@ -13,7 +13,6 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RouteProp } from "@react-navigation/native";
 import type { ReviewStackParamList } from "../../types/navigation";
 import type { ContentCandidate } from "../../types/llm";
-import type { ContentCategory } from "../../types/database";
 import { verifyContent } from "../../services/claude";
 import { createContent } from "../../services/content";
 import { saveVerifiedWork } from "../../services/work";
@@ -30,7 +29,7 @@ export function ContentConfirmScreen() {
   const route = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
 
-  const { title, creator: inputCreator, category, experienceDate, musicType } = route.params;
+  const { title, creator: inputCreator, category, musicType } = route.params;
 
   const [candidates, setCandidates] = useState<ContentCandidate[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);

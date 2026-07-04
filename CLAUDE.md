@@ -20,10 +20,9 @@ npx expo start          # 개발 서버 시작
 npx expo start --ios    # iOS 시뮬레이터
 npx expo start --android # Android 에뮬레이터
 npm run test            # Vitest 단위 테스트
-npm run test:e2e        # Detox e2e 테스트
-npm run lint            # ESLint + Prettier
+npm run lint            # ESLint (eslint-config-expo)
 npm run typecheck       # tsc --noEmit
-npm run db:migrate      # Supabase 마이그레이션 적용
+npm run db:migrate      # Supabase 마이그레이션 적용 (npx supabase db push — 리모트 drift 주의)
 npm run db:types        # Supabase에서 TypeScript 타입 생성
 ```
 

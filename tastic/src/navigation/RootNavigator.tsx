@@ -3,7 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuthStore } from "../stores/authStore";
 import { resolveAuthRoute } from "../utils/authRoute";
-import type { RootStackParamList } from "../types/navigation";
+import type { RootStackParamList, AuthStackParamList } from "../types/navigation";
 import { LoginScreen } from "../screens/Auth/LoginScreen";
 import { SignUpScreen } from "../screens/Auth/SignUpScreen";
 import { OnboardingScreen } from "../screens/Auth/OnboardingScreen";
@@ -12,19 +12,8 @@ import { MainTabs } from "./MainTabs";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function AuthStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Auth" component={AuthNavigator} />
-    </Stack.Navigator>
-  );
-}
-
 // Separate auth navigator for Login/SignUp
-import { createNativeStackNavigator as createAuthStack } from "@react-navigation/native-stack";
-import type { AuthStackParamList } from "../types/navigation";
-
-const AuthNav = createAuthStack<AuthStackParamList>();
+const AuthNav = createNativeStackNavigator<AuthStackParamList>();
 
 function AuthNavigator() {
   return (

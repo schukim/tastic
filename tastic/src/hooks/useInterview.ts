@@ -96,7 +96,7 @@ export function useInterview(content: Content) {
       setConversation(updated);
 
       return response;
-    } catch (e) {
+    } catch {
       const newRetryCount = retryCount + 1;
       setRetryCount(newRetryCount);
       setError(newRetryCount >= MAX_RETRIES ? "persist" : "retry");

@@ -9,7 +9,11 @@
     "web": "expo start --web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "npx supabase db push",
+    "db:types": "npx supabase gen types typescript --linked > src/types/supabase.ts"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -52,6 +56,8 @@
     "@types/react": "~19.1.0",
     "@vitest/coverage-v8": "^2.1.9",
     "babel-preset-expo": "~54.0.10",
+    "eslint": "^9.39.4",
+    "eslint-config-expo": "^57.0.0",
     "typescript": "~5.9.2",
     "vitest": "^2.1.9"
   },

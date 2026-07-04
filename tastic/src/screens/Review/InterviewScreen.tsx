@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -43,7 +43,6 @@ export function InterviewScreen() {
   const {
     conversation,
     questionCount,
-    currentQuestion,
     isLoading,
     error,
     canPreview,

@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { Appearance } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const THEME_KEY = "@tastic/theme";

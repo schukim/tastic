@@ -115,5 +115,5 @@ export interface RecommendationItem {
 
 // Placeholder — run `npm run db:types` with a live Supabase instance to generate
 // the full Database type.
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- 생성 전까지의 자리표시자
 export interface Database {}
