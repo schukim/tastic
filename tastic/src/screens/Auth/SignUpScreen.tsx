@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../types/navigation";
 import { signUp, resendConfirmation } from "../../services/auth";
-import { supabase } from "../../services/supabase";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "SignUp">;
 
@@ -32,9 +31,6 @@ export function SignUpScreen() {
   // Step 2 state
   const [nickname, setNickname] = useState("");
 
-  // Step 3 state
-  const [emailSent, setEmailSent] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,24 +41,9 @@ export function SignUpScreen() {
   const step1Valid = emailValid && passwordValid && passwordMatch;
   const step2Valid = nickname.trim().length > 0;
 
-  // 이메일 인증 상태 감지
-  useEffect(() => {
-    if (emailSent) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
-          console.log('이메일 인증 완료, 자동 로그인됨');
-          // 자동으로 메인 화면으로 이동됨 (RootNavigator에서 처리)
-        }
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('토큰 갱신됨');
-          // 이메일 인증 후 토큰 갱신되면 다시 로그인 화면으로
-          navigation.navigate('Login');
-        }
-      });
-
-      return () => subscription.unsubscribe();
-    }
-  }, [emailSent, navigation]);
+  // 이메일 인증 완료 시 SIGNED_IN 이벤트로 RootNavigator 가 알아서 Main/온보딩으로
+  // 전환하므로 별도 리스너를 두지 않는다. (기존 TOKEN_REFRESHED → Login 강제 이동은
+  // 인증과 무관한 토큰 갱신에도 발동해 대기 화면에서 튕기는 문제가 있어 제거)
 
   const handleSignUp = async () => {
     if (!step2Valid) return;
@@ -78,7 +59,6 @@ export function SignUpScreen() {
       console.log('회원가입 결과:', result);
 
       // 회원가입 성공 - 이메일 확인 단계로 이동
-      setEmailSent(true);
       setStep(3);
 
     } catch (e: unknown) {

@@ -57,12 +57,16 @@ export function LoginScreen() {
       }
     } catch (e: unknown) {
       console.error(`${provider} login error:`, e);
-      const message = e instanceof Error ? e.message : `${provider} 로그인에 실패했습니다`;
+      const providerName = provider === "google" ? "Google" : "Apple";
+      const message =
+        e instanceof Error && e.message
+          ? e.message
+          : t("auth.socialLoginFailed", { provider: providerName });
       setError(message);
       Alert.alert(
-        `${provider === "google" ? "Google" : "Apple"} 로그인 오류`,
+        t("auth.socialLoginErrorTitle", { provider: providerName }),
         message,
-        [{ text: "확인" }]
+        [{ text: t("common.confirm") }]
       );
     } finally {
       setLoading(false);
@@ -116,7 +120,7 @@ export function LoginScreen() {
                 onPress={() => setShowPassword(!showPassword)}
               >
                 <Text className="text-text-secondary text-[15px]">
-                  {showPassword ? "Hide" : "Show"}
+                  {showPassword ? t("common.hide") : t("common.show")}
                 </Text>
               </Pressable>
             </View>

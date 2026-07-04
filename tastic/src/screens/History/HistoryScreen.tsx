@@ -20,10 +20,12 @@ import { useTheme } from "../../hooks/useTheme";
 import {
   fetchReviewsByMonth,
   updateReview,
+  deleteReview,
   syncUnsavedReviews,
   type ReviewWithContent,
 } from "../../services/review";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { formatRelativeDate } from "../../utils/formatDate";
 import type { ContentCategory } from "../../types/database";
 
@@ -76,6 +78,9 @@ export function HistoryScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // 같은 날 평론이 2개 이상일 때 캘린더 탭으로 리스트를 그 날짜로 필터링
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const loadReviews = useCallback(async () => {
     if (!user) return;
@@ -97,11 +102,13 @@ export function HistoryScreen() {
   );
 
   const prevMonth = () => {
+    setSelectedDay(null);
     if (month === 1) { setMonth(12); setYear(year - 1); }
     else setMonth(month - 1);
   };
 
   const nextMonth = () => {
+    setSelectedDay(null);
     if (month === 12) { setMonth(1); setYear(year + 1); }
     else setMonth(month + 1);
   };
@@ -125,12 +132,17 @@ export function HistoryScreen() {
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
   const daysOfWeek = lang === "ko" ? DAYS_OF_WEEK_KO : DAYS_OF_WEEK_EN;
 
+  // 1개면 바로 팝업, 2개 이상이면 리스트를 그 날짜로 필터(재탭 시 해제)
   const handleDayPress = (day: number) => {
     const dayReviews = reviewsForDay(day);
-    if (dayReviews.length > 0) {
+    if (dayReviews.length === 1) {
       setSelectedReview(dayReviews[0]);
+    } else if (dayReviews.length > 1) {
+      setSelectedDay(selectedDay === day ? null : day);
     }
   };
+
+  const displayedReviews = selectedDay !== null ? reviewsForDay(selectedDay) : reviews;
 
   const handleEdit = () => {
     if (!selectedReview) return;
@@ -155,6 +167,21 @@ export function HistoryScreen() {
     if (!selectedReview) return;
     await Clipboard.setStringAsync(selectedReview.body);
     showToast(t("common.copied"));
+  };
+
+  const handleDelete = async () => {
+    if (!selectedReview) return;
+    setShowDeleteConfirm(false);
+    try {
+      await deleteReview(selectedReview.id);
+      setSelectedReview(null);
+      setIsEditing(false);
+      setSelectedDay(null);
+      showToast(t("common.deleted"));
+      loadReviews();
+    } catch {
+      showToast(lang === "ko" ? "삭제에 실패했습니다" : "Delete failed");
+    }
   };
 
   const showToast = (msg: string) => {
@@ -239,6 +266,8 @@ export function HistoryScreen() {
                       : hasReviews
                       ? (isDark ? '#333028' : '#EAE7E0')
                       : 'transparent',
+                    borderWidth: selectedDay === day ? 2 : 0,
+                    borderColor: isDark ? '#D4CFC8' : '#221F1A',
                     justifyContent: 'center',
                     alignItems: 'center',
                   }}
@@ -282,7 +311,9 @@ export function HistoryScreen() {
       <View className="mx-5 mb-2 flex-row items-center">
         <View className="flex-1 h-px bg-gradient-to-r from-transparent via-surface-border dark:via-surface-dark-border to-transparent" />
         <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mx-4 uppercase tracking-widest font-medium">
-          {reviews.length > 0 ? t("history.countLabel", { count: reviews.length }) : t("history.header")}
+          {displayedReviews.length > 0
+            ? t("history.countLabel", { count: displayedReviews.length })
+            : t("history.header")}
         </Text>
         <View className="flex-1 h-px bg-gradient-to-r from-transparent via-surface-border dark:via-surface-dark-border to-transparent" />
       </View>
@@ -299,7 +330,7 @@ export function HistoryScreen() {
         </View>
       ) : (
         <FlatList
-          data={reviews}
+          data={displayedReviews}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 12 }}
           showsVerticalScrollIndicator={false}
@@ -487,7 +518,7 @@ export function HistoryScreen() {
                       </Pressable>
                     </View>
                   ) : (
-                    <View className="flex-row gap-4">
+                    <View className="flex-row gap-3">
                       <Pressable
                         className="flex-1 bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-border/50 dark:border-surface-dark-border/50 rounded-3xl py-4 items-center active:scale-95 transition-transform"
                         onPress={handleEdit}
@@ -504,6 +535,14 @@ export function HistoryScreen() {
                           {t("common.copy")}
                         </Text>
                       </Pressable>
+                      <Pressable
+                        className="flex-1 bg-surface-secondary dark:bg-surface-dark-secondary border border-error/30 rounded-3xl py-4 items-center active:scale-95 transition-transform"
+                        onPress={() => setShowDeleteConfirm(true)}
+                      >
+                        <Text className="text-error font-semibold text-base">
+                          {t("common.delete")}
+                        </Text>
+                      </Pressable>
                     </View>
                   )}
                 </View>
@@ -511,6 +550,18 @@ export function HistoryScreen() {
             )}
           </View>
           </View>
+
+          {/* 삭제 확인 — 바텀시트 Modal 내부에 중첩해 iOS 에서도 위에 표시되게 한다 */}
+          <ConfirmDialog
+            visible={showDeleteConfirm}
+            title={t("common.delete")}
+            message={t("history.deleteConfirm")}
+            actions={[
+              { label: t("common.delete"), onPress: handleDelete, variant: "destructive" },
+              { label: t("common.cancel"), onPress: () => setShowDeleteConfirm(false) },
+            ]}
+            onClose={() => setShowDeleteConfirm(false)}
+          />
         </View>
         </KeyboardAvoidingView>
       </Modal>

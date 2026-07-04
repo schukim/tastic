@@ -36,7 +36,8 @@ export function ReviewCompleteScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [generateError, setGenerateError] = useState(false);
   const [generateErrorMessage, setGenerateErrorMessage] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  // saved: 서버 저장 성공 / queued: 실패해 로컬 보관 (연결 시 syncUnsavedReviews 가 업로드)
+  const [saveResult, setSaveResult] = useState<"saved" | "queued" | null>(null);
 
   useEffect(() => {
     // 미리보기에서 이미 생성한 평론을 받았으면 재생성(LLM 재호출)하지 않는다
@@ -93,10 +94,10 @@ export function ReviewCompleteScreen() {
         await linkInterviewToReview(interviewId, review.id);
       }
 
-      setSaveSuccess(true);
+      setSaveResult("saved");
       setTimeout(() => navigation.popToTop(), 1500);
     } catch {
-      // Save to local storage for retry
+      // 서버 저장 실패 — 로컬 보관 후 연결되면 syncUnsavedReviews 가 자동 업로드
       await saveUnsavedReview({
         contentId: content.id,
         title: reviewTitle || null,
@@ -105,8 +106,9 @@ export function ReviewCompleteScreen() {
         interviewId,
         savedAt: new Date().toISOString(),
       });
-      setSaveSuccess(true);
-      setTimeout(() => navigation.popToTop(), 1500);
+      setSaveResult("queued");
+      // 임시 저장 안내는 읽을 시간을 조금 더 준다
+      setTimeout(() => navigation.popToTop(), 2200);
     } finally {
       setIsSaving(false);
     }
@@ -151,14 +153,24 @@ export function ReviewCompleteScreen() {
     );
   }
 
-  // Success toast
-  if (saveSuccess) {
+  // Save result toast — 서버 저장(saved)과 로컬 임시 저장(queued)을 구분해 안내
+  if (saveResult) {
     return (
-      <SafeAreaView className="flex-1 bg-surface justify-center items-center">
-        <View className="bg-success/10 rounded-2xl p-8 items-center">
-          <Text className="text-success text-4xl mb-4">✓</Text>
-          <Text className="text-text text-lg font-semibold">{t("review.complete.saved")}</Text>
-        </View>
+      <SafeAreaView className="flex-1 bg-surface justify-center items-center px-8">
+        {saveResult === "saved" ? (
+          <View className="bg-success/10 rounded-2xl p-8 items-center">
+            <Text className="text-success text-4xl mb-4">✓</Text>
+            <Text className="text-text text-lg font-semibold">{t("review.complete.saved")}</Text>
+          </View>
+        ) : (
+          <View className="bg-surface-tertiary rounded-2xl p-8 items-center">
+            <Text className="text-4xl mb-4">☁️</Text>
+            <Text className="text-text text-lg font-semibold mb-2">{t("review.complete.queued")}</Text>
+            <Text className="text-text-secondary text-[15px] text-center">
+              {t("review.complete.queuedDesc")}
+            </Text>
+          </View>
+        )}
       </SafeAreaView>
     );
   }

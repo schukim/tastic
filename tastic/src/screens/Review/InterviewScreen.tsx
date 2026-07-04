@@ -204,6 +204,9 @@ export function InterviewScreen() {
     setShowExitDialog(false);
   };
 
+  // 헤더 표시용 — questionCount(답변 수)가 아닌 실제 받은 질문 수 (첫 질문부터 1)
+  const askedCount = conversation.filter((e) => e.role === "interviewer").length;
+
   // Group conversation for display
   const displayPairs: { question: ConversationEntry; answer?: ConversationEntry }[] = [];
   for (let i = 0; i < conversation.length; i++) {
@@ -229,7 +232,7 @@ export function InterviewScreen() {
           </Text>
         </View>
         <Text className="text-text-secondary text-[15px]">
-          {t("review.interview.questionCount", { count: questionCount })}
+          {t("review.interview.questionCount", { count: askedCount })}
         </Text>
         {/* 닫기 — 답변이 있으면 beforeRemove 가 이탈 확인 다이얼로그로 가로챈다 */}
         <Pressable

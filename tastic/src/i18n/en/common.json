@@ -39,7 +39,9 @@
     "resendEmailSuccessTitle": "Email Sent",
     "resendEmailFailed": "Failed to send email",
     "resendEmailFailedTitle": "Send Failed",
-    "goToLogin": "Go to Login"
+    "goToLogin": "Go to Login",
+    "socialLoginErrorTitle": "{{provider}} sign-in error",
+    "socialLoginFailed": "{{provider}} sign-in failed"
   },
   "onboarding": {
     "title": "Complete your profile",
@@ -117,6 +119,8 @@
       "regenerate": "Regenerate",
       "save": "Save",
       "saved": "Review saved!",
+      "queued": "Saved on this device",
+      "queuedDesc": "It will upload automatically when you're back online",
       "saveFailed": "Save failed. Please try again",
       "generateFailed": "Couldn't generate the review. Try again?",
       "goHome": "Go to Home"
@@ -125,14 +129,18 @@
       "title": "Previous Interview",
       "message": "You have an unfinished interview for '{{title}}'.",
       "continue": "Continue",
-      "startNew": "Start New"
+      "startNew": "Start New",
+      "bannerTitle": "Interview in progress",
+      "overwriteTitle": "You have an interview in progress",
+      "overwriteMessage": "Starting a new one will discard your '{{title}}' interview."
     }
   },
   "history": {
     "empty": "No reviews yet",
     "goToReview": "Write a Review",
     "header": "History",
-    "countLabel": "{{count}} entries"
+    "countLabel": "{{count}} entries",
+    "deleteConfirm": "This can't be undone. Delete this review?"
   },
   "recommend": {
     "title": "What are you looking for?",
@@ -200,12 +208,15 @@
     "save": "Save",
     "saving": "Saving...",
     "delete": "Delete",
+    "deleted": "Deleted",
     "edit": "Edit",
     "close": "Close",
     "copy": "Copy",
     "copied": "Copied",
     "retry": "Try Again",
     "generating": "Generating...",
+    "show": "Show",
+    "hide": "Hide",
     "networkOffline": "No internet connection",
     "serverError": "Service temporarily unavailable"
   }

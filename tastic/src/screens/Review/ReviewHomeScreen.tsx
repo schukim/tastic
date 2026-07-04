@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Animated, {
   useSharedValue,
@@ -21,11 +21,11 @@ import Animated, {
 } from "react-native-reanimated";
 import type { ReviewStackParamList } from "../../types/navigation";
 import type { ContentCategory } from "../../types/database";
-import { CategoryChip } from "../../components/common/CategoryChip";
+import { CategoryChip, CATEGORY_ICONS } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
-import { loadDraft, clearDraft } from "../../utils/storage";
+import { loadDraft, clearDraft, type StoredDraft } from "../../utils/storage";
 import { toISODateString } from "../../utils/formatDate";
 import { checkUsageLimit } from "../../services/usage";
 
@@ -48,9 +48,10 @@ export function ReviewHomeScreen() {
   const [creator, setCreator] = useState("");
   const [experienceDate] = useState(toISODateString(new Date()));
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showDraftDialog, setShowDraftDialog] = useState(false);
   const [showLimitDialog, setShowLimitDialog] = useState(false);
-  const [draftTitle, setDraftTitle] = useState("");
+  // 진행 중 인터뷰 드래프트 — 배너로 노출, 새 인터뷰 시작 시 덮어쓰기 경고
+  const [draft, setDraft] = useState<StoredDraft | null>(null);
+  const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
 
   const titleRef = useRef<TextInput>(null);
 
@@ -130,28 +131,36 @@ export function ReviewHomeScreen() {
     setTimeout(() => titleRef.current?.focus(), 400);
   }, [expandForm]);
 
-  useEffect(() => {
-    loadDraft().then((draft) => {
-      if (draft) {
-        setDraftTitle(draft.content.title);
-        setShowDraftDialog(true);
-      }
-    });
-  }, []);
+  // 인터뷰에서 '저장하고 나가기'로 돌아온 경우에도 보이도록 포커스마다 드래프트 확인
+  useFocusEffect(
+    useCallback(() => {
+      loadDraft().then(setDraft);
+    }, [])
+  );
 
-  const handleDraftContinue = async () => {
-    const draft = await loadDraft();
+  const handleDraftContinue = () => {
     if (!draft) return;
-    setShowDraftDialog(false);
+    setShowOverwriteDialog(false);
     navigation.navigate("Interview", { content: draft.content });
   };
 
   const handleDraftDiscard = async () => {
     await clearDraft();
-    setShowDraftDialog(false);
+    setDraft(null);
   };
 
   const isValid = title.trim().length > 0 && category !== null;
+
+  const goToConfirm = () => {
+    if (!category) return;
+    navigation.navigate("ContentConfirm", {
+      title: title.trim(),
+      creator: creator.trim(),
+      category,
+      experienceDate,
+      musicType: category === "music" ? musicType : undefined,
+    });
+  };
 
   const handleNext = async () => {
     if (!isValid || !category || !user) return;
@@ -161,13 +170,19 @@ export function ReviewHomeScreen() {
       setShowLimitDialog(true);
       return;
     }
-    navigation.navigate("ContentConfirm", {
-      title: title.trim(),
-      creator: creator.trim(),
-      category,
-      experienceDate,
-      musicType: category === "music" ? musicType : undefined,
-    });
+    // 진행 중 인터뷰가 있으면 첫 답변 제출 시 조용히 덮어써지므로 먼저 확인받는다
+    if (draft) {
+      setShowOverwriteDialog(true);
+      return;
+    }
+    goToConfirm();
+  };
+
+  const handleOverwriteStartNew = async () => {
+    await clearDraft();
+    setDraft(null);
+    setShowOverwriteDialog(false);
+    goToConfirm();
   };
 
   return (
@@ -185,6 +200,36 @@ export function ReviewHomeScreen() {
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
           style={containerStyle}
         >
+          {/* 진행 중 인터뷰 배너 */}
+          {draft && (
+            <View className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-tertiary dark:border-surface-dark-border rounded-2xl p-4 mb-6">
+              <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mb-1">
+                {t("review.draft.bannerTitle")}
+              </Text>
+              <Text
+                className="text-text dark:text-text-dark text-base font-semibold mb-3"
+                numberOfLines={1}
+              >
+                {CATEGORY_ICONS[draft.content.category]} {draft.content.title}
+              </Text>
+              <View className="flex-row items-center gap-2">
+                <Pressable
+                  className="flex-1 bg-primary dark:bg-primary-dm rounded-xl py-2.5 items-center"
+                  onPress={handleDraftContinue}
+                >
+                  <Text className="text-white font-medium text-[15px]">
+                    {t("review.draft.continue")}
+                  </Text>
+                </Pressable>
+                <Pressable className="px-4 py-2.5" onPress={handleDraftDiscard} hitSlop={4}>
+                  <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px]">
+                    {t("common.delete")}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {/* Greeting */}
           <Animated.View style={greetingStyle}>
             <Text className="text-text dark:text-text-dark text-2xl font-bold leading-9 mb-6">
@@ -286,15 +331,17 @@ export function ReviewHomeScreen() {
         onClose={() => setShowLimitDialog(false)}
       />
 
+      {/* 새 인터뷰 시작 시 기존 드래프트 덮어쓰기 확인 */}
       <ConfirmDialog
-        visible={showDraftDialog}
-        title={t("review.draft.title")}
-        message={t("review.draft.message", { title: draftTitle })}
+        visible={showOverwriteDialog}
+        title={t("review.draft.overwriteTitle")}
+        message={t("review.draft.overwriteMessage", { title: draft?.content.title ?? "" })}
         actions={[
           { label: t("review.draft.continue"), onPress: handleDraftContinue, variant: "primary" },
-          { label: t("review.draft.startNew"), onPress: handleDraftDiscard },
+          { label: t("review.draft.startNew"), onPress: handleOverwriteStartNew, variant: "destructive" },
+          { label: t("common.cancel"), onPress: () => setShowOverwriteDialog(false) },
         ]}
-        onClose={() => setShowDraftDialog(false)}
+        onClose={() => setShowOverwriteDialog(false)}
       />
     </SafeAreaView>
   );
