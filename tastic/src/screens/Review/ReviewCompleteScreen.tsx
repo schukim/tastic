@@ -28,18 +28,20 @@ export function ReviewCompleteScreen() {
   const route = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
 
-  const { content, conversation, interviewId } = route.params;
+  const { content, conversation, interviewId, initialReview } = route.params;
 
-  const [reviewText, setReviewText] = useState("");
-  const [reviewTitle, setReviewTitle] = useState("");
-  const [isGenerating, setIsGenerating] = useState(true);
+  const [reviewText, setReviewText] = useState(initialReview?.reviewText ?? "");
+  const [reviewTitle, setReviewTitle] = useState(initialReview?.suggestedTitle ?? "");
+  const [isGenerating, setIsGenerating] = useState(!initialReview);
   const [isSaving, setIsSaving] = useState(false);
   const [generateError, setGenerateError] = useState(false);
   const [generateErrorMessage, setGenerateErrorMessage] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    handleGenerate();
+    // 미리보기에서 이미 생성한 평론을 받았으면 재생성(LLM 재호출)하지 않는다
+    if (!initialReview) handleGenerate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGenerate = async () => {

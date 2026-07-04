@@ -21,6 +21,7 @@ import Animated, {
 } from "react-native-reanimated";
 import type { ReviewStackParamList } from "../../types/navigation";
 import type { ConversationEntry } from "../../types/database";
+import type { GenerateReviewResponse } from "../../types/llm";
 import { QuestionCard } from "../../components/common/QuestionCard";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
@@ -63,6 +64,8 @@ export function InterviewScreen() {
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewText, setPreviewText] = useState("");
+  // 성공한 미리보기 응답 원본 — '완성하기' 시 ReviewComplete 에 넘겨 재생성을 건너뛴다
+  const [previewResult, setPreviewResult] = useState<GenerateReviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const [initialized, setInitialized] = useState(false);
@@ -133,6 +136,7 @@ export function InterviewScreen() {
   const handlePreview = async () => {
     setShowPreview(true);
     setPreviewLoading(true);
+    setPreviewResult(null);
     try {
       const result = await generateReview({
         content: {
@@ -148,7 +152,9 @@ export function InterviewScreen() {
         is_preview: true,
       });
       setPreviewText(result?.review_text ?? "");
+      if (result?.review_text) setPreviewResult(result);
     } catch (e) {
+      // 실패 시 previewResult 는 null 로 남는다 — 에러 문구를 평론으로 넘기지 않기 위함
       setPreviewText(e instanceof Error && e.message ? e.message : t("review.complete.generateFailed"));
     } finally {
       setPreviewLoading(false);
@@ -163,6 +169,13 @@ export function InterviewScreen() {
       content,
       conversation,
       interviewId: interviewId ?? "",
+      // 미리보기로 이미 생성한 평론이 있으면 그대로 사용 (LLM 재호출 방지)
+      initialReview: previewResult
+        ? {
+            reviewText: previewResult.review_text,
+            suggestedTitle: previewResult.suggested_title,
+          }
+        : undefined,
     });
   };
 

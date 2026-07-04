@@ -41,5 +41,10 @@ export type ReviewStackParamList = {
     content: Content;
     conversation: ConversationEntry[];
     interviewId: string;
+    // 미리보기에서 이미 생성한 평론 — 있으면 진입 시 재생성(LLM 재호출)을 건너뛴다
+    initialReview?: {
+      reviewText: string;
+      suggestedTitle: string;
+    };
   };
 };
