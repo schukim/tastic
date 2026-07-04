@@ -23,7 +23,6 @@ const CORS = {
 };
 
 interface SaveWorkBody {
-  userId: string;
   title: string;
   category: string;
   originalTitle?: string | null;
@@ -112,15 +111,29 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json()) as SaveWorkBody;
-    const { userId, title, category } = body;
-    if (!userId || !title || !category) {
+    const { title, category } = body;
+    if (!title || !category) {
       return new Response(
-        JSON.stringify({ error: "invalid_request", message: "userId/title/category 필수" }),
+        JSON.stringify({ error: "invalid_request", message: "title/category 필수" }),
         { status: 400, headers: { ...CORS, "Content-Type": "application/json" } }
       );
     }
 
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+    // userId 는 body 를 신뢰하지 않고 Authorization 토큰에서 꺼낸다
+    // — 타 유저 명의로 작품 행을 만드는 것을 차단.
+    const jwt = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+    const { data: userData, error: userError } = jwt
+      ? await sb.auth.getUser(jwt)
+      : { data: { user: null }, error: null };
+    if (userError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ error: "unauthorized", message: "로그인이 필요합니다." }),
+        { status: 401, headers: { ...CORS, "Content-Type": "application/json" } }
+      );
+    }
+    const userId = userData.user.id;
 
     // 1. 기존 작품 탐색
     // 임베딩 미전달 → 제목 trigram 유사도만으로 0~1 스케일이 되도록 가중치 조정

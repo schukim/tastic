@@ -114,7 +114,7 @@ export function ContentConfirmScreen() {
       } else if (selectedIndex !== null) {
         const candidate = candidates[selectedIndex];
         // 후보를 확정하면 is_verified=true로 승격해 전역 캐시로 공유 (service-role 엣지 함수)
-        contentData = await saveVerifiedWork(user.id, {
+        contentData = await saveVerifiedWork({
           title: candidate.title,
           originalTitle: candidate.original_title ?? undefined,
           category,

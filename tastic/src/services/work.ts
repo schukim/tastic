@@ -54,8 +54,8 @@ export async function fetchWorksByUser(userId: string): Promise<Work[]> {
 // 작품 확정(후보 선택) 시: verify-content로 식별된 작품을 is_verified=true로 저장/승격해
 // 전역 캐시로 공유한다. is_verified는 클라가 직접 못 세우므로 service-role 엣지 함수에 위임.
 // (수동 입력 경로는 이 함수 대신 createWork(is_verified=false)를 그대로 사용)
+// 사용자 식별은 서버가 Authorization 토큰에서 수행 — userId 를 보내지 않는다.
 export async function saveVerifiedWork(
-  userId: string,
   contentInfo: {
     title: string;
     category: ContentCategory;
@@ -68,7 +68,6 @@ export async function saveVerifiedWork(
 ): Promise<Work> {
   const { data, error } = await supabase.functions.invoke("save-verified-work", {
     body: {
-      userId,
       title: contentInfo.title,
       category: contentInfo.category,
       originalTitle: contentInfo.originalTitle ?? null,
