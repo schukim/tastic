@@ -401,3 +401,8 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # declarative_schema_path = "./declarative"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# RevenueCat 웹훅 — 자체 secret(REVENUECAT_WEBHOOK_SECRET)으로 인증하므로
+# Supabase 플랫폼 JWT 검증을 끈다 (RevenueCat은 Supabase JWT를 보내지 않음).
+[functions.revenuecat-webhook]
+verify_jwt = false
