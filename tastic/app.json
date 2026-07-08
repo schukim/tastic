@@ -27,7 +27,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.taewoo.tastic"
+      "package": "com.taewoo.tastic",
+      "versionCode": 6
     },
     "web": {
       "favicon": "./assets/favicon.png"
