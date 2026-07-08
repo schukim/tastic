@@ -24,7 +24,8 @@ Play Console → 앱 콘텐츠 → **데이터 보안** 양식에 입력할 답�
 | 질문 | 답 |
 |---|---|
 | 전송 중 데이터 암호화 | **예** (TLS) |
-| 사용자가 데이터 삭제를 요청할 수 있는가 | **예** — 앱 내 마이페이지 → 계정 삭제 + 이메일 요청(twcheong99@gmail.com) |
+| 사용자가 데이터 삭제를 요청할 수 있는가 | **예** — 앱 내 마이페이지 → 계정 삭제 + 웹 삭제 안내 페이지(https://schukim.github.io/tastic/legal/account-deletion.html) + 이메일 요청(twcheong99@gmail.com) |
+| 계정·데이터 삭제 요청 URL (Data deletion URL) | https://schukim.github.io/tastic/legal/account-deletion.html |
 | 데이터 수집이 [Play 가족 정책] 준수 | 해당 시 체크 |
 | 독립 보안 검토 | (선택, 없으면 미체크) |
 
