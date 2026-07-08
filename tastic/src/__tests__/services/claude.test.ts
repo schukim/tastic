@@ -2,6 +2,14 @@
 // AI(Edge Function) 호출 레이어의 타임아웃, 에러 파싱, 정상 응답을 검증합니다.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+import {
+  verifyContent,
+  generateQuestion,
+  generateReview,
+  analyzeTaste,
+  recommendContent,
+} from "../../services/claude";
+
 // vi.hoisted()로 먼저 선언해야 vi.mock() 팩토리 안에서 참조 가능
 const { mockInvoke } = vi.hoisted(() => ({
   mockInvoke: vi.fn(),
@@ -12,14 +20,6 @@ vi.mock("../../services/supabase", () => ({
     functions: { invoke: mockInvoke },
   },
 }));
-
-import {
-  verifyContent,
-  generateQuestion,
-  generateReview,
-  analyzeTaste,
-  recommendContent,
-} from "../../services/claude";
 
 // 테스트용 더미 데이터
 const dummyContent = {

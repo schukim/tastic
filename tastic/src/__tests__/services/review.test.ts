@@ -2,6 +2,16 @@
 // DB CRUD 함수의 에러 핸들링, 한국어 에러 메시지, 날짜 계산을 검증합니다.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import {
+  createReview,
+  fetchReviews,
+  fetchReviewsByMonth,
+  deleteReview,
+  updateReview,
+  createInterview,
+  updateInterview,
+} from "../../services/review";
+
 // vi.hoisted()로 먼저 선언해야 vi.mock() 팩토리 안에서 참조 가능
 const { mocks, mockFrom } = vi.hoisted(() => {
   const mockSingle = vi.fn();
@@ -43,16 +53,6 @@ const { mocks, mockFrom } = vi.hoisted(() => {
 vi.mock("../../services/supabase", () => ({
   supabase: { from: mockFrom },
 }));
-
-import {
-  createReview,
-  fetchReviews,
-  fetchReviewsByMonth,
-  deleteReview,
-  updateReview,
-  createInterview,
-  updateInterview,
-} from "../../services/review";
 
 const dummyReview = {
   id: "review-1",

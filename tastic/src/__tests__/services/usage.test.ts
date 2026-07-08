@@ -1,6 +1,8 @@
 // usage.ts 플랜별 사용량 사전 체크 테스트
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { checkUsageLimit } from "../../services/usage";
+
 const { mockFrom, mockGte } = vi.hoisted(() => {
   const mockGte = vi.fn();
   const mockEqAction = vi.fn(() => ({ gte: mockGte }));
@@ -13,8 +15,6 @@ const { mockFrom, mockGte } = vi.hoisted(() => {
 vi.mock("../../services/supabase", () => ({
   supabase: { from: mockFrom },
 }));
-
-import { checkUsageLimit } from "../../services/usage";
 
 describe("checkUsageLimit", () => {
   beforeEach(() => {
