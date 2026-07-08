@@ -107,7 +107,7 @@ The Service does not knowingly collect personal data from children under 14. If 
 
 - Data Protection Officer: Taewoo Cheong / Developer
 - Operator: Taewoo Cheong
-- Contact (email): twcheong99@gmail.com
+- Contact (email): tastic2026@gmail.com
 
 For privacy inquiries, complaints, or remedies, please contact us using the details above.
 

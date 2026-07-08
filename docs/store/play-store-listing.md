@@ -164,4 +164,4 @@ review, journal, taste, film diary, book review, recommendation, AI writing
 - 태그: 평론/리뷰, 문화, 추천
 - 개인정보처리방침 URL: https://schukim.github.io/tastic/legal/privacy-policy.html
 - 계정·데이터 삭제 URL (Data deletion / Account deletion): https://schukim.github.io/tastic/legal/account-deletion.html
-- 지원 이메일: twcheong99@gmail.com
+- 지원 이메일: tastic2026@gmail.com
