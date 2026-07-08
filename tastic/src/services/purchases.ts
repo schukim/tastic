@@ -75,3 +75,17 @@ export async function presentMembershipPaywall(): Promise<boolean> {
     return false;
   }
 }
+
+// 네이티브 구독 관리 화면(구글 플레이/앱스토어)을 연다.
+// 구독 취소·플랜 변경은 스토어가 소유하므로 앱은 관리 화면으로 연결만 한다.
+export async function manageSubscription(): Promise<void> {
+  if (!configured) {
+    console.warn("[purchases] 미설정 상태 — 구독 관리 열 수 없음");
+    return;
+  }
+  try {
+    await Purchases.showManageSubscriptions();
+  } catch (e) {
+    console.error("[purchases] 구독 관리 표시 실패:", e);
+  }
+}

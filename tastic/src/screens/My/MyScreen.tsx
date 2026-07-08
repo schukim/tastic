@@ -16,7 +16,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
 import { supabase } from "../../services/supabase";
-import { presentMembershipPaywall } from "../../services/purchases";
+import { presentMembershipPaywall, manageSubscription } from "../../services/purchases";
 import { getReviewCount } from "../../services/taste";
 import { CategoryChip } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
@@ -75,6 +75,11 @@ export function MyScreen() {
     } finally {
       setIsUpgrading(false);
     }
+  };
+
+  // 구독 관리/취소: 스토어(구글 플레이/앱스토어)의 네이티브 관리 화면으로 연결.
+  const handleManageSubscription = () => {
+    manageSubscription();
   };
 
   useFocusEffect(
@@ -305,18 +310,28 @@ export function MyScreen() {
               </Pressable>
             </View>
           ) : (
-            <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl border border-surface-border dark:border-surface-dark-border px-4 py-4 flex-row items-center">
-              <View className="w-9 h-9 rounded-full bg-primary dark:bg-primary-dm items-center justify-center mr-3">
-                <Text className="text-surface dark:text-surface-dark text-base font-bold">✓</Text>
+            <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-2xl border border-surface-border dark:border-surface-dark-border overflow-hidden">
+              <View className="px-4 py-4 flex-row items-center">
+                <View className="w-9 h-9 rounded-full bg-primary dark:bg-primary-dm items-center justify-center mr-3">
+                  <Text className="text-surface dark:text-surface-dark text-base font-bold">✓</Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-text dark:text-text-dark text-base font-semibold">
+                    {t("my.membershipActive")}
+                  </Text>
+                  <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mt-0.5">
+                    {t("my.membershipActiveDesc")}
+                  </Text>
+                </View>
               </View>
-              <View className="flex-1">
-                <Text className="text-text dark:text-text-dark text-base font-semibold">
-                  {t("my.membershipActive")}
+              <Pressable
+                className="px-4 py-3.5 border-t border-surface-tertiary dark:border-surface-dark-tertiary active:opacity-70"
+                onPress={handleManageSubscription}
+              >
+                <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px] font-medium">
+                  {t("my.manageSubscription")}
                 </Text>
-                <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mt-0.5">
-                  {t("my.membershipActiveDesc")}
-                </Text>
-              </View>
+              </Pressable>
             </View>
           )}
         </View>
