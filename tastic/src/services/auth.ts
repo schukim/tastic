@@ -84,14 +84,17 @@ export async function signInWithGoogle() {
   });
   console.log("[google] redirectTo =", redirectTo);
 
+  // access_type=offline / prompt=consent 는 구글 API 호출용 리프레시 토큰을 받고
+  // 매 로그인마다 동의 화면을 강제할 때만 필요하다. Tastic 은 Supabase 세션만 쓰고
+  // 구글 API 를 부르지 않으므로 불필요하다.
+  // skipBrowserRedirect: 리다이렉트 제어를 전적으로 openAuthSessionAsync 에 맡겨,
+  // 인증 후 콜백이 브라우저로 새어나가(안드로이드에서 mailto 로 오처리) 앱 복귀가
+  // 실패하는 것을 막는다. (Supabase 공식 RN 패턴)
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
-      },
+      skipBrowserRedirect: true,
     },
   });
 
@@ -166,6 +169,7 @@ export async function signInWithApple() {
     provider: "apple",
     options: {
       redirectTo,
+      skipBrowserRedirect: true,
     },
   });
 
