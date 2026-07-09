@@ -1,6 +1,12 @@
-import { Platform } from "react-native";
+import { Linking, Platform } from "react-native";
 import Purchases, { LOG_LEVEL, type CustomerInfo } from "react-native-purchases";
 import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
+
+// 스토어 구독 관리 웹페이지. 네이티브 관리 시트를 열 수 없을 때의 폴백.
+const SUBSCRIPTIONS_URL =
+  Platform.OS === "ios"
+    ? "https://apps.apple.com/account/subscriptions"
+    : "https://play.google.com/store/account/subscriptions";
 
 // RevenueCat 연동.
 // - 엔타이틀먼트 식별자 "membership"이 active면 멤버십으로 간주.
@@ -78,14 +84,25 @@ export async function presentMembershipPaywall(): Promise<boolean> {
 
 // 네이티브 구독 관리 화면(구글 플레이/앱스토어)을 연다.
 // 구독 취소·플랜 변경은 스토어가 소유하므로 앱은 관리 화면으로 연결만 한다.
-export async function manageSubscription(): Promise<void> {
-  if (!configured) {
-    console.warn("[purchases] 미설정 상태 — 구독 관리 열 수 없음");
-    return;
+// 네이티브 시트를 못 열면(미설정·실 구독 없음·시뮬레이터 등) 스토어 구독 관리
+// 웹페이지로 폴백해, 버튼이 무반응으로 끝나지 않게 한다.
+// 반환값: 무언가 열렸으면 true, 폴백까지 모두 실패하면 false.
+export async function manageSubscription(): Promise<boolean> {
+  if (configured) {
+    try {
+      await Purchases.showManageSubscriptions();
+      return true;
+    } catch (e) {
+      console.error("[purchases] 네이티브 구독 관리 실패 — 웹 폴백:", e);
+    }
+  } else {
+    console.warn("[purchases] 미설정 상태 — 웹 구독 관리로 폴백");
   }
   try {
-    await Purchases.showManageSubscriptions();
+    await Linking.openURL(SUBSCRIPTIONS_URL);
+    return true;
   } catch (e) {
-    console.error("[purchases] 구독 관리 표시 실패:", e);
+    console.error("[purchases] 구독 관리 웹 폴백도 실패:", e);
+    return false;
   }
 }

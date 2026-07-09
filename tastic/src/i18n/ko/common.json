@@ -193,6 +193,7 @@
     "membershipActive": "멤버십 이용 중",
     "membershipActiveDesc": "모든 기능을 무제한으로 이용하고 있어요",
     "manageSubscription": "구독 관리",
+    "manageSubscriptionError": "구독 관리 화면을 열 수 없어요. 스토어 앱의 구독 메뉴에서 관리해 주세요.",
     "upgradeMembership": "멤버십 시작하기",
     "upgrading": "처리 중...",
     "logout": "로그아웃",

@@ -8,6 +8,7 @@ import {
   Image,
   TextInput,
   Modal,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -78,8 +79,12 @@ export function MyScreen() {
   };
 
   // 구독 관리/취소: 스토어(구글 플레이/앱스토어)의 네이티브 관리 화면으로 연결.
-  const handleManageSubscription = () => {
-    manageSubscription();
+  // 네이티브 시트도 웹 폴백도 못 열면(무반응 방지) 안내 알림을 띄운다.
+  const handleManageSubscription = async () => {
+    const opened = await manageSubscription();
+    if (!opened) {
+      Alert.alert(t("my.manageSubscription"), t("my.manageSubscriptionError"));
+    }
   };
 
   useFocusEffect(

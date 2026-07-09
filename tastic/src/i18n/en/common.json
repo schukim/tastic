@@ -193,6 +193,7 @@
     "membershipActive": "Membership active",
     "membershipActiveDesc": "Enjoying unlimited access to everything",
     "manageSubscription": "Manage subscription",
+    "manageSubscriptionError": "Couldn't open subscription management. Please manage it from the Subscriptions menu in your store app.",
     "upgradeMembership": "Start Membership",
     "upgrading": "Processing...",
     "logout": "Log Out",
