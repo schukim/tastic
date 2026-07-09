@@ -13,6 +13,23 @@ export function getAuthCodeFromUrl(url: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+// 하나의 인증 코드가 두 경로에서 동시에 교환되는 것을 막는다.
+// OAuth 콜백은 WebBrowser.openAuthSessionAsync 의 반환 URL 로도 오고, 안드로이드(Custom Tabs)에서는
+// 전역 딥링크 리스너(useDeepLinkAuth)로도 온다. 둘이 같은 code 를 exchangeCodeForSession 에 넘기면
+// 먼저 성공한 쪽이 code_verifier 를 지워, 나중 호출이 "PKCE code verifier not found in storage" 로
+// 실패한다(에러가 UI 다이얼로그로 노출됨). code 단위로 1회만 교환하도록 dedupe 한다.
+const exchangedCodes = new Set<string>();
+
+export async function exchangeAuthCode(code: string) {
+  // 이미 다른 경로가 교환 중이거나 완료했다면 재교환하지 않는다.
+  // (verifier 는 성공/실패 무관하게 소비돼 재시도해도 무의미하다.)
+  if (exchangedCodes.has(code)) return null;
+  exchangedCodes.add(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) throw error;
+  return data;
+}
+
 interface SignUpParams {
   email: string;
   password: string;
@@ -94,9 +111,9 @@ export async function signInWithGoogle() {
       const code = getAuthCodeFromUrl(result.url);
       console.log("[google] extracted code =", code);
       if (!code) throw new Error("인증 코드를 받지 못했습니다");
-      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-      if (sessionError) throw sessionError;
-      return sessionData;
+      // 딥링크 리스너가 먼저 교환했다면 null 이 반환되지만, 세션은 이미 생성돼
+      // onAuthStateChange(SIGNED_IN)로 반영되므로 화면 전환에는 문제가 없다.
+      return await exchangeAuthCode(code);
     }
   }
 
@@ -164,9 +181,7 @@ export async function signInWithApple() {
     if (result.type === "success") {
       const code = getAuthCodeFromUrl(result.url);
       if (!code) throw new Error("인증 코드를 받지 못했습니다");
-      const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-      if (sessionError) throw sessionError;
-      return sessionData;
+      return await exchangeAuthCode(code);
     }
   }
 
