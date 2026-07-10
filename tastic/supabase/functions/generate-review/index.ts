@@ -29,6 +29,8 @@ Deno.serve(async (req) => {
     const gate = await enforceUsageLimit(req, "review", {
       refId: interview_id ?? null,
       requireMembership: is_preview === true,
+      // 미리보기는 멤버십 확인만 하고 사용량을 소비하지 않는다
+      count: is_preview !== true,
       language,
       cors: CORS,
     });
@@ -81,9 +83,13 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 인터뷰 대화:
 ${conversationText}`;
 
-    const parsed = await callLLM(prompt, 0.4);
-
-    if (is_preview !== true) await gate.logUsage();
+    let parsed: unknown;
+    try {
+      parsed = await callLLM(prompt, 0.4);
+    } catch (e) {
+      await gate.release(); // 실패 시 예약한 사용량 롤백
+      throw e;
+    }
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS, "Content-Type": "application/json" },

@@ -1,4 +1,5 @@
 import type { Work, ContentCategory } from "../types/database";
+import type { Json } from "../types/supabase";
 import { supabase } from "./supabase";
 
 interface CreateWorkParams {
@@ -23,7 +24,7 @@ export async function createWork(params: CreateWorkParams): Promise<Work> {
       creator: params.creator ?? null,
       year: params.year ?? null,
       genre: params.genre ?? null,
-      metadata: params.metadata ?? {},
+      metadata: (params.metadata ?? {}) as Json,
     })
     .select()
     .single();
@@ -33,7 +34,8 @@ export async function createWork(params: CreateWorkParams): Promise<Work> {
     throw new Error(`작품 정보 저장에 실패했습니다 (${error.code}): ${error.message}`);
   }
 
-  return data;
+  // DB row(category enum superset·nullable 등)를 도메인 Work 로 신뢰 변환
+  return data as unknown as Work;
 }
 
 export async function fetchWorksByUser(userId: string): Promise<Work[]> {
@@ -48,7 +50,7 @@ export async function fetchWorksByUser(userId: string): Promise<Work[]> {
     throw new Error(`작품 목록 조회에 실패했습니다: ${error.message}`);
   }
 
-  return data;
+  return (data ?? []) as unknown as Work[];
 }
 
 // 작품 확정(후보 선택) 시: verify-content로 식별된 작품을 is_verified=true로 저장/승격해
@@ -117,7 +119,7 @@ export async function findOrCreateWork(
       .select("*")
       .eq("id", best.id)
       .single();
-    if (!error && data) return data;
+    if (!error && data) return data as unknown as Work;
   }
 
   return createWork({

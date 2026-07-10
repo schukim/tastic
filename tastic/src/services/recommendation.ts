@@ -1,23 +1,25 @@
 import { supabase } from "./supabase";
-import type { Recommendation } from "../types/database";
+import type { Recommendation, RecommendationItem } from "../types/database";
+import type { Json } from "../types/supabase";
 
 export async function saveRecommendation(
   userId: string,
   prompt: string,
-  results: unknown[]
+  results: RecommendationItem[]
 ): Promise<Recommendation> {
   const { data, error } = await supabase
     .from("recommendations")
     .insert({
       user_id: userId,
       prompt,
-      results,
+      // DB 컬럼은 jsonb — 도메인 타입을 Json 으로 넘긴다
+      results: results as unknown as Json,
     })
     .select()
     .single();
 
   if (error) throw error;
-  return data as Recommendation;
+  return data as unknown as Recommendation;
 }
 
 export async function fetchRecommendations(userId: string): Promise<Recommendation[]> {
@@ -29,5 +31,5 @@ export async function fetchRecommendations(userId: string): Promise<Recommendati
     .limit(10);
 
   if (error) throw error;
-  return (data ?? []) as Recommendation[];
+  return (data ?? []) as unknown as Recommendation[];
 }

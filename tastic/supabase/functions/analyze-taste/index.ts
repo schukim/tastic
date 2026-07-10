@@ -62,9 +62,13 @@ ${reviewsText}
 
 이전 분석 결과: ${previous_profile ?? "없음"}`;
 
-    const parsed = await callLLM(prompt, 0.2);
-
-    await gate.logUsage();
+    let parsed: unknown;
+    try {
+      parsed = await callLLM(prompt, 0.2);
+    } catch (e) {
+      await gate.release(); // 실패 시 예약한 사용량 롤백
+      throw e;
+    }
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS, "Content-Type": "application/json" },

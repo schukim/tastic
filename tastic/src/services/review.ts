@@ -1,4 +1,5 @@
 import type { Review, Interview, ConversationEntry } from "../types/database";
+import type { Json } from "../types/supabase";
 import { supabase } from "./supabase";
 import { getUnsavedReviews, removeUnsavedReview } from "../utils/storage";
 
@@ -30,7 +31,8 @@ export async function createReview(params: CreateReviewParams): Promise<Review> 
     throw new Error(`평론 저장에 실패했습니다: ${error.message}`);
   }
 
-  return data;
+  // DB row(work_id nullable 등)를 좁은 도메인 타입으로 신뢰 변환
+  return data as unknown as Review;
 }
 
 export interface ReviewWithContent extends Review {
@@ -142,7 +144,7 @@ export async function updateReview(reviewId: string, body: string, title?: strin
     throw new Error(`평론 수정에 실패했습니다: ${error.message}`);
   }
 
-  return data;
+  return data as unknown as Review;
 }
 
 // ── Interviews ──
@@ -170,7 +172,7 @@ export async function createInterview(params: CreateInterviewParams): Promise<In
     throw new Error(`인터뷰 생성에 실패했습니다: ${error.message}`);
   }
 
-  return data;
+  return data as unknown as Interview;
 }
 
 export async function updateInterview(
@@ -179,12 +181,14 @@ export async function updateInterview(
   questionCount: number,
   status?: "in_progress" | "completed" | "abandoned"
 ): Promise<void> {
-  const updateData: Partial<Interview> = { conversation, question_count: questionCount };
-  if (status) updateData.status = status;
-
   const { error } = await supabase
     .from("interviews")
-    .update(updateData)
+    .update({
+      // conversation 컬럼은 jsonb
+      conversation: conversation as unknown as Json,
+      question_count: questionCount,
+      ...(status ? { status } : {}),
+    })
     .eq("id", interviewId);
 
   if (error) {

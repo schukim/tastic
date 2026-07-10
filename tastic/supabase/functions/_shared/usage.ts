@@ -64,12 +64,20 @@ interface EnforceOptions {
   refId?: string | null;
   // true면 플랜 무관 검사 없이 멤버십만 요구 (예: 평론 미리보기)
   requireMembership?: boolean;
+  // false면 사용량을 소비/기록하지 않는다 (예: 평론 미리보기 — 멤버십 확인만)
+  count?: boolean;
   language?: "ko" | "en";
   cors: Record<string, string>;
 }
 
 type EnforceResult =
-  | { ok: true; userId: string; plan: UserPlan; logUsage: () => Promise<void> }
+  | {
+      ok: true;
+      userId: string;
+      plan: UserPlan;
+      // LLM 호출 실패 시 예약(사용량 카운트)을 되돌린다. 성공 경로에선 호출하지 않는다.
+      release: () => Promise<void>;
+    }
   | { ok: false; response: Response };
 
 function errorResponse(
@@ -125,16 +133,6 @@ export async function enforceUsageLimit(
       ? profile.plan
       : "free";
 
-  const logUsage = async () => {
-    const { error } = await admin
-      .from("usage_logs")
-      .insert({ user_id: userId, action, ref_id: opts.refId ?? null });
-    // 같은 ref 재기록(평론 재생성)은 unique 위반 — 정상 케이스이므로 무시
-    if (error && error.code !== "23505") {
-      console.error("usage log insert failed:", error);
-    }
-  };
-
   if (opts.requireMembership && plan === "free") {
     return {
       ok: false,
@@ -142,59 +140,57 @@ export async function enforceUsageLimit(
     };
   }
 
-  // developer: 모든 제한(hard limit 포함) 미적용
-  if (plan === "developer") {
-    return { ok: true, userId, plan, logUsage };
+  const usageCheckFailed = () =>
+    errorResponse(
+      500,
+      "usage_check_failed",
+      lang === "ko" ? "사용량 확인에 실패했습니다." : "Failed to verify usage.",
+      opts.cors,
+    );
+
+  // count=false (예: 미리보기): 멤버십 확인만 하고 사용량은 소비하지 않는다.
+  if (opts.count === false) {
+    return { ok: true, userId, plan, release: async () => {} };
   }
 
-  // hard limit: free·membership 공통, 액션별 하루 20회
-  const dayStart = periodStart("day").toISOString();
-  const { count: dailyCount, error: dailyError } = await admin
-    .from("usage_logs")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("action", action)
-    .gte("created_at", dayStart);
-  if (dailyError) {
-    return {
-      ok: false,
-      response: errorResponse(500, "usage_check_failed", lang === "ko" ? "사용량 확인에 실패했습니다." : "Failed to verify usage.", opts.cors),
-    };
-  }
-  if ((dailyCount ?? 0) >= HARD_LIMIT_PER_DAY) {
-    // 일반 한도 초과와 동일한 응답 — hard limit 존재를 노출하지 않음
-    return {
-      ok: false,
-      response: errorResponse(429, "limit_exceeded", LIMIT_MESSAGES[action][lang], opts.cors),
-    };
-  }
-
-  if (plan === "membership") {
-    return { ok: true, userId, plan, logUsage };
-  }
-
+  // 플랜별 검사 규칙 결정
   const rule = FREE_LIMITS[action];
-  const since = periodStart(rule.period).toISOString();
-  const { data: logs, error: logsError } = await admin
-    .from("usage_logs")
-    .select("ref_id")
-    .eq("user_id", userId)
-    .eq("action", action)
-    .gte("created_at", since);
-  if (logsError) {
-    return {
-      ok: false,
-      response: errorResponse(500, "usage_check_failed", lang === "ko" ? "사용량 확인에 실패했습니다." : "Failed to verify usage.", opts.cors),
-    };
+  const checkPeriod = plan === "free";
+  const checkHard = plan !== "developer"; // free·membership 공통 hard limit
+
+  // ── 원자적 소비: count 확인 + insert 를 단일 RPC(tx-advisory-lock)로 처리 ──
+  const { data, error } = await admin.rpc("consume_usage", {
+    p_user_id: userId,
+    p_action: action,
+    p_ref_id: opts.refId ?? null,
+    p_check_period: checkPeriod,
+    p_period_start: periodStart(rule.period).toISOString(),
+    p_period_limit: rule.max,
+    p_check_hard: checkHard,
+    p_day_start: periodStart("day").toISOString(),
+    p_hard_limit: HARD_LIMIT_PER_DAY,
+  });
+  if (error) {
+    console.error("consume_usage rpc failed:", error);
+    return { ok: false, response: usageCheckFailed() };
   }
 
-  const alreadyCounted = opts.refId != null && (logs ?? []).some((l) => l.ref_id === opts.refId);
-  if (!alreadyCounted && (logs ?? []).length >= rule.max) {
+  const result = data as { allowed: boolean; counted?: boolean; id?: string | null };
+  if (!result.allowed) {
+    // hard limit·플랜 한도 모두 동일 문구 — hard limit 존재를 노출하지 않음
     return {
       ok: false,
       response: errorResponse(429, "limit_exceeded", LIMIT_MESSAGES[action][lang], opts.cors),
     };
   }
 
-  return { ok: true, userId, plan, logUsage };
+  // 새로 기록된 예약만 롤백 대상 (멱등 재기록·미소비는 no-op)
+  const reservationId = result.counted ? result.id ?? null : null;
+  const release = async () => {
+    if (!reservationId) return;
+    const { error: delError } = await admin.from("usage_logs").delete().eq("id", reservationId);
+    if (delError) console.error("usage reservation release failed:", delError);
+  };
+
+  return { ok: true, userId, plan, release };
 }

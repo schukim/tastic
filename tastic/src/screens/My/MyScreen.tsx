@@ -21,7 +21,7 @@ import { presentMembershipPaywall, manageSubscription } from "../../services/pur
 import { getReviewCount } from "../../services/taste";
 import { CategoryChip } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
-import type { ContentCategory, Language } from "../../types/database";
+import type { ContentCategory, Language, User } from "../../types/database";
 import i18n from "../../i18n";
 
 const PRIVACY_POLICY_URL = "https://schukim.github.io/tastic/legal/privacy-policy.html";
@@ -56,7 +56,7 @@ export function MyScreen() {
       .select("*")
       .eq("id", current.id)
       .single();
-    if (!error && data) setUser({ ...current, ...data });
+    if (!error && data) setUser({ ...current, ...(data as unknown as Partial<User>) });
   }, [setUser]);
 
   // 멤버십 업그레이드: RevenueCat 페이월 → 구매 성공 시 웹훅이 users.plan을 갱신한다.
@@ -100,7 +100,7 @@ export function MyScreen() {
           .then(({ data, error }) => {
             const current = useAuthStore.getState().user;
             if (!error && data && current && data.plan !== current.plan) {
-              setUser({ ...current, ...data });
+              setUser({ ...current, ...(data as unknown as Partial<User>) });
             }
           });
       }

@@ -6,12 +6,17 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// 인터뷰 절대 상한 — 비용 안전장치.
+// 클라이언트 useInterview.ts 의 MEMBERSHIP_MAX_QUESTIONS 와 반드시 일치시킬 것.
+// (무료 플랜은 클라이언트에서 5문답에 종료되어 이 상한에 도달하지 않는다.)
+const MAX_QUESTIONS = 10;
+
 const TURN_ROLE: Record<number, string> = {
   2: "탐색 — deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
   3: "탐색 — deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
   4: "탐색 — deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
   5: "정리(wrap_up) — 감상의 조각들을 사용자 스스로 연결하게 만드는 마무리 질문. 이 답변이 리뷰의 핵심 문장이 된다. should_end는 반드시 false",
-  6: "조건부 추가 — 아래 6번째 질문 조건 섹션 참고",
+  6: "조건부 추가 — 아래 추가 질문 조건 섹션 참고",
 };
 
 // first_questions는 인터뷰 첫 질문 캐시(클라이언트용)라 작품 정보가 아님 — 프롬프트에서 제외
@@ -41,7 +46,8 @@ function buildPrompt(
   language: string,
 ): string {
   const turnNumber = questionCount + 1;
-  const turnRole = TURN_ROLE[turnNumber] ?? TURN_ROLE[2];
+  // 6번째 이후(멤버십 연장)는 "조건부 추가" 역할을 유지 — 소진되면 자연 종료되도록 유도
+  const turnRole = TURN_ROLE[turnNumber] ?? (turnNumber >= 6 ? TURN_ROLE[6] : TURN_ROLE[2]);
 
   const musicScopeSection =
     content.category === "music"
@@ -54,8 +60,8 @@ function buildPrompt(
       : "";
 
   const extraTurnSection =
-    questionCount === 5
-      ? `\n## 6번째 질문 생성 조건\n다음 중 하나라도 해당할 때만 질문을 생성하라:\n1. 직전 답변이 길고 새로운 키워드/맥락이 등장했을 때\n2. 감상의 핵심이 아직 정리되지 않은 느낌일 때\n해당하지 않으면 반드시 should_end: true를 반환하라.\n`
+    questionCount >= 5
+      ? `\n## 추가 질문 (${turnNumber}번째) — 사용자가 인터뷰를 이어가길 직접 선택함\n사용자가 '계속하기'를 눌러 질문을 더 받기를 원한다. 기본은 질문을 생성하는 것이다. 다음 중 하나라도 해당하면 질문을 생성하라:\n1. 직전 답변에 아직 짚지 않은 키워드·감정·장면이 남아 있을 때\n2. 아직 다루지 않은 관점(위 카테고리별 질문 관점의 미탐색 축)으로 넓힐 여지가 있을 때\n감상이 정말로 소진되어 남은 질문이 이미 한 이야기의 반복밖에 없을 때만 should_end: true를 반환하라.\n`
       : "";
 
   return `너는 문화 콘텐츠 감상 인터뷰어다. 사용자가 감상한 작품에 대해 자연스럽게 감상을 끌어내는 것이 목표다.
@@ -179,8 +185,8 @@ Deno.serve(async (req) => {
   try {
     const { content, conversation_history, question_count, language } = await req.json();
 
-    // Guard: max 6 turns
-    if (question_count >= 6) {
+    // Guard: 절대 상한(비용 안전장치). 무료는 클라이언트에서 5문답에 종료됨.
+    if (question_count >= MAX_QUESTIONS) {
       return new Response(
         JSON.stringify({ question: "", question_type: "wrap_up", topic_label: "", should_end: true }),
         { headers: { ...CORS, "Content-Type": "application/json" } },

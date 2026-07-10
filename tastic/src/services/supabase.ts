@@ -1,12 +1,13 @@
 import "react-native-url-polyfill/auto";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../types/supabase";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
-// TODO: Replace with generated Database type after `npm run db:types`
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// 스키마 변경 시 `npm run db:types` 로 src/types/supabase.ts 재생성
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,

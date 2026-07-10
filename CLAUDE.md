@@ -1,6 +1,9 @@
 # CLAUDE.md
 
-Tastic — 문화 콘텐츠(영화, 음악, 책, 미술, 전시, 공연) 감상 후 LLM 기반 인터뷰를 통해 개인 평론을 작성하고, 취향을 분석·추천하는 모바일 앱.
+Tastic — 문화 콘텐츠(영화, 음악, 책, 미술, 시리즈) 감상 후 LLM 기반 인터뷰를 통해 개인 평론을 작성하고, 취향을 분석·추천하는 모바일 앱.
+<!-- 카테고리 정본: src/types/database.ts 의 ContentCategory (movie | music | book | art | series).
+     전시·공연은 20260508 마이그레이션으로 제거됨. -->
+
 
 ## Tech Stack
 

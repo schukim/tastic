@@ -93,9 +93,13 @@ ${taste_profile.join("\n")}
 이미 감상한 작품:
 ${historyText}`;
 
-    const parsed = await callOpenAI(prompt, 0.5);
-
-    await gate.logUsage();
+    let parsed: unknown;
+    try {
+      parsed = await callOpenAI(prompt, 0.5);
+    } catch (e) {
+      await gate.release(); // 실패 시 예약한 사용량 롤백
+      throw e;
+    }
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS, "Content-Type": "application/json" },
