@@ -12,7 +12,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import type { MainTabParamList } from "../../types/navigation";
-import type { TasteProfile, ContentCategory } from "../../types/database";
+import type { TasteProfile } from "../../types/database";
 import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
 import { getLatestTasteProfile, saveTasteProfile, getReviewCount } from "../../services/taste";
@@ -98,21 +98,11 @@ export function AnalysisScreen() {
     setLoadingMessageIdx(0);
 
     try {
+      // 분석 대상 평론·이전 프로파일은 서버가 본인 DB 데이터로 조회한다.
+      // 여기서는 저장 시 review_count 기록을 위해 편수만 확보한다.
       const reviews = await fetchReviews(user.id);
-      const reviewData = reviews.map((r) => ({
-        content_title: r.works?.title ?? "",
-        category: (r.works?.category ?? "movie") as ContentCategory,
-        review_text: r.body,
-        created_at: r.created_at,
-      }));
-
-      const previousProfile = profile
-        ? profile.profile_sentences.join("\n")
-        : null;
 
       const result = await analyzeTaste({
-        reviews: reviewData,
-        previous_profile: previousProfile,
         language: lang,
       });
 

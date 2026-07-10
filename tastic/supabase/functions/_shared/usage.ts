@@ -59,6 +59,81 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 // 새 API 키 체계 프로젝트에선 SUPABASE_SERVICE_ROLE_KEY가 자동 주입되지 않을 수 있어 명시적 시크릿 우선.
 const SERVICE_ROLE_KEY = Deno.env.get("SB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+// service-role 클라이언트 (RLS 우회) — 각 함수가 본인 데이터를 서버에서 직접 조회할 때 사용.
+let _admin: SupabaseClient | null = null;
+export function adminClient(): SupabaseClient {
+  if (!_admin) _admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  return _admin;
+}
+
+// JWT에서 사용자 식별. 서버가 본인 데이터를 조회하기 위한 신뢰 가능한 user_id 확보용.
+export async function authenticateUser(
+  req: Request,
+  cors: Record<string, string>,
+  lang: "ko" | "en" = "ko",
+): Promise<{ ok: true; userId: string } | { ok: false; response: Response }> {
+  const jwt = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  const unauth = () =>
+    errorResponse(401, "unauthorized", lang === "ko" ? "로그인이 필요합니다." : "Sign-in required.", cors);
+  if (!jwt) return { ok: false, response: unauth() };
+  const { data, error } = await adminClient().auth.getUser(jwt);
+  if (error || !data?.user) return { ok: false, response: unauth() };
+  return { ok: true, userId: data.user.id };
+}
+
+// 비용 남용 방어용 유저별 일일 호출 상한(플랜 한도 아님). verify-content·generate-question 처럼
+// 플랜과 무관하게 무제한 호출이 가능한 함수의 abuse ceiling. consume_usage 의 hard-limit 경로만 사용.
+export async function enforceRateLimit(
+  req: Request,
+  action: "search" | "question",
+  maxPerDay: number,
+  cors: Record<string, string>,
+  language?: "ko" | "en",
+): Promise<{ ok: true; userId: string; plan: UserPlan } | { ok: false; response: Response }> {
+  const lang = language === "en" ? "en" : "ko";
+  const auth = await authenticateUser(req, cors, lang);
+  if (!auth.ok) return auth;
+  const userId = auth.userId;
+
+  const { data: profile } = await adminClient().from("users").select("plan").eq("id", userId).maybeSingle();
+  const plan: UserPlan =
+    profile?.plan === "membership" || profile?.plan === "developer" ? profile.plan : "free";
+
+  // developer: 상한 미적용
+  if (plan === "developer") return { ok: true, userId, plan };
+
+  const { data, error } = await adminClient().rpc("consume_usage", {
+    p_user_id: userId,
+    p_action: action,
+    p_ref_id: null,
+    p_check_period: false,
+    p_period_start: new Date().toISOString(),
+    p_period_limit: 0,
+    p_check_hard: true,
+    p_day_start: periodStart("day").toISOString(),
+    p_hard_limit: maxPerDay,
+  });
+  if (error) {
+    console.error("enforceRateLimit consume_usage failed:", error);
+    return {
+      ok: false,
+      response: errorResponse(500, "usage_check_failed", lang === "ko" ? "사용량 확인에 실패했습니다." : "Failed to verify usage.", cors),
+    };
+  }
+  if (!(data as { allowed: boolean }).allowed) {
+    return {
+      ok: false,
+      response: errorResponse(
+        429,
+        "rate_limited",
+        lang === "ko" ? "오늘 이용량이 많아요. 잠시 후 다시 시도해 주세요." : "You've reached today's usage. Please try again later.",
+        cors,
+      ),
+    };
+  }
+  return { ok: true, userId, plan };
+}
+
 interface EnforceOptions {
   // 같은 인터뷰의 평론 재생성을 중복 카운트하지 않기 위한 참조 id
   refId?: string | null;
@@ -106,7 +181,7 @@ export async function enforceUsageLimit(
     };
   }
 
-  const admin: SupabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  const admin: SupabaseClient = adminClient();
 
   const { data: userData, error: userError } = await admin.auth.getUser(jwt);
   if (userError || !userData?.user) {

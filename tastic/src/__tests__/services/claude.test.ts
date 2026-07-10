@@ -127,7 +127,7 @@ describe("타임아웃 처리", () => {
 
   it("analyzeTaste: 30초 초과 시 타임아웃 에러", async () => {
     mockInvoke.mockReturnValueOnce(new Promise(() => {}));
-    const resultPromise = analyzeTaste({ reviews: [], previous_profile: null, language: "ko" });
+    const resultPromise = analyzeTaste({ language: "ko" });
     const assertion = expect(resultPromise).rejects.toThrow("요청 시간이 초과되었습니다.");
     await vi.advanceTimersByTimeAsync(30_001);
     await assertion;
@@ -135,7 +135,7 @@ describe("타임아웃 처리", () => {
 
   it("recommendContent: 20초 초과 시 타임아웃 에러", async () => {
     mockInvoke.mockReturnValueOnce(new Promise(() => {}));
-    const resultPromise = recommendContent({ taste_profile: [], user_prompt: "잔잔한 영화", review_history: [], language: "ko" });
+    const resultPromise = recommendContent({ user_prompt: "잔잔한 영화", language: "ko" });
     const assertion = expect(resultPromise).rejects.toThrow("요청 시간이 초과되었습니다.");
     await vi.advanceTimersByTimeAsync(20_001);
     await assertion;

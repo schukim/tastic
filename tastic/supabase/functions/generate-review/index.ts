@@ -36,13 +36,15 @@ Deno.serve(async (req) => {
     });
     if (!gate.ok) return gate.response;
 
-    const conversationText = conversation_history
-      .map((e: { role: string; text: string }) =>
-        `${e.role === "interviewer" ? "인터뷰어" : "사용자"}: ${e.text}`
-      )
-      .join("\n");
+    let parsed: unknown;
+    try {
+      const conversationText = conversation_history
+        .map((e: { role: string; text: string }) =>
+          `${e.role === "interviewer" ? "인터뷰어" : "사용자"}: ${e.text}`
+        )
+        .join("\n");
 
-    const prompt = `너는 개인 평론 작성자다. 인터뷰 대화를 바탕으로 사용자의 감상을 하나의 평론 글로 구성하라.
+      const prompt = `너는 개인 평론 작성자다. 인터뷰 대화를 바탕으로 사용자의 감상을 하나의 평론 글로 구성하라.
 
 ## 평론 작성 원칙
 
@@ -83,11 +85,9 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 인터뷰 대화:
 ${conversationText}`;
 
-    let parsed: unknown;
-    try {
       parsed = await callLLM(prompt, 0.4);
     } catch (e) {
-      await gate.release(); // 실패 시 예약한 사용량 롤백
+      await gate.release(); // 예약 이후 어떤 실패(입력·LLM)든 사용량 롤백
       throw e;
     }
 

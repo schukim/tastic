@@ -1,5 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { callJsonLLM } from "../_shared/llm.ts";
+import { enforceRateLimit } from "../_shared/usage.ts";
+
+// 유저별 질문 생성 일일 상한(비용 남용 방어). 정상 인터뷰는 6~10문항, 하루 수 회.
+const QUESTION_RATE_LIMIT_PER_DAY = 100;
+// 무료 플랜 문답 상한 — 클라이언트 useInterview.ts FREE_MAX_QUESTIONS 와 일치(서버 강제).
+const FREE_MAX_QUESTIONS = 5;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -185,8 +191,14 @@ Deno.serve(async (req) => {
   try {
     const { content, conversation_history, question_count, language } = await req.json();
 
-    // Guard: 절대 상한(비용 안전장치). 무료는 클라이언트에서 5문답에 종료됨.
-    if (question_count >= MAX_QUESTIONS) {
+    // 유저별 일일 호출 상한 — 로그인 사용자가 질문 생성을 반복 호출해 LLM 비용을 유발하는 것을 방어.
+    const gate = await enforceRateLimit(req, "question", QUESTION_RATE_LIMIT_PER_DAY, CORS, language);
+    if (!gate.ok) return gate.response;
+
+    // 플랜별 문답 상한을 서버에서 강제(클라이언트 우회 방지).
+    // 무료: 5문답, 멤버십/개발자: MAX_QUESTIONS(10). 초과 시 즉시 종료.
+    const planCap = gate.plan === "free" ? FREE_MAX_QUESTIONS : MAX_QUESTIONS;
+    if (question_count >= planCap) {
       return new Response(
         JSON.stringify({ question: "", question_type: "wrap_up", topic_label: "", should_end: true }),
         { headers: { ...CORS, "Content-Type": "application/json" } },

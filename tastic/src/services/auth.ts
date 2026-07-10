@@ -82,7 +82,6 @@ export async function signInWithGoogle() {
   const redirectTo = makeRedirectUri({
     path: "auth/callback",
   });
-  console.log("[google] redirectTo =", redirectTo);
 
   // access_type=offline / prompt=consent 는 구글 API 호출용 리프레시 토큰을 받고
   // 매 로그인마다 동의 화면을 강제할 때만 필요하다. Tastic 은 Supabase 세션만 쓰고
@@ -99,7 +98,6 @@ export async function signInWithGoogle() {
   });
 
   if (error) throw error;
-  console.log("[google] oauth url =", data?.url);
 
   // Open the OAuth provider's authentication URL
   if (data.url) {
@@ -107,12 +105,9 @@ export async function signInWithGoogle() {
       data.url,
       redirectTo
     );
-    console.log("[google] browser result.type =", result.type);
-    console.log("[google] browser result.url =", "url" in result ? result.url : "(none)");
 
     if (result.type === "success") {
       const code = getAuthCodeFromUrl(result.url);
-      console.log("[google] extracted code =", code);
       if (!code) throw new Error("인증 코드를 받지 못했습니다");
       // 딥링크 리스너가 먼저 교환했다면 null 이 반환되지만, 세션은 이미 생성돼
       // onAuthStateChange(SIGNED_IN)로 반영되므로 화면 전환에는 문제가 없다.

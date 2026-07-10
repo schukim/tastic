@@ -1,6 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { enforceUsageLimit } from "../_shared/usage.ts";
+import { enforceUsageLimit, adminClient } from "../_shared/usage.ts";
 import { callJsonLLM } from "../_shared/llm.ts";
+
+// 취향 분석 최소 평론 수 — 클라이언트 게이트와 동일하게 서버에서도 강제.
+const MIN_REVIEWS = 3;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -22,19 +25,53 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { reviews, previous_profile, language } = await req.json();
+    // 언어만 클라이언트에서 받는다. 분석 대상 평론·이전 프로파일은 서버가 DB에서
+    // 본인 데이터로 직접 조회한다(클라이언트가 보낸 임의 데이터 신뢰 금지).
+    const { language } = await req.json();
 
     // free 플랜은 취향 분석 주 1회 (membership 무제한)
     const gate = await enforceUsageLimit(req, "analysis", { language, cors: CORS });
     if (!gate.ok) return gate.response;
 
-    const reviewsText = reviews
-      .map((r: { content_title: string; category: string; review_text: string }) =>
-        `[${r.category}] ${r.content_title}\n${r.review_text}`
-      )
-      .join("\n\n---\n\n");
+    let parsed: unknown;
+    try {
+      // 본인 평론을 DB에서 조회 (works 조인). 예약 이후 전 구간을 try로 감싸 실패 시 롤백.
+      const { data: reviewRows, error: rErr } = await adminClient()
+        .from("reviews")
+        .select("body, works(title, category)")
+        .eq("user_id", gate.userId)
+        .order("created_at", { ascending: false });
+      if (rErr) throw new Error(`reviews fetch failed: ${rErr.message}`);
 
-    const prompt = `너는 문화 취향 분석가다. 사용자가 작성한 평론들을 읽고, 그 사람의 감상 패턴과 취향을 정성적으로 분석하라.
+      const rows = (reviewRows ?? []) as { body: string; works: { title: string; category: string } | null }[];
+      // 서버에서 본인 평론 수를 실제 확인 — 3편 미만이면 예약 롤백 후 거절
+      if (rows.length < MIN_REVIEWS) {
+        await gate.release();
+        return new Response(
+          JSON.stringify({
+            error: "not_enough_reviews",
+            message: language === "en" ? "You need at least 3 reviews." : "평론이 3편 이상 필요해요.",
+          }),
+          { status: 400, headers: { ...CORS, "Content-Type": "application/json" } },
+        );
+      }
+
+      const reviewsText = rows
+        .map((r) => `[${r.works?.category ?? ""}] ${r.works?.title ?? ""}\n${r.body}`)
+        .join("\n\n---\n\n");
+
+      // 이전 취향 프로파일도 DB에서 조회 (변화 감지용)
+      const { data: tp } = await adminClient()
+        .from("taste_profiles")
+        .select("profile_sentences")
+        .eq("user_id", gate.userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const previousProfile =
+        tp?.profile_sentences && tp.profile_sentences.length > 0 ? tp.profile_sentences.join("\n") : "없음";
+
+      const prompt = `너는 문화 취향 분석가다. 사용자가 작성한 평론들을 읽고, 그 사람의 감상 패턴과 취향을 정성적으로 분석하라.
 
 ## 분석 원칙
 
@@ -60,13 +97,11 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 평론 목록:
 ${reviewsText}
 
-이전 분석 결과: ${previous_profile ?? "없음"}`;
+이전 분석 결과: ${previousProfile}`;
 
-    let parsed: unknown;
-    try {
       parsed = await callLLM(prompt, 0.2);
     } catch (e) {
-      await gate.release(); // 실패 시 예약한 사용량 롤백
+      await gate.release(); // 예약 이후 어떤 실패(입력·조회·LLM)든 사용량 롤백
       throw e;
     }
 

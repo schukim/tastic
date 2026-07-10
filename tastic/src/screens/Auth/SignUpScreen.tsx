@@ -50,13 +50,11 @@ export function SignUpScreen() {
     setLoading(true);
     setError(null);
     try {
-      const result = await signUp({
+      await signUp({
         email,
         password,
         nickname: nickname.trim(),
       });
-
-      console.log('회원가입 결과:', result);
 
       // 회원가입 성공 - 이메일 확인 단계로 이동
       setStep(3);

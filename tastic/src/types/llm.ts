@@ -86,14 +86,8 @@ export interface GenerateReviewResponse {
 }
 
 // ── analyze-taste ──
+// reviews·previous_profile 은 서버가 인증 사용자의 DB 데이터로 직접 조회한다(전송 불필요).
 export interface AnalyzeTasteRequest {
-  reviews: {
-    content_title: string;
-    category: ContentCategory;
-    review_text: string;
-    created_at: string;
-  }[];
-  previous_profile: string | null;
   language: "ko" | "en";
 }
 
@@ -103,13 +97,9 @@ export interface AnalyzeTasteResponse {
 }
 
 // ── recommend-content ──
+// taste_profile·review_history 는 서버가 인증 사용자의 DB 데이터로 직접 조회한다(전송 불필요).
 export interface RecommendContentRequest {
-  taste_profile: string[];
   user_prompt: string;
-  review_history: {
-    content_title: string;
-    category: ContentCategory;
-  }[];
   language: "ko" | "en";
 }
 

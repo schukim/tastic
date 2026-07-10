@@ -1,8 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { enforceUsageLimit } from "../_shared/usage.ts";
+import { enforceUsageLimit, adminClient } from "../_shared/usage.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")!;
 const MODEL = "gpt-4o";
+
+// 추천 최소 평론 수 — 클라이언트 게이트와 동일하게 서버에서도 강제.
+const MIN_REVIEWS = 3;
+// OpenAI 호출 서버 타임아웃(ms) — 클라 20초 포기 후에도 서버 요청이 계속되는 것 방지.
+const OPENAI_TIMEOUT_MS = 25_000;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +35,8 @@ async function callOpenAI(prompt: string, _temperature = 0.5, maxTokens = 2048) 
       input: prompt,
       max_output_tokens: maxTokens,
     }),
+    // 서버 타임아웃 — 초과 시 fetch가 throw → 상위 try에서 예약 롤백
+    signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message ?? "OpenAI error");
@@ -46,17 +53,52 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { taste_profile, user_prompt, review_history, language } = await req.json();
+    // user_prompt(정당한 사용자 입력)와 language만 받는다. 취향 프로파일·감상 이력은
+    // 서버가 DB에서 본인 데이터로 조회한다(클라이언트가 보낸 임의 데이터 신뢰 금지).
+    const { user_prompt, language } = await req.json();
 
     // free 플랜은 추천 하루 1회 (membership 무제한)
     const gate = await enforceUsageLimit(req, "recommendation", { language, cors: CORS });
     if (!gate.ok) return gate.response;
 
-    const historyText = review_history
-      .map((r: { content_title: string; category: string }) => `- [${r.category}] ${r.content_title}`)
-      .join("\n");
+    let parsed: unknown;
+    try {
+      // 본인 감상 이력을 DB에서 조회 (works 조인). 예약 이후 전 구간을 try로 감싸 실패 시 롤백.
+      const { data: reviewRows, error: rErr } = await adminClient()
+        .from("reviews")
+        .select("works(title, category)")
+        .eq("user_id", gate.userId)
+        .order("created_at", { ascending: false });
+      if (rErr) throw new Error(`reviews fetch failed: ${rErr.message}`);
 
-    const prompt = `너는 문화 콘텐츠 큐레이터다. 사용자의 취향 프로파일과 요청을 바탕으로 콘텐츠를 추천하라.
+      const rows = (reviewRows ?? []) as { works: { title: string; category: string } | null }[];
+      // 서버에서 본인 평론 수를 실제 확인 — 3편 미만이면 예약 롤백 후 거절
+      if (rows.length < MIN_REVIEWS) {
+        await gate.release();
+        return new Response(
+          JSON.stringify({
+            error: "not_enough_reviews",
+            message: language === "en" ? "You need at least 3 reviews." : "평론이 3편 이상 필요해요.",
+          }),
+          { status: 400, headers: { ...CORS, "Content-Type": "application/json" } },
+        );
+      }
+
+      const historyText = rows
+        .map((r) => `- [${r.works?.category ?? ""}] ${r.works?.title ?? ""}`)
+        .join("\n");
+
+      // 취향 프로파일도 DB에서 조회
+      const { data: tp } = await adminClient()
+        .from("taste_profiles")
+        .select("profile_sentences")
+        .eq("user_id", gate.userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const tasteProfile: string[] = tp?.profile_sentences ?? [];
+
+      const prompt = `너는 문화 콘텐츠 큐레이터다. 사용자의 취향 프로파일과 요청을 바탕으로 콘텐츠를 추천하라.
 
 ## 추천 원칙
 
@@ -86,18 +128,16 @@ ${language === "ko" ? "한국어" : "English"}로 작성하라.
 }
 
 취향 프로파일:
-${taste_profile.join("\n")}
+${tasteProfile.join("\n")}
 
 사용자 요청: ${user_prompt}
 
 이미 감상한 작품:
 ${historyText}`;
 
-    let parsed: unknown;
-    try {
       parsed = await callOpenAI(prompt, 0.5);
     } catch (e) {
-      await gate.release(); // 실패 시 예약한 사용량 롤백
+      await gate.release(); // 예약 이후 어떤 실패(입력·조회·LLM·타임아웃)든 사용량 롤백
       throw e;
     }
 

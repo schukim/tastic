@@ -15,8 +15,7 @@ import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import type { ContentCategory } from "../../types/database";
 import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
-import { getLatestTasteProfile , getReviewCount } from "../../services/taste";
-import { fetchReviews } from "../../services/review";
+import { getReviewCount } from "../../services/taste";
 import { recommendContent } from "../../services/claude";
 import { saveRecommendation } from "../../services/recommendation";
 import { checkUsageLimit } from "../../services/usage";
@@ -98,18 +97,9 @@ export function RecommendScreen() {
     setExpandedIdx(null);
 
     try {
-      const [tasteProfile, reviews] = await Promise.all([
-        getLatestTasteProfile(user.id),
-        fetchReviews(user.id),
-      ]);
-
+      // 취향 프로파일·감상 이력은 서버가 본인 DB 데이터로 조회한다.
       const response = await recommendContent({
-        taste_profile: tasteProfile?.profile_sentences ?? [],
         user_prompt: queryPrompt.trim(),
-        review_history: reviews.map((r) => ({
-          content_title: r.works?.title ?? "",
-          category: (r.works?.category ?? "movie") as ContentCategory,
-        })),
         language: lang,
       });
 

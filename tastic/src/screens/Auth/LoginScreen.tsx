@@ -47,13 +47,10 @@ export function LoginScreen() {
     setLoading(true);
     setError(null);
     try {
-      console.log(`Attempting ${provider} login...`);
       if (provider === "google") {
-        const result = await signInWithGoogle();
-        console.log("Google login result:", result);
+        await signInWithGoogle();
       } else {
-        const result = await signInWithApple();
-        console.log("Apple login result:", result);
+        await signInWithApple();
       }
     } catch (e: unknown) {
       console.error(`${provider} login error:`, e);

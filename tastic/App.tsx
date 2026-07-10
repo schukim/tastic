@@ -5,8 +5,10 @@ import { NavigationContainer } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { NetworkBanner } from "./src/components/common/NetworkBanner";
 import { useAuth } from "./src/hooks/useAuth";
 import { useDeepLinkAuth } from "./src/hooks/useDeepLinkAuth";
+import { useNetwork } from "./src/hooks/useNetwork";
 import { useTheme } from "./src/hooks/useTheme";
 import { initPurchases } from "./src/services/purchases";
 import * as Sentry from "@sentry/react-native";
@@ -42,10 +44,13 @@ function AppContent() {
   useAuth();
   // 딥링크(이메일 확인 등)로 들어온 인증 코드를 세션으로 교환
   useDeepLinkAuth();
+  // NetInfo 구독 → networkStore 갱신 (오프라인 배너 표시용)
+  useNetwork();
 
   return (
     <>
       <StatusBar style={isDark ? "light" : "dark"} backgroundColor={isDark ? "#1A1814" : "#F8F6F1"} />
+      <NetworkBanner />
       <RootNavigator />
     </>
   );
