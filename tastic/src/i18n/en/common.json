@@ -171,9 +171,9 @@
   },
   "membership": {
     "limitTitle": "Usage Limit",
-    "limitReview": "The free plan allows 1 review per day.\nUpgrade to Membership (₩3,900/mo) for unlimited reviews.",
-    "limitAnalysis": "The free plan allows 1 taste analysis per week.\nUpgrade to Membership (₩3,900/mo) for unlimited analyses.",
-    "limitRecommend": "The free plan allows 1 recommendation per day.\nUpgrade to Membership (₩3,900/mo) for unlimited recommendations."
+    "limitReview": "The free plan allows 1 review per day.\nUpgrade to Membership (₩4,400/mo) for unlimited reviews.",
+    "limitAnalysis": "The free plan allows 1 taste analysis per week.\nUpgrade to Membership (₩4,400/mo) for unlimited analyses.",
+    "limitRecommend": "The free plan allows 1 recommendation per day.\nUpgrade to Membership (₩4,400/mo) for unlimited recommendations."
   },
   "my": {
     "profile": "Profile",
@@ -184,9 +184,9 @@
     "privacyPolicy": "Privacy Policy",
     "subscription": "Subscription",
     "freePlan": "Free Plan",
-    "membershipPlan": "Membership (₩3,900/mo)",
+    "membershipPlan": "Membership (₩4,400/mo)",
     "membershipTitle": "Tastic Membership",
-    "membershipPrice": "₩3,900/mo",
+    "membershipPrice": "₩4,400/mo",
     "membershipBenefit1": "Unlimited reviews",
     "membershipBenefit2": "Unlimited recommendations",
     "membershipBenefit3": "Unlimited taste analysis",
