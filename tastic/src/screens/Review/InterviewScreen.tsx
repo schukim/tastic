@@ -92,8 +92,8 @@ export function InterviewScreen() {
     setInitialized(true);
 
     (async () => {
-      // Check for draft
-      const draft = await loadDraft();
+      // Check for draft (본인 계정 드래프트만)
+      const draft = user ? await loadDraft(user.id) : null;
       if (draft && draft.content.id === content.id) {
         restoreFromDraft(draft.conversation, draft.questionCount, draft.interviewId);
         // If last entry is a user answer, fetch next question
@@ -107,7 +107,7 @@ export function InterviewScreen() {
         fetchQuestion([], 0);
       }
     })();
-  }, [initialized, content.id, initInterview, fetchQuestion, restoreFromDraft]);
+  }, [initialized, content.id, user, initInterview, fetchQuestion, restoreFromDraft]);
 
   // 인터뷰 종료(무료 5문답 도달, 멤버십 상한/should_end) 시 평론 생성 화면으로 이동
   useEffect(() => {
@@ -358,6 +358,7 @@ export function InterviewScreen() {
                 value={answerText}
                 onChangeText={setAnswerText}
                 multiline
+                maxLength={1000}
                 editable={!isLoading && !error}
               />
               <Pressable

@@ -85,7 +85,7 @@ export async function authenticateUser(
 // 플랜과 무관하게 무제한 호출이 가능한 함수의 abuse ceiling. consume_usage 의 hard-limit 경로만 사용.
 export async function enforceRateLimit(
   req: Request,
-  action: "search" | "question",
+  action: "search" | "question" | "work_save",
   maxPerDay: number,
   cors: Record<string, string>,
   language?: "ko" | "en",

@@ -123,6 +123,7 @@
       "queuedDesc": "It will upload automatically when you're back online",
       "saveFailed": "Save failed. Please try again",
       "generateFailed": "Couldn't generate the review. Try again?",
+      "generating": "Writing your review...",
       "goHome": "Go to Home"
     },
     "draft": {
@@ -171,9 +172,9 @@
   },
   "membership": {
     "limitTitle": "Usage Limit",
-    "limitReview": "The free plan allows 1 review per day.\nUpgrade to Membership (₩4,400/mo) for unlimited reviews.",
-    "limitAnalysis": "The free plan allows 1 taste analysis per week.\nUpgrade to Membership (₩4,400/mo) for unlimited analyses.",
-    "limitRecommend": "The free plan allows 1 recommendation per day.\nUpgrade to Membership (₩4,400/mo) for unlimited recommendations."
+    "limitReview": "The free plan allows 1 review per day.\nUpgrade to Membership (₩3,300/mo) for unlimited reviews.",
+    "limitAnalysis": "The free plan allows 1 taste analysis per week.\nUpgrade to Membership (₩3,300/mo) for unlimited analyses.",
+    "limitRecommend": "The free plan allows 1 recommendation per day.\nUpgrade to Membership (₩3,300/mo) for unlimited recommendations."
   },
   "my": {
     "profile": "Profile",
@@ -184,9 +185,9 @@
     "privacyPolicy": "Privacy Policy",
     "subscription": "Subscription",
     "freePlan": "Free Plan",
-    "membershipPlan": "Membership (₩4,400/mo)",
+    "membershipPlan": "Membership (₩3,300/mo)",
     "membershipTitle": "Tastic Membership",
-    "membershipPrice": "₩4,400/mo",
+    "membershipPrice": "₩3,300/mo",
     "membershipBenefit1": "Unlimited reviews",
     "membershipBenefit2": "Unlimited recommendations",
     "membershipBenefit3": "Unlimited taste analysis",
@@ -196,10 +197,14 @@
     "manageSubscriptionError": "Couldn't open subscription management. Please manage it from the Subscriptions menu in your store app.",
     "upgradeMembership": "Start Membership",
     "upgrading": "Processing...",
+    "upgradeUnavailable": "Purchases aren't available right now. Please try again later.",
+    "categoryMinRequired": "Please keep at least one interest category.",
+    "saveFailed": "Couldn't save. Please check your network and try again.",
     "logout": "Log Out",
     "logoutConfirm": "Are you sure you want to log out?",
     "deleteAccount": "Delete Account",
     "deleteConfirm": "All data will be deleted. Are you sure?",
+    "deleteConfirmMembership": "Deleting your account does not cancel your store subscription. To stop billing, cancel it in your store's subscription settings first.",
     "deleteFailed": "Failed to delete your account. Please check your network and try again.",
     "deleting": "Deleting...",
     "reviewCount": "{{count}} reviews"

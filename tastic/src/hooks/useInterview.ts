@@ -127,14 +127,17 @@ export function useInterview(content: Content) {
       return null;
     }
 
-    // Auto-save draft
-    await saveDraft({
-      content,
-      conversation: updatedConv,
-      questionCount: newCount,
-      interviewId: interviewIdRef.current,
-      savedAt: new Date().toISOString(),
-    });
+    // Auto-save draft (계정 스코프 — 계정 전환 시 노출/오업로드 방지)
+    if (user) {
+      await saveDraft({
+        userId: user.id,
+        content,
+        conversation: updatedConv,
+        questionCount: newCount,
+        interviewId: interviewIdRef.current,
+        savedAt: new Date().toISOString(),
+      });
+    }
 
     // 멤버십: 5문답부터는 자동 진행하지 않고 미리보기/계속하기 선택을 기다린다
     if (isMembership && newCount >= FREE_MAX_QUESTIONS) {
@@ -155,14 +158,16 @@ export function useInterview(content: Content) {
   // 이탈("저장하고 나가기") 시 현재 상태를 드래프트로 저장.
   // submitAnswer 의 자동 저장과 달리 답변 전(질문만 있는) 상태도 저장한다.
   const saveDraftNow = useCallback(async () => {
+    if (!user) return;
     await saveDraft({
+      userId: user.id,
       content,
       conversation,
       questionCount,
       interviewId: interviewIdRef.current,
       savedAt: new Date().toISOString(),
     });
-  }, [content, conversation, questionCount]);
+  }, [user, content, conversation, questionCount]);
 
   // 인터뷰 종료 처리 — 평론 생성은 ReviewCompleteScreen에서 수행
   const completeInterview = useCallback(async () => {

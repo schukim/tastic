@@ -1,6 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { callJsonLLM } from "../_shared/llm.ts";
+import { enforceRateLimit } from "../_shared/usage.ts";
+
+// 유저별 작품 확정 일일 상한(비용 남용 방어). 요청마다 LLM(첫 질문 생성)을 부를 수 있어
+// verify-content 와 동일한 abuse ceiling 을 둔다. 정상 사용자는 하루 수 건.
+const WORK_SAVE_RATE_LIMIT_PER_DAY = 40;
 
 // 작품 확정(ContentConfirmScreen에서 후보 선택) 시 호출.
 // verify-content(웹서치 또는 캐시)로 식별된 작품을 works에 is_verified=true로 저장/승격해
@@ -123,17 +128,10 @@ Deno.serve(async (req) => {
 
     // userId 는 body 를 신뢰하지 않고 Authorization 토큰에서 꺼낸다
     // — 타 유저 명의로 작품 행을 만드는 것을 차단.
-    const jwt = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
-    const { data: userData, error: userError } = jwt
-      ? await sb.auth.getUser(jwt)
-      : { data: { user: null }, error: null };
-    if (userError || !userData?.user) {
-      return new Response(
-        JSON.stringify({ error: "unauthorized", message: "로그인이 필요합니다." }),
-        { status: 401, headers: { ...CORS, "Content-Type": "application/json" } }
-      );
-    }
-    const userId = userData.user.id;
+    // 아울러 유저별 일일 호출 상한을 강제 — LLM 호출·verified 행 무한 생성 남용 방어.
+    const gate = await enforceRateLimit(req, "work_save", WORK_SAVE_RATE_LIMIT_PER_DAY, CORS);
+    if (!gate.ok) return gate.response;
+    const userId = gate.userId;
 
     // 1. 기존 작품 탐색
     // 임베딩 미전달 → 제목 trigram 유사도만으로 0~1 스케일이 되도록 가중치 조정

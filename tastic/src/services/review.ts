@@ -54,7 +54,8 @@ export async function syncUnsavedReviews(userId: string): Promise<void> {
   if (isSyncingUnsaved) return;
   isSyncingUnsaved = true;
   try {
-    const pending = await getUnsavedReviews();
+    // 본인(userId) 항목만 — 계정 전환 시 타 계정 평론이 업로드되는 것 방지
+    const pending = await getUnsavedReviews(userId);
     for (const item of pending) {
       try {
         const review = await createReview({

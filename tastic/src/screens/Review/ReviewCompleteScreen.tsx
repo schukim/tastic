@@ -99,6 +99,7 @@ export function ReviewCompleteScreen() {
     } catch {
       // 서버 저장 실패 — 로컬 보관 후 연결되면 syncUnsavedReviews 가 자동 업로드
       await saveUnsavedReview({
+        userId: user.id,
         contentId: content.id,
         title: reviewTitle || null,
         body: reviewText,
@@ -120,7 +121,7 @@ export function ReviewCompleteScreen() {
       <SafeAreaView className="flex-1 bg-surface justify-center items-center">
         <ActivityIndicator size="large" color="#6366F1" />
         <Text className="text-text-secondary text-base mt-4">
-          {t("analysis.loading3")}
+          {t("review.complete.generating")}
         </Text>
       </SafeAreaView>
     );

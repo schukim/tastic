@@ -64,21 +64,37 @@ export function hasMembership(info: CustomerInfo): boolean {
   return info.entitlements.active[MEMBERSHIP_ENTITLEMENT] !== undefined;
 }
 
-// RevenueCat 페이월을 띄운다. 구매/복원 성공 시 true.
-// 결제가 비활성(키 미설정)이거나 취소/에러면 false.
-export async function presentMembershipPaywall(): Promise<boolean> {
+// 페이월 결과 구분 — 호출부가 "유저 취소(조용히)"와 "실패(알림 필요)"를 다르게 처리한다.
+// purchased: 구매/복원 성공 또는 이미 멤버십(NOT_PRESENTED) → 프로필 재조회
+// cancelled: 유저가 페이월을 닫음 → 아무것도 안 함
+// unavailable: 결제 비활성(키 미설정)·페이월 에러 → 실패 알림 (버튼 무반응 방지)
+export type PaywallOutcome = "purchased" | "cancelled" | "unavailable";
+
+// RevenueCat 페이월을 띄운다.
+export async function presentMembershipPaywall(): Promise<PaywallOutcome> {
   if (!configured) {
     console.warn("[purchases] 미설정 상태 — 페이월 표시 불가");
-    return false;
+    return "unavailable";
   }
   try {
     const result = await RevenueCatUI.presentPaywallIfNeeded({
       requiredEntitlementIdentifier: MEMBERSHIP_ENTITLEMENT,
     });
-    return result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED;
+    switch (result) {
+      case PAYWALL_RESULT.PURCHASED:
+      case PAYWALL_RESULT.RESTORED:
+      // 이미 엔타이틀먼트 보유 → 페이월 미표시. users.plan 이 뒤처졌을 수 있으니
+      // 구매 성공과 동일하게 프로필 재조회를 태운다.
+      case PAYWALL_RESULT.NOT_PRESENTED:
+        return "purchased";
+      case PAYWALL_RESULT.CANCELLED:
+        return "cancelled";
+      default: // ERROR 등
+        return "unavailable";
+    }
   } catch (e) {
     console.error("[purchases] 페이월 표시 실패:", e);
-    return false;
+    return "unavailable";
   }
 }
 

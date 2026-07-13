@@ -134,8 +134,9 @@ export function ReviewHomeScreen() {
   // 인터뷰에서 '저장하고 나가기'로 돌아온 경우에도 보이도록 포커스마다 드래프트 확인
   useFocusEffect(
     useCallback(() => {
-      loadDraft().then(setDraft);
-    }, [])
+      if (user) loadDraft(user.id).then(setDraft);
+      else setDraft(null);
+    }, [user])
   );
 
   const handleDraftContinue = () => {
@@ -277,6 +278,7 @@ export function ReviewHomeScreen() {
               placeholderTextColor={isDark ? '#7A7268' : '#9C9589'}
               value={title}
               onChangeText={setTitle}
+              maxLength={200}
             />
 
             {category === "music" && (
@@ -307,6 +309,7 @@ export function ReviewHomeScreen() {
                 placeholderTextColor={isDark ? '#7A7268' : '#9C9589'}
                 value={creator}
                 onChangeText={setCreator}
+                maxLength={100}
               />
             )}
 

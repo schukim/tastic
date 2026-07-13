@@ -19,6 +19,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { supabase } from "../../services/supabase";
 import { presentMembershipPaywall, manageSubscription } from "../../services/purchases";
 import { getReviewCount } from "../../services/taste";
+import { clearLocalDataForUser } from "../../utils/storage";
 import { CategoryChip } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import type { ContentCategory, Language, User } from "../../types/database";
@@ -61,18 +62,22 @@ export function MyScreen() {
 
   // 멤버십 업그레이드: RevenueCat 페이월 → 구매 성공 시 웹훅이 users.plan을 갱신한다.
   // 웹훅 반영에 약간의 지연이 있으므로 몇 차례 재조회한다.
+  // 결제 비활성/페이월 에러 시엔 알림을 띄워 버튼이 무반응으로 끝나지 않게 한다.
   const handleUpgrade = async () => {
     if (isUpgrading) return;
     setIsUpgrading(true);
     try {
-      const purchased = await presentMembershipPaywall();
-      if (purchased) {
+      const outcome = await presentMembershipPaywall();
+      if (outcome === "purchased") {
         for (let i = 0; i < 5; i++) {
           await refetchProfile();
           if (useAuthStore.getState().user?.plan !== "free") break;
           await new Promise((r) => setTimeout(r, 1500));
         }
+      } else if (outcome === "unavailable") {
+        Alert.alert(t("my.upgradeMembership"), t("my.upgradeUnavailable"));
       }
+      // cancelled: 유저가 직접 닫은 것 — 조용히 종료
     } finally {
       setIsUpgrading(false);
     }
@@ -109,16 +114,22 @@ export function MyScreen() {
     }, [user?.id])
   );
 
-  const updateProfile = async (updates: Record<string, unknown>) => {
-    if (!user) return;
+  // 성공 시에만 로컬 반영. 실패하면 알림을 띄워 "저장된 줄 알았는데 재시작하면 원복"되는
+  // 무성 실패를 없앤다. 반환값으로 호출부가 후속 처리(예: 언어 즉시 변경)를 판단한다.
+  const updateProfile = async (updates: Record<string, unknown>): Promise<boolean> => {
+    if (!user) return false;
     const { error } = await supabase
       .from("users")
       .update(updates)
       .eq("id", user.id);
 
-    if (!error) {
-      setUser({ ...user, ...updates } as typeof user);
+    if (error) {
+      console.error("updateProfile failed:", error);
+      Alert.alert(t("my.profile"), t("my.saveFailed"));
+      return false;
     }
+    setUser({ ...user, ...updates } as typeof user);
+    return true;
   };
 
   const handleNicknameSave = () => {
@@ -134,13 +145,19 @@ export function MyScreen() {
     const updated = current.includes(cat)
       ? current.filter((c) => c !== cat)
       : [...current, cat];
+    // 전부 해제하면 재시작 시 온보딩으로 라우팅되는 함정 방지 — 최소 1개 유지
+    if (updated.length === 0) {
+      Alert.alert(t("my.categories"), t("my.categoryMinRequired"));
+      return;
+    }
     updateProfile({ preferred_categories: updated });
   };
 
-  const handleLanguageChange = (lang: Language) => {
-    updateProfile({ language: lang });
-    i18n.changeLanguage(lang);
+  const handleLanguageChange = async (lang: Language) => {
     setShowLanguageSheet(false);
+    // DB 저장 성공 시에만 UI 언어를 바꾼다 — 저장 실패 시 다음 실행에서 원복돼 어긋나는 것 방지
+    const ok = await updateProfile({ language: lang });
+    if (ok) i18n.changeLanguage(lang);
   };
 
   const handleLogout = async () => {
@@ -159,8 +176,11 @@ export function MyScreen() {
     setShowDeleteDialog(false);
     setIsDeleting(true);
     try {
+      const deletedUserId = user?.id;
       const { data, error } = await supabase.functions.invoke("delete-account");
       if (error || data?.error) throw error ?? new Error(data.message);
+      // 삭제된 계정의 로컬 데이터(드래프트·미저장 평론) 정리 — 실패해도 탈퇴는 완료
+      if (deletedUserId) await clearLocalDataForUser(deletedUserId).catch(() => {});
       try {
         await supabase.auth.signOut();
       } catch {
@@ -201,6 +221,7 @@ export function MyScreen() {
                 value={nicknameInput}
                 onChangeText={setNicknameInput}
                 autoFocus
+                maxLength={20}
                 onBlur={handleNicknameSave}
                 onSubmitEditing={handleNicknameSave}
               />
@@ -402,15 +423,33 @@ export function MyScreen() {
         onClose={() => setShowLogoutDialog(false)}
       />
 
-      {/* Delete Account Dialog */}
+      {/* Delete Account Dialog — 멤버십이면 "탈퇴해도 스토어 구독은 자동 해지되지 않음"을 안내 */}
       <ConfirmDialog
         visible={showDeleteDialog}
         title={t("my.deleteAccount")}
-        message={t("my.deleteConfirm")}
-        actions={[
-          { label: t("common.delete"), onPress: handleDeleteAccount, variant: "destructive" },
-          { label: t("common.cancel"), onPress: () => setShowDeleteDialog(false) },
-        ]}
+        message={
+          user.plan === "membership"
+            ? `${t("my.deleteConfirm")}\n\n${t("my.deleteConfirmMembership")}`
+            : t("my.deleteConfirm")
+        }
+        actions={
+          user.plan === "membership"
+            ? [
+                {
+                  label: t("my.manageSubscription"),
+                  onPress: () => {
+                    setShowDeleteDialog(false);
+                    handleManageSubscription();
+                  },
+                },
+                { label: t("common.delete"), onPress: handleDeleteAccount, variant: "destructive" },
+                { label: t("common.cancel"), onPress: () => setShowDeleteDialog(false) },
+              ]
+            : [
+                { label: t("common.delete"), onPress: handleDeleteAccount, variant: "destructive" },
+                { label: t("common.cancel"), onPress: () => setShowDeleteDialog(false) },
+              ]
+        }
         onClose={() => setShowDeleteDialog(false)}
       />
 

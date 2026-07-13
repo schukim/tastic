@@ -123,6 +123,7 @@
       "queuedDesc": "연결되면 자동으로 업로드돼요",
       "saveFailed": "저장에 실패했습니다. 다시 시도해주세요",
       "generateFailed": "평론을 생성하지 못했어요. 다시 시도할까요?",
+      "generating": "평론을 쓰고 있어요...",
       "goHome": "홈으로"
     },
     "draft": {
@@ -171,9 +172,9 @@
   },
   "membership": {
     "limitTitle": "이용 한도 안내",
-    "limitReview": "무료 플랜은 평론을 하루에 1편 작성할 수 있어요.\n멤버십(월 4,400원)으로 업그레이드하면 무제한으로 작성할 수 있어요.",
-    "limitAnalysis": "무료 플랜은 취향 분석을 주 1회 이용할 수 있어요.\n멤버십(월 4,400원)으로 업그레이드하면 무제한으로 분석할 수 있어요.",
-    "limitRecommend": "무료 플랜은 추천을 하루에 1회 받을 수 있어요.\n멤버십(월 4,400원)으로 업그레이드하면 무제한으로 추천받을 수 있어요."
+    "limitReview": "무료 플랜은 평론을 하루에 1편 작성할 수 있어요.\n멤버십(월 3,300원)으로 업그레이드하면 무제한으로 작성할 수 있어요.",
+    "limitAnalysis": "무료 플랜은 취향 분석을 주 1회 이용할 수 있어요.\n멤버십(월 3,300원)으로 업그레이드하면 무제한으로 분석할 수 있어요.",
+    "limitRecommend": "무료 플랜은 추천을 하루에 1회 받을 수 있어요.\n멤버십(월 3,300원)으로 업그레이드하면 무제한으로 추천받을 수 있어요."
   },
   "my": {
     "profile": "프로필",
@@ -184,9 +185,9 @@
     "privacyPolicy": "개인정보처리방침",
     "subscription": "구독",
     "freePlan": "무료 플랜",
-    "membershipPlan": "멤버십 (월 4,400원)",
+    "membershipPlan": "멤버십 (월 3,300원)",
     "membershipTitle": "Tastic 멤버십",
-    "membershipPrice": "월 4,400원",
+    "membershipPrice": "월 3,300원",
     "membershipBenefit1": "평론 무제한 작성",
     "membershipBenefit2": "맞춤 추천 무제한",
     "membershipBenefit3": "취향 분석 무제한",
@@ -196,10 +197,14 @@
     "manageSubscriptionError": "구독 관리 화면을 열 수 없어요. 스토어 앱의 구독 메뉴에서 관리해 주세요.",
     "upgradeMembership": "멤버십 시작하기",
     "upgrading": "처리 중...",
+    "upgradeUnavailable": "지금은 결제를 시작할 수 없어요. 잠시 후 다시 시도해 주세요.",
+    "categoryMinRequired": "관심 카테고리는 최소 1개 이상 선택해야 해요.",
+    "saveFailed": "저장하지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.",
     "logout": "로그아웃",
     "logoutConfirm": "로그아웃 하시겠습니까?",
     "deleteAccount": "계정 삭제",
     "deleteConfirm": "모든 데이터가 삭제됩니다. 정말 삭제하시겠습니까?",
+    "deleteConfirmMembership": "탈퇴해도 멤버십 구독은 자동으로 해지되지 않아요. 결제를 중단하려면 스토어의 구독 관리에서 먼저 해지해 주세요.",
     "deleteFailed": "계정 삭제에 실패했습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.",
     "deleting": "삭제 중...",
     "reviewCount": "평론 {{count}}개"
