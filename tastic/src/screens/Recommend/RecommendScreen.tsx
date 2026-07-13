@@ -202,6 +202,7 @@ export function RecommendScreen() {
                 onChangeText={setPrompt}
                 editable={!isLoading}
                 multiline
+                maxLength={300}
                 textAlignVertical="top"
                 style={{
                   minHeight: 64,

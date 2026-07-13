@@ -179,6 +179,7 @@ export function SignUpScreen() {
                   value={nickname}
                   onChangeText={setNickname}
                   autoCapitalize="none"
+                  maxLength={20}
                 />
               </View>
 

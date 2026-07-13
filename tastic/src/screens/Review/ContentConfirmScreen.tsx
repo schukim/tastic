@@ -70,8 +70,9 @@ export function ContentConfirmScreen() {
       setCandidates(response.candidates);
       setCacheHit(response._debug?.cache_hit === true);
 
-      // 웹서칭 출처 확인용 — 브라우저 콘솔에 실제 인용 도메인/URL을 찍는다(테스트 전용).
-      if (response._debug) {
+      // 웹서칭 출처 확인용 — 실제 인용 도메인/URL을 콘솔에 찍는다(개발 전용).
+      // 프로덕션에선 로그 노이즈·메타데이터 노출을 피하기 위해 출력하지 않는다.
+      if (__DEV__ && response._debug) {
         const d = response._debug;
         console.log(
           `[verify-content] "${title}" — 검색 ${d.search_count}회 / ${d.ms}ms / 출처 도메인:`,

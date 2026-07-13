@@ -27,7 +27,9 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isValid = email.includes("@") && password.length >= 8;
+  // 로그인은 형식만 확인 — 비밀번호 길이는 강제하지 않는다(가입 정책이 바뀌어도
+  // 기존 계정이 버튼 비활성으로 잠기지 않게). 최종 검증은 서버가 한다.
+  const isValid = email.includes("@") && password.length > 0;
 
   const handleLogin = async () => {
     if (!isValid) return;

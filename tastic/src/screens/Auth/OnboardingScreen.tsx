@@ -95,6 +95,7 @@ export function OnboardingScreen() {
               value={nickname}
               onChangeText={(text) => { setNickname(text); setError(null); }}
               autoCapitalize="none"
+              maxLength={20}
             />
           </View>
 
