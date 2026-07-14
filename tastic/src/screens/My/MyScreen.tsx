@@ -17,11 +17,12 @@ import * as WebBrowser from "expo-web-browser";
 import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
 import { supabase } from "../../services/supabase";
-import { presentMembershipPaywall, manageSubscription } from "../../services/purchases";
+import { manageSubscription } from "../../services/purchases";
 import { getReviewCount } from "../../services/taste";
 import { clearLocalDataForUser } from "../../utils/storage";
 import { CategoryChip } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { MembershipPaywall } from "../../components/paywall/MembershipPaywall";
 import type { ContentCategory, Language, User } from "../../types/database";
 import i18n from "../../i18n";
 
@@ -46,7 +47,7 @@ export function MyScreen() {
   const [showDeleteFailedDialog, setShowDeleteFailedDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showLanguageSheet, setShowLanguageSheet] = useState(false);
-  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // DB에서 최신 프로필(plan)을 다시 읽어 스토어에 반영.
   const refetchProfile = useCallback(async () => {
@@ -60,27 +61,15 @@ export function MyScreen() {
     if (!error && data) setUser({ ...current, ...(data as unknown as Partial<User>) });
   }, [setUser]);
 
-  // 멤버십 업그레이드: RevenueCat 페이월 → 구매 성공 시 웹훅이 users.plan을 갱신한다.
-  // 웹훅 반영에 약간의 지연이 있으므로 몇 차례 재조회한다.
-  // 결제 비활성/페이월 에러 시엔 알림을 띄워 버튼이 무반응으로 끝나지 않게 한다.
-  const handleUpgrade = async () => {
-    if (isUpgrading) return;
-    setIsUpgrading(true);
-    try {
-      const outcome = await presentMembershipPaywall();
-      if (outcome === "purchased") {
-        for (let i = 0; i < 5; i++) {
-          await refetchProfile();
-          if (useAuthStore.getState().user?.plan !== "free") break;
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-      } else if (outcome === "unavailable") {
-        Alert.alert(t("my.upgradeMembership"), t("my.upgradeUnavailable"));
-      }
-      // cancelled: 유저가 직접 닫은 것 — 조용히 종료
-    } finally {
-      setIsUpgrading(false);
+  // 멤버십 구매/복원 성공 시(커스텀 페이월 콜백) — 웹훅이 users.plan을 갱신한다.
+  // 웹훅 반영에 약간의 지연이 있으므로 몇 차례 재조회한 뒤 페이월을 닫는다.
+  const handlePaywallPurchased = async () => {
+    for (let i = 0; i < 5; i++) {
+      await refetchProfile();
+      if (useAuthStore.getState().user?.plan !== "free") break;
+      await new Promise((r) => setTimeout(r, 1500));
     }
+    setShowPaywall(false);
   };
 
   // 구독 관리/취소: 스토어(구글 플레이/앱스토어)의 네이티브 관리 화면으로 연결.
@@ -327,11 +316,10 @@ export function MyScreen() {
               </View>
               <Pressable
                 className="bg-primary dark:bg-primary-dm rounded-xl py-3.5 items-center active:opacity-80"
-                onPress={handleUpgrade}
-                disabled={isUpgrading}
+                onPress={() => setShowPaywall(true)}
               >
                 <Text className="text-surface dark:text-surface-dark text-base font-semibold">
-                  {isUpgrading ? t("my.upgrading") : t("my.upgradeMembership")}
+                  {t("my.upgradeMembership")}
                 </Text>
               </Pressable>
             </View>
@@ -462,6 +450,13 @@ export function MyScreen() {
           { label: t("common.confirm"), onPress: () => setShowDeleteFailedDialog(false), variant: "primary" },
         ]}
         onClose={() => setShowDeleteFailedDialog(false)}
+      />
+
+      {/* Membership Paywall (커스텀 전체 화면 모달) */}
+      <MembershipPaywall
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        onPurchased={handlePaywallPurchased}
       />
     </SafeAreaView>
   );

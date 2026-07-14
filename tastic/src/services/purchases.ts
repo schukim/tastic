@@ -1,6 +1,9 @@
 import { Linking, Platform } from "react-native";
-import Purchases, { LOG_LEVEL, type CustomerInfo } from "react-native-purchases";
-import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
+import Purchases, {
+  LOG_LEVEL,
+  type CustomerInfo,
+  type PurchasesPackage,
+} from "react-native-purchases";
 
 // 스토어 구독 관리 웹페이지. 네이티브 관리 시트를 열 수 없을 때의 폴백.
 const SUBSCRIPTIONS_URL =
@@ -64,39 +67,60 @@ export function hasMembership(info: CustomerInfo): boolean {
   return info.entitlements.active[MEMBERSHIP_ENTITLEMENT] !== undefined;
 }
 
-// 페이월 결과 구분 — 호출부가 "유저 취소(조용히)"와 "실패(알림 필요)"를 다르게 처리한다.
-// purchased: 구매/복원 성공 또는 이미 멤버십(NOT_PRESENTED) → 프로필 재조회
-// cancelled: 유저가 페이월을 닫음 → 아무것도 안 함
-// unavailable: 결제 비활성(키 미설정)·페이월 에러 → 실패 알림 (버튼 무반응 방지)
-export type PaywallOutcome = "purchased" | "cancelled" | "unavailable";
+// 결제 SDK가 초기화됐는지(플랫폼 키가 있는지). 커스텀 페이월이 UI를 그릴지 판단.
+export function isPurchasesConfigured(): boolean {
+  return configured;
+}
 
-// RevenueCat 페이월을 띄운다.
-export async function presentMembershipPaywall(): Promise<PaywallOutcome> {
-  if (!configured) {
-    console.warn("[purchases] 미설정 상태 — 페이월 표시 불가");
-    return "unavailable";
-  }
+// 커스텀 페이월용 — 현재 Offering에서 월간(멤버십) 패키지를 가져온다.
+// 우선순위: 표준 monthly 슬롯 → 없으면 available 패키지 중 첫 번째.
+// 키 미설정/오퍼링 없음/네트워크 실패 시 null.
+export async function getMembershipPackage(): Promise<PurchasesPackage | null> {
+  if (!configured) return null;
   try {
-    const result = await RevenueCatUI.presentPaywallIfNeeded({
-      requiredEntitlementIdentifier: MEMBERSHIP_ENTITLEMENT,
-    });
-    switch (result) {
-      case PAYWALL_RESULT.PURCHASED:
-      case PAYWALL_RESULT.RESTORED:
-      // 이미 엔타이틀먼트 보유 → 페이월 미표시. users.plan 이 뒤처졌을 수 있으니
-      // 구매 성공과 동일하게 프로필 재조회를 태운다.
-      case PAYWALL_RESULT.NOT_PRESENTED:
-        return "purchased";
-      case PAYWALL_RESULT.CANCELLED:
-        return "cancelled";
-      default: // ERROR 등
-        return "unavailable";
-    }
+    const offerings = await Purchases.getOfferings();
+    const current = offerings.current;
+    if (!current) return null;
+    return current.monthly ?? current.availablePackages[0] ?? null;
   } catch (e) {
-    console.error("[purchases] 페이월 표시 실패:", e);
+    console.error("[purchases] getOfferings 실패:", e);
+    return null;
+  }
+}
+
+// 커스텀 페이월용 — 패키지 구매. 페이월과 동일한 3분류 결과를 돌려준다.
+// purchased: 구매 성공(멤버십 엔타이틀먼트 활성) / cancelled: 유저 취소 / unavailable: 실패
+export async function purchaseMembership(
+  pkg: PurchasesPackage
+): Promise<PaywallOutcome> {
+  if (!configured) return "unavailable";
+  try {
+    const { customerInfo } = await Purchases.purchasePackage(pkg);
+    return hasMembership(customerInfo) ? "purchased" : "unavailable";
+  } catch (e) {
+    if ((e as { userCancelled?: boolean })?.userCancelled) return "cancelled";
+    console.error("[purchases] 구매 실패:", e);
     return "unavailable";
   }
 }
+
+// 커스텀 페이월용 — 구매 복원. 활성 멤버십이 있으면 true.
+export async function restoreMembership(): Promise<boolean> {
+  if (!configured) return false;
+  try {
+    const info = await Purchases.restorePurchases();
+    return hasMembership(info);
+  } catch (e) {
+    console.error("[purchases] 복원 실패:", e);
+    return false;
+  }
+}
+
+// 결제 결과 구분 — 호출부가 "유저 취소(조용히)"와 "실패(알림 필요)"를 다르게 처리한다.
+// purchased: 구매/복원 성공 → 프로필 재조회
+// cancelled: 유저가 구매를 취소 → 아무것도 안 함
+// unavailable: 결제 비활성(키 미설정)·에러 → 실패 알림 (버튼 무반응 방지)
+export type PaywallOutcome = "purchased" | "cancelled" | "unavailable";
 
 // 네이티브 구독 관리 화면(구글 플레이/앱스토어)을 연다.
 // 구독 취소·플랜 변경은 스토어가 소유하므로 앱은 관리 화면으로 연결만 한다.
