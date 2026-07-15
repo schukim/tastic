@@ -81,6 +81,10 @@ export interface GenerateReviewRequest {
 }
 
 export interface GenerateReviewResponse {
+  // 평론이 사용자의 감상을 어떻게 규정했는지 한 문장 — 서버가 논지 우선 생성
+  // (나열 방지)을 위해 본문보다 먼저 생성한다. 클라이언트 표시용은 아니며,
+  // 추후 취향 분석 재료로 활용 가능. 구버전 응답 호환을 위해 optional.
+  thesis?: string;
   review_text: string;
   suggested_title: string;
 }
