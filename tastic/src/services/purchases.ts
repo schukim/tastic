@@ -57,6 +57,8 @@ export async function identifyPurchasesUser(userId: string): Promise<void> {
 export async function logOutPurchasesUser(): Promise<void> {
   if (!configured) return;
   try {
+    // 이미 익명이면 logOut이 에러를 던진다(비로그인 상태로 앱 시작 시) — 호출 자체를 건너뛴다
+    if (await Purchases.isAnonymous()) return;
     await Purchases.logOut();
   } catch (e) {
     console.error("[purchases] logOut 실패:", e);
@@ -88,19 +90,45 @@ export async function getMembershipPackage(): Promise<PurchasesPackage | null> {
   }
 }
 
-// 커스텀 페이월용 — 패키지 구매. 페이월과 동일한 3분류 결과를 돌려준다.
-// purchased: 구매 성공(멤버십 엔타이틀먼트 활성) / cancelled: 유저 취소 / unavailable: 실패
+// 커스텀 페이월용 — 패키지 구매.
+// 스토어 결제가 끝났는데 응답 CustomerInfo에 엔타이틀먼트가 없는 케이스가 실존한다
+// (다른 앱 계정에 영수증이 귀속된 두 번째 기기 재구매 등 — 앱스토어 심사 리젝 사례).
+// 이때 실패로 단정해 에러를 띄우면 "결제 완료했는데 에러"가 되므로,
+// 최신 CustomerInfo 재확인 → 복원 시도 후에도 안 보이면 "pending"으로 구분해 돌려준다.
 export async function purchaseMembership(
   pkg: PurchasesPackage
 ): Promise<PaywallOutcome> {
   if (!configured) return "unavailable";
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return hasMembership(customerInfo) ? "purchased" : "unavailable";
+    if (hasMembership(customerInfo)) return "purchased";
+    return (await recheckMembership()) ? "purchased" : "pending";
   } catch (e) {
     if ((e as { userCancelled?: boolean })?.userCancelled) return "cancelled";
+    const code = String((e as { code?: string | number })?.code ?? "");
+    // 이 스토어 계정에 이미 활성 구독이 있는 경우(재구매/두 번째 기기) —
+    // 결제 실패가 아니라 복원으로 처리해야 한다.
+    if (
+      code === Purchases.PURCHASES_ERROR_CODE.PRODUCT_ALREADY_PURCHASED_ERROR ||
+      code === Purchases.PURCHASES_ERROR_CODE.RECEIPT_ALREADY_IN_USE_ERROR
+    ) {
+      return (await restoreMembership()) ? "purchased" : "pending";
+    }
     console.error("[purchases] 구매 실패:", e);
     return "unavailable";
+  }
+}
+
+// 구매 응답에 엔타이틀먼트가 없을 때의 재확인 — 서버 반영 지연이면 여기서 잡힌다.
+async function recheckMembership(): Promise<boolean> {
+  try {
+    const info = await Purchases.getCustomerInfo();
+    if (hasMembership(info)) return true;
+    // 영수증 재동기화(복원)까지 시도 — 같은 스토어 계정의 활성 구독을 끌어온다
+    return await restoreMembership();
+  } catch (e) {
+    console.error("[purchases] 멤버십 재확인 실패:", e);
+    return false;
   }
 }
 
@@ -117,10 +145,12 @@ export async function restoreMembership(): Promise<boolean> {
 }
 
 // 결제 결과 구분 — 호출부가 "유저 취소(조용히)"와 "실패(알림 필요)"를 다르게 처리한다.
-// purchased: 구매/복원 성공 → 프로필 재조회
+// purchased: 구매/복원 성공(엔타이틀먼트 확인) → 프로필 재조회
 // cancelled: 유저가 구매를 취소 → 아무것도 안 함
+// pending: 스토어 결제는 완료됐으나 이 계정에서 멤버십 확인 불가 → 실패 아님,
+//          서버(웹훅) 반영을 확인하고 그래도 없으면 안내 (에러 알림 금지)
 // unavailable: 결제 비활성(키 미설정)·에러 → 실패 알림 (버튼 무반응 방지)
-export type PaywallOutcome = "purchased" | "cancelled" | "unavailable";
+export type PaywallOutcome = "purchased" | "cancelled" | "pending" | "unavailable";
 
 // 네이티브 구독 관리 화면(구글 플레이/앱스토어)을 연다.
 // 구독 취소·플랜 변경은 스토어가 소유하므로 앱은 관리 화면으로 연결만 한다.

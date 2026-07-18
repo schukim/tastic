@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import * as WebBrowser from "expo-web-browser";
 import type { PurchasesPackage } from "react-native-purchases";
@@ -27,8 +27,9 @@ const TERMS_EULA_URL = "https://www.apple.com/legal/internet-services/itunes/dev
 interface MembershipPaywallProps {
   visible: boolean;
   onClose: () => void;
-  // 구매/복원 성공 시 호출 — 상위에서 프로필(plan) 재조회 후 닫는다.
-  onPurchased: () => void;
+  // 구매/복원 후 호출 — 상위에서 프로필(plan)을 폴링 재조회하고, 반영됐는지 돌려준다.
+  // 닫기는 페이월이 결과에 따라 직접 결정한다 (pending 미반영 시 열어둠).
+  onPurchased: () => Promise<boolean>;
 }
 
 interface BenefitRow {
@@ -67,7 +68,7 @@ export function MembershipPaywall({ visible, onClose, onPurchased }: MembershipP
   const priceString = pkg?.product?.priceString ?? t("paywall.priceFallback");
 
   const handlePurchase = useCallback(async () => {
-    if (purchasing) return;
+    if (purchasing || restoring) return;
     if (!pkg) {
       Alert.alert(t("paywall.errorTitle"), t("paywall.unavailable"));
       return;
@@ -76,7 +77,18 @@ export function MembershipPaywall({ visible, onClose, onPurchased }: MembershipP
     try {
       const outcome = await purchaseMembership(pkg);
       if (outcome === "purchased") {
-        onPurchased();
+        // 플랜 반영 폴링이 끝날 때까지 로딩 유지 — 이 사이 재탭(중복 결제) 방지
+        await onPurchased();
+        onClose();
+      } else if (outcome === "pending") {
+        // 스토어 결제는 완료됨 — 웹훅이 plan을 올렸는지 확인하고, 반영됐으면 성공 종료.
+        // 안 됐어도 "결제 실패" 에러가 아니라 반영 지연 안내를 띄운다 (심사 리젝 2.1(b) 재발 방지).
+        const applied = await onPurchased();
+        if (applied) {
+          onClose();
+        } else {
+          Alert.alert(t("paywall.errorTitle"), t("paywall.pendingMessage"));
+        }
       } else if (outcome === "unavailable") {
         Alert.alert(t("paywall.errorTitle"), t("paywall.purchaseFailed"));
       }
@@ -84,22 +96,23 @@ export function MembershipPaywall({ visible, onClose, onPurchased }: MembershipP
     } finally {
       setPurchasing(false);
     }
-  }, [purchasing, pkg, onPurchased, t]);
+  }, [purchasing, restoring, pkg, onPurchased, onClose, t]);
 
   const handleRestore = useCallback(async () => {
-    if (restoring) return;
+    if (restoring || purchasing) return;
     setRestoring(true);
     try {
       const ok = await restoreMembership();
       if (ok) {
-        onPurchased();
+        await onPurchased();
+        onClose();
       } else {
         Alert.alert(t("paywall.errorTitle"), t("paywall.restoreNone"));
       }
     } finally {
       setRestoring(false);
     }
-  }, [restoring, onPurchased, t]);
+  }, [restoring, purchasing, onPurchased, onClose, t]);
 
   const benefits: BenefitRow[] = [
     { emoji: "✍️", name: t("paywall.benefitReviewName"), freeTag: t("paywall.tagFreeDaily") },
@@ -115,10 +128,14 @@ export function MembershipPaywall({ visible, onClose, onPurchased }: MembershipP
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView
-        className={`flex-1 ${isDark ? "dark" : ""}`}
-        style={{ backgroundColor: isDark ? "#1A1814" : "#F8F6F1" }}
-      >
+      {/* 네이티브 Modal은 별도 뷰 계층이라 바깥 SafeAreaProvider의 inset이 전달되지 않는다
+          (inset 0 → 상단 버튼이 상태바에 가려짐, App Store 심사 리젝 Guideline 4).
+          Modal 자체 창 기준으로 inset을 다시 측정하도록 Provider를 내부에 둔다. */}
+      <SafeAreaProvider>
+        <SafeAreaView
+          className={`flex-1 ${isDark ? "dark" : ""}`}
+          style={{ backgroundColor: isDark ? "#1A1814" : "#F8F6F1" }}
+        >
         {/* ── Top bar ── */}
         <View
           className="flex-row items-center justify-between px-6"
@@ -128,13 +145,15 @@ export function MembershipPaywall({ visible, onClose, onPurchased }: MembershipP
             accessibilityLabel={t("paywall.close")}
             accessibilityRole="button"
             onPress={onClose}
+            hitSlop={10}
             className="w-[34px] h-[34px] rounded-full items-center justify-center active:bg-surface-tertiary dark:active:bg-surface-dark-tertiary"
           >
             <Text className="text-[20px] text-text-secondary dark:text-text-dark-secondary">✕</Text>
           </Pressable>
           <Pressable
             onPress={handleRestore}
-            disabled={restoring}
+            disabled={restoring || purchasing}
+            hitSlop={10}
             className="active:opacity-60"
             accessibilityRole="button"
           >
@@ -219,7 +238,7 @@ export function MembershipPaywall({ visible, onClose, onPurchased }: MembershipP
           </Text>
           <Pressable
             onPress={handlePurchase}
-            disabled={purchasing}
+            disabled={purchasing || restoring}
             className="rounded-2xl bg-primary dark:bg-primary-dm items-center justify-center active:opacity-90"
             style={{ height: 56 }}
             accessibilityRole="button"
@@ -251,7 +270,8 @@ export function MembershipPaywall({ visible, onClose, onPurchased }: MembershipP
             </Pressable>
           </View>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }

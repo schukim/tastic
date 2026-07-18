@@ -61,15 +61,16 @@ export function MyScreen() {
     if (!error && data) setUser({ ...current, ...(data as unknown as Partial<User>) });
   }, [setUser]);
 
-  // 멤버십 구매/복원 성공 시(커스텀 페이월 콜백) — 웹훅이 users.plan을 갱신한다.
-  // 웹훅 반영에 약간의 지연이 있으므로 몇 차례 재조회한 뒤 페이월을 닫는다.
-  const handlePaywallPurchased = async () => {
+  // 멤버십 구매/복원 후(커스텀 페이월 콜백) — 웹훅이 users.plan을 갱신한다.
+  // 웹훅 반영에 약간의 지연이 있으므로 몇 차례 재조회하고, 반영 여부를 돌려준다.
+  // 닫기는 페이월이 결과에 따라 결정한다 (미반영 pending이면 열어둠).
+  const handlePaywallPurchased = async (): Promise<boolean> => {
     for (let i = 0; i < 5; i++) {
       await refetchProfile();
-      if (useAuthStore.getState().user?.plan !== "free") break;
+      if (useAuthStore.getState().user?.plan !== "free") return true;
       await new Promise((r) => setTimeout(r, 1500));
     }
-    setShowPaywall(false);
+    return false;
   };
 
   // 구독 관리/취소: 스토어(구글 플레이/앱스토어)의 네이티브 관리 화면으로 연결.

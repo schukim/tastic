@@ -199,6 +199,7 @@
     "privacy": "Privacy Policy",
     "errorTitle": "Purchase",
     "purchaseFailed": "Couldn't complete the purchase. Please try again later.",
+ "pendingMessage": "Your payment went through. Activating your membership is taking a moment — please reopen the app shortly or tap 'Restore Purchases'.",
     "restoreNone": "No subscription to restore.",
     "unavailable": "Purchases aren't available right now. Please try again later."
   },

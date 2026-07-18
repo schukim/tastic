@@ -32,6 +32,14 @@ interface RCEvent {
   app_user_id?: string;
   original_app_user_id?: string;
   entitlement_ids?: string[] | null;
+  // TRANSFER 이벤트 전용 — 영수증이 이전된 출발/도착 app_user_id 목록
+  transferred_from?: string[] | null;
+  transferred_to?: string[] | null;
+}
+
+// $RCAnonymousID:... 는 Supabase user.id와 매칭되지 않으므로 걸러낸다
+function realUserIds(ids: string[] | null | undefined): string[] {
+  return (ids ?? []).filter((id) => id && !id.startsWith("$RCAnonymousID:"));
 }
 
 Deno.serve(async (req) => {
@@ -53,6 +61,47 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, skipped: "no_event" }), {
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    // TRANSFER — 영수증(구독)이 다른 앱 계정으로 이전됨.
+    // 두 번째 기기에서 같은 스토어 계정으로 재구매/복원할 때 발생한다.
+    // 이걸 무시하면 이전받은 계정의 plan이 영영 안 올라간다 (앱스토어 심사 리젝 사례).
+    if (type === "TRANSFER") {
+      const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      const toIds = realUserIds(event.transferred_to);
+      const fromIds = realUserIds(event.transferred_from);
+      if (toIds.length > 0) {
+        const { error } = await admin
+          .from("users")
+          .update({ plan: "membership" })
+          .in("id", toIds)
+          .neq("plan", "developer");
+        if (error) {
+          console.error("revenuecat-webhook transfer grant error:", error);
+          return new Response(JSON.stringify({ error: "update_failed" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
+      if (fromIds.length > 0) {
+        const { error } = await admin
+          .from("users")
+          .update({ plan: "free" })
+          .in("id", fromIds)
+          .neq("plan", "developer");
+        if (error) {
+          console.error("revenuecat-webhook transfer revoke error:", error);
+          return new Response(JSON.stringify({ error: "update_failed" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
+      return new Response(
+        JSON.stringify({ ok: true, type, to: toIds.length, from: fromIds.length }),
+        { headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const grant = GRANT_EVENTS.has(type);
