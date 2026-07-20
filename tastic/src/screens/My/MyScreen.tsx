@@ -18,6 +18,7 @@ import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
 import { supabase } from "../../services/supabase";
 import { manageSubscription } from "../../services/purchases";
+import { reconcileSubscription } from "../../services/subscription";
 import { getReviewCount } from "../../services/taste";
 import { clearLocalDataForUser } from "../../utils/storage";
 import { CategoryChip } from "../../components/common/CategoryChip";
@@ -86,18 +87,22 @@ export function MyScreen() {
     React.useCallback(() => {
       if (user) {
         getReviewCount(user.id).then(setReviewCount);
-        // 구독(plan) 등 프로필이 DB에서 변경됐을 수 있으니 진입 시 새로 읽어 반영
-        supabase
-          .from("users")
-          .select("*")
-          .eq("id", user.id)
-          .single()
-          .then(({ data, error }) => {
-            const current = useAuthStore.getState().user;
-            if (!error && data && current && data.plan !== current.plan) {
-              setUser({ ...current, ...(data as unknown as Partial<User>) });
-            }
-          });
+        // 진입 시: 스토어 실제 구독 상태로 plan 정합화(만료 반영) 후 DB 최신 프로필을 읽어 반영.
+        // reconcile 이 다운그레이드하면 store/DB가 free 로 정정되고(멤버십 만료 반영 →
+        // 페이월 재노출), 이어지는 재조회는 웹훅으로 바뀐 다른 변경까지 반영한다.
+        reconcileSubscription().finally(() => {
+          supabase
+            .from("users")
+            .select("*")
+            .eq("id", user.id)
+            .single()
+            .then(({ data, error }) => {
+              const current = useAuthStore.getState().user;
+              if (!error && data && current && data.plan !== current.plan) {
+                setUser({ ...current, ...(data as unknown as Partial<User>) });
+              }
+            });
+        });
       }
       // user 전체를 deps에 넣으면 setUser로 인한 무한 refetch가 생길 수 있어 id만 추적
       // eslint-disable-next-line react-hooks/exhaustive-deps

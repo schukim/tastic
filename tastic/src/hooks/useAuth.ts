@@ -4,6 +4,7 @@ import { useAuthStore } from "../stores/authStore";
 import { loadProfile } from "../services/profile";
 import { syncUnsavedReviews } from "../services/review";
 import { identifyPurchasesUser, logOutPurchasesUser } from "../services/purchases";
+import { reconcileSubscription } from "../services/subscription";
 import * as Sentry from "@sentry/react-native";
 
 export function useAuth() {
@@ -20,8 +21,9 @@ export function useAuth() {
         if (session?.user) {
           await loadProfile(session.user.id);
           setSession(session);
-          // RevenueCat appUserID를 Supabase user.id로 맞춘다 (웹훅 매핑용)
-          void identifyPurchasesUser(session.user.id);
+          // RevenueCat appUserID를 맞춘 뒤(웹훅 매핑), 스토어 실제 구독 상태로 plan을 정합화.
+          // iOS 만료 웹훅이 늦거나 유실돼도 앱이 스스로 만료를 반영한다(다운그레이드 전용).
+          void identifyPurchasesUser(session.user.id).then(() => reconcileSubscription());
           // 저장 실패로 로컬에 남은 평론이 있으면 재업로드 (실패해도 다음 기회에 재시도)
           syncUnsavedReviews(session.user.id).catch(() => {});
           // 크래시 추적용 user id (PII 최소화 — id만)
@@ -49,7 +51,9 @@ export function useAuth() {
           if (session?.user) {
             await loadProfile(session.user.id);
             setSession(session);
-            void identifyPurchasesUser(session.user.id);
+            // RevenueCat appUserID를 맞춘 뒤(웹훅 매핑), 스토어 실제 구독 상태로 plan을 정합화.
+            // iOS 만료 웹훅이 늦거나 유실돼도 앱이 스스로 만료를 반영한다(다운그레이드 전용).
+            void identifyPurchasesUser(session.user.id).then(() => reconcileSubscription());
             Sentry.setUser({ id: session.user.id });
           } else {
             setUser(null);

@@ -132,6 +132,24 @@ async function recheckMembership(): Promise<boolean> {
   }
 }
 
+// 스토어(RevenueCat)의 실제 멤버십 구독 상태를 조회한다.
+// RevenueCat이 스토어 영수증을 검증해 만료까지 반영한 authoritative 값이다.
+//   true  = 활성 구독 있음
+//   false = 활성 구독 없음(만료/미구매)이 "확정"됨
+//   null  = 판단 불가(SDK 미설정·네트워크 에러 등) → 호출부는 아무 판단도 하지 말 것
+// 캐시가 있으면 오프라인에서도 마지막 상태를 돌려주므로 일시적 네트워크 실패로
+// false 를 잘못 반환하지 않는다(에러 시에만 null).
+export async function fetchEntitlementActive(): Promise<boolean | null> {
+  if (!configured) return null;
+  try {
+    const info = await Purchases.getCustomerInfo();
+    return hasMembership(info);
+  } catch (e) {
+    console.error("[purchases] getCustomerInfo 실패:", e);
+    return null;
+  }
+}
+
 // 커스텀 페이월용 — 구매 복원. 활성 멤버십이 있으면 true.
 export async function restoreMembership(): Promise<boolean> {
   if (!configured) return false;
