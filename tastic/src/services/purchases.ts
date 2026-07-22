@@ -12,13 +12,15 @@ const SUBSCRIPTIONS_URL =
     : "https://play.google.com/store/account/subscriptions";
 
 // RevenueCat 연동.
-// - 엔타이틀먼트 식별자 "membership"이 active면 멤버십으로 간주.
+// - 엔타이틀먼트 식별자 "tastic Pro"가 active면 멤버십으로 간주.
 // - 플랜의 source of truth는 RevenueCat 웹훅 → users.plan (revenuecat-webhook Edge Function).
 //   클라이언트는 구매 직후 프로필을 재조회해 빠르게 반영만 한다.
 // - appUserID는 Supabase user.id로 맞춰 웹훅의 app_user_id와 일치시킨다.
 
-// 멤버십을 부여하는 RevenueCat 엔타이틀먼트 식별자. 대시보드 설정과 일치해야 한다.
-export const MEMBERSHIP_ENTITLEMENT = "membership";
+// 멤버십을 부여하는 RevenueCat 엔타이틀먼트 식별자. 대시보드 설정과 정확히 일치해야 한다.
+// ⚠️ RevenueCat 엔타이틀먼트 identifier는 생성 후 변경 불가 — 대시보드 값을 그대로 따른다.
+//    (display name이 아니라 identifier. 현재 대시보드 identifier = "tastic Pro", 공백·대문자 포함.)
+export const MEMBERSHIP_ENTITLEMENT = "tastic Pro";
 
 const ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? "";
 const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? "";
