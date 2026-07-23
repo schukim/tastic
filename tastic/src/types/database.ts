@@ -115,6 +115,7 @@ export interface RecommendationItem {
   verified?: boolean;
   source_url?: string | null;
   external_ids?: Record<string, string> | null;
+  verification_source?: "cache" | "web";
 }
 
 // Supabase 자동 생성 타입 (src/types/supabase.ts, `npm run db:types`)

@@ -179,6 +179,8 @@ export async function searchStep(prompt: string, allowedDomains: string[]) {
     body: JSON.stringify({
       model: OPENAI_MODEL,
       tools: [webSearch],
+      // 검색 강제 — 모델이 web_search를 건너뛰고 훈련지식으로 답하는 것을 차단(환각 방지의 핵심).
+      tool_choice: "required",
       input: prompt,
       temperature: 0,
       max_output_tokens: 2048,

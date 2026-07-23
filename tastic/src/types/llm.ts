@@ -119,6 +119,7 @@ export interface RecommendContentResponse {
     verified?: boolean;
     source_url?: string | null;
     external_ids?: Record<string, string> | null;
+    verification_source?: "cache" | "web";
   }[];
 }
 

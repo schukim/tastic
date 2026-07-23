@@ -39,15 +39,14 @@ interface VerifiedCandidate extends Candidate {
   verified: boolean;
   source_url: string | null;
   external_ids: Record<string, string> | null;
+  // 실존 근거의 출처: cache(works 카탈로그 대조) | web(실제 검색 인용). 모니터링용.
+  verification_source: "cache" | "web";
 }
 
 // 제목 대조용 정규화 — 공백·구두점 제거, 소문자. 감상 이력 중복 판정에 사용.
 function normalizeTitle(s: string): string {
   return (s ?? "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 }
-
-// 화이트리스트 도메인(전 카테고리 합집합) — 후보 sources의 실존 출처 검증에 사용.
-const ALL_DOMAINS = new Set(allowedDomainsFor(null));
 
 function hostnameOf(url: string): string | null {
   try {
@@ -57,12 +56,15 @@ function hostnameOf(url: string): string | null {
   }
 }
 
-// sources 중 화이트리스트 도메인에 속하는 URL만 남긴다(모델이 지어낸 URL 차단).
-function validSources(sources: string[]): string[] {
+// 후보 sources 중, "이번 검색이 실제로 인용한 도메인"에 속하는 URL만 남긴다.
+// 화이트리스트 도메인만 검사하면 format 모델이 그럴싸한 URL을 지어내도 통과하므로,
+// searchStep이 실제로 방문·인용한 도메인(trace.cited_domains)과 대조한다.
+function groundedSources(sources: string[], citedDomains: Set<string>): string[] {
+  if (citedDomains.size === 0) return [];
   return (sources ?? []).filter((u) => {
     const h = hostnameOf(u);
     if (!h) return false;
-    return [...ALL_DOMAINS].some((d) => h === d || h.endsWith(`.${d}`));
+    return [...citedDomains].some((d) => h === d || h.endsWith(`.${d}`));
   });
 }
 
@@ -80,18 +82,20 @@ function buildCandidateSchema(): Record<string, unknown> {
   return strictObject({ candidates: { type: "array", items: candidate } });
 }
 
-// ── 캐시 대조: 후보가 신뢰 카탈로그에 실존하는지 확인하고 external_ids·정본 정보를 부착 ──
+// ── 캐시 대조 ──
+// 입력 후보는 이미 실제 검색 인용으로 근거됨(grounded) → verified=true.
+// 여기서 works 카탈로그에 정본이 있으면 external_ids·정본 정보를 추가로 부착하고
+// verification_source를 "cache"로 승격한다(없으면 "web").
 async function crossCheckCache(cand: Candidate): Promise<VerifiedCandidate> {
   const validCat = (VALID_CATEGORIES as readonly string[]).includes(cand.category)
     ? (cand.category as Category)
     : null;
-  const sources = validSources(cand.sources);
   const base: VerifiedCandidate = {
     ...cand,
-    sources,
-    verified: false,
-    source_url: sources[0] ?? null,
+    verified: true,
+    source_url: cand.sources[0] ?? null,
     external_ids: null,
+    verification_source: "web",
   };
   try {
     const { data, error } = await adminClient().rpc("search_works", {
@@ -116,10 +120,11 @@ async function crossCheckCache(cand: Candidate): Promise<VerifiedCandidate> {
         creator: best.creator ?? cand.creator,
         year: best.year ?? cand.year,
         category: best.category ?? cand.category,
-        sources,
+        sources: cand.sources,
         verified: true,
-        source_url: sources[0] ?? null,
+        source_url: cand.sources[0] ?? null,
         external_ids: (best.external_ids as Record<string, string> | null) ?? null,
+        verification_source: "cache",
       };
     }
     return base;
@@ -209,6 +214,7 @@ Deno.serve(async (req) => {
           title: "[mock] 추천작", category: "movie", creator: "mock", year: 2024,
           reason: "mock", reason_short: "mock", verified: true,
           source_url: "https://themoviedb.org/mock", external_ids: null,
+          verification_source: "web",
         }];
         await adminClient().from("recommendations").insert({ user_id: gate.userId, prompt: userPrompt, results: recommendations });
         return new Response(JSON.stringify({ recommendations }), {
@@ -246,16 +252,22 @@ ${tasteProfile.join("\n") || "(아직 없음)"}
 ${historyText}`;
 
       const { findings, trace } = await searchStep(searchPrompt, allowedDomains);
+      // 이번 검색이 실제로 인용한 출처 URL/도메인 — 후보 근거 대조의 기준(지어낸 URL 차단).
+      const citedDomains = new Set(trace.cited_domains);
+      const citationList = trace.citations.slice(0, 24).map((c) => `- ${c.url}`).join("\n");
 
-      // ── 2단계: 조사 결과를 strict JSON 후보로 정형화 (sources=인용 URL 필수) ──
+      // ── 2단계: 조사 결과를 strict JSON 후보로 정형화 (sources=실제 인용 URL만) ──
       const formatPrompt = `아래 "조사 결과"를 recommendation_candidates JSON 스키마에 맞춰 변환하라.
 
 규칙:
 - 조사 결과에 근거해서만 채울 것. 조사 결과에 없는 작품을 추측·창작하지 말 것.
-- 각 후보의 sources 에는 그 작품의 실존을 뒷받침하는 조사 결과 내 출처 URL을 1개 이상 담을 것. 출처가 없으면 그 후보는 넣지 말 것.
+- 각 후보의 sources 에는 아래 "실제 인용된 출처 URL 목록"에 있는 URL만, 그 작품에 해당하는 것으로 1개 이상 담을 것. 목록에 없는 URL을 지어내지 말 것. 해당 URL이 없으면 그 후보는 넣지 말 것.
 - category는 movie/music/book/art/series 중 하나.
 - 확신할 수 없는 필드(창작자·연도 등)는 null.
 - 유효한 후보가 없으면 candidates를 빈 배열([])로 둘 것.
+
+실제 인용된 출처 URL 목록:
+${citationList || "(없음)"}
 
 조사 결과:
 """
@@ -268,7 +280,7 @@ ${findings}
         : [];
 
       // ── 서버 코드 필터 (프롬프트 아님) ──
-      // 1) 무출처 드롭  2) 감상작 중복 드롭  3) 동일 창작자 1개 제한
+      // 1) 미근거 드롭(실제 인용 도메인과 대조)  2) 감상작 중복 드롭  3) 동일 창작자 1개 제한
       const seenCreators = new Set<string>();
       let dropped_no_source = 0;
       let dropped_dup = 0;
@@ -276,7 +288,9 @@ ${findings}
       const filtered: Candidate[] = [];
       for (const c of rawCandidates) {
         if (!c?.title || typeof c.title !== "string") continue;
-        if (validSources(c.sources).length === 0) {
+        // 실제 검색이 인용한 도메인에 속한 sources만 인정 — 없으면 근거 없는 후보로 드롭.
+        const grounded = groundedSources(c.sources, citedDomains);
+        if (grounded.length === 0) {
           dropped_no_source++;
           continue;
         }
@@ -290,7 +304,7 @@ ${findings}
           continue;
         }
         if (creatorKey) seenCreators.add(creatorKey);
-        filtered.push(c);
+        filtered.push({ ...c, sources: grounded });
         if (filtered.length >= MAX_CANDIDATES) break;
       }
 
@@ -305,7 +319,9 @@ ${findings}
         dropped_no_source,
         dropped_dup,
         dropped_creator,
-        verified_count: verified.filter((v) => v.verified).length,
+        // 살아남은 후보는 전부 실제 인용으로 근거됨(verified). cache/web은 근거 출처 구분.
+        cache_verified: verified.filter((v) => v.verification_source === "cache").length,
+        web_verified: verified.filter((v) => v.verification_source === "web").length,
         surviving: verified.length,
         search_count: trace.search_count,
         cited_domains: trace.cited_domains,
@@ -386,6 +402,7 @@ ${candidateList}`;
           verified: v.verified,
           source_url: v.source_url,
           external_ids: v.external_ids,
+          verification_source: v.verification_source,
         };
       });
 
