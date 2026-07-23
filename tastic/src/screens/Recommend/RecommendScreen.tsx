@@ -17,7 +17,6 @@ import { useAuthStore } from "../../stores/authStore";
 import { useTheme } from "../../hooks/useTheme";
 import { getReviewCount } from "../../services/taste";
 import { recommendContent } from "../../services/claude";
-import { saveRecommendation } from "../../services/recommendation";
 import { checkUsageLimit } from "../../services/usage";
 import { SkeletonCard } from "../../components/common/SkeletonCard";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
@@ -30,6 +29,10 @@ interface RecommendItem {
   year: number | null;
   reason: string;
   reason_short: string;
+  // 서버 검증 파이프라인 메타 — 구버전 저장 데이터엔 없을 수 있어 옵셔널
+  verified?: boolean;
+  source_url?: string | null;
+  external_ids?: Record<string, string> | null;
 }
 
 // prompt 는 LLM 에 그대로 전달되므로 사용자 언어에 맞는 i18n 키(<key>Prompt)로 해석한다
@@ -45,6 +48,7 @@ const CATEGORY_ACCENT: Record<string, string> = {
   music:       "#2E3D4F",
   book:        "#3D4A2E",
   art:         "#5C4A2E",
+  series:      "#4A2E5C",
 };
 
 export function RecommendScreen() {
@@ -60,6 +64,7 @@ export function RecommendScreen() {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [noResults, setNoResults] = useState(false);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
   const [showLimitDialog, setShowLimitDialog] = useState(false);
 
@@ -93,18 +98,22 @@ export function RecommendScreen() {
 
     setIsLoading(true);
     setError(false);
+    setNoResults(false);
     setResults([]);
     setExpandedIdx(null);
 
     try {
       // 취향 프로파일·감상 이력은 서버가 본인 DB 데이터로 조회한다.
+      // 결과 저장도 서버(recommend-content)가 검증 후 처리한다 — 클라 저장 없음.
       const response = await recommendContent({
         user_prompt: queryPrompt.trim(),
         language: lang,
       });
 
-      setResults(response.recommendations as RecommendItem[]);
-      saveRecommendation(user.id, queryPrompt.trim(), response.recommendations).catch(() => {});
+      const recs = (response.recommendations ?? []) as RecommendItem[];
+      setResults(recs);
+      // 검증 통과 후보가 0개면 서버가 빈 배열을 반환 — 빈 상태 안내
+      if (recs.length === 0) setNoResults(true);
     } catch {
       setError(true);
     } finally {
@@ -233,7 +242,7 @@ export function RecommendScreen() {
           </Animated.View>
 
           {/* ── Enhanced Quick chips ── */}
-          {results.length === 0 && !isLoading && (
+          {results.length === 0 && !isLoading && !noResults && !error && (
             <Animated.View entering={FadeInDown.delay(300).duration(400)} className="px-7 mb-8">
               <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] mb-4 uppercase tracking-wider font-semibold">
                 {lang === "ko" ? "빠른 선택" : "Quick pick"}
@@ -296,6 +305,30 @@ export function RecommendScreen() {
                   onPress={() => handleSubmit()}
                 >
                   <Text className="text-error text-[15px] font-semibold">
+                    {lang === "ko" ? "다시 시도" : "Try again"}
+                  </Text>
+                </Pressable>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* ── Empty (검증 통과 0개) ── */}
+          {noResults && !isLoading && (
+            <Animated.View entering={FadeIn.duration(400)} className="mx-7">
+              <View className="bg-surface-secondary dark:bg-surface-dark-secondary rounded-3xl p-8 border-2 border-surface-border/50 dark:border-surface-dark-border/50 items-center">
+                <View className="w-16 h-16 rounded-3xl bg-surface-tertiary dark:bg-surface-dark-tertiary items-center justify-center mb-4">
+                  <Text className="text-3xl">🔍</Text>
+                </View>
+                <Text className="text-text-secondary dark:text-text-dark-secondary text-base text-center leading-7 font-medium">
+                  {lang === "ko"
+                    ? "실존이 확인된 추천을 찾지 못했어요.\n요청을 조금 바꿔 다시 시도해 보세요."
+                    : "No verified picks found.\nTry rephrasing your request."}
+                </Text>
+                <Pressable
+                  className="mt-4 bg-surface-tertiary dark:bg-surface-dark-tertiary rounded-2xl px-4 py-2 active:scale-95 transition-transform"
+                  onPress={() => handleSubmit()}
+                >
+                  <Text className="text-text-secondary dark:text-text-dark-secondary text-[15px] font-semibold">
                     {lang === "ko" ? "다시 시도" : "Try again"}
                   </Text>
                 </Pressable>

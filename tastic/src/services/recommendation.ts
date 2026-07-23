@@ -2,6 +2,10 @@ import { supabase } from "./supabase";
 import type { Recommendation, RecommendationItem } from "../types/database";
 import type { Json } from "../types/supabase";
 
+/**
+ * @deprecated 추천 저장은 서버(recommend-content Edge Function)가 검증 후 수행한다.
+ * 클라이언트 저장은 미검증 결과를 그대로 남기므로 사용하지 않는다. 히스토리 조회는 fetchRecommendations 사용.
+ */
 export async function saveRecommendation(
   userId: string,
   prompt: string,

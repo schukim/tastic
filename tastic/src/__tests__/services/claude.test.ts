@@ -133,11 +133,11 @@ describe("타임아웃 처리", () => {
     await assertion;
   });
 
-  it("recommendContent: 20초 초과 시 타임아웃 에러", async () => {
+  it("recommendContent: 35초 초과 시 타임아웃 에러", async () => {
     mockInvoke.mockReturnValueOnce(new Promise(() => {}));
     const resultPromise = recommendContent({ user_prompt: "잔잔한 영화", language: "ko" });
     const assertion = expect(resultPromise).rejects.toThrow("요청 시간이 초과되었습니다.");
-    await vi.advanceTimersByTimeAsync(20_001);
+    await vi.advanceTimersByTimeAsync(35_001);
     await assertion;
   });
 

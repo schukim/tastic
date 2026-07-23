@@ -115,6 +115,10 @@ export interface RecommendContentResponse {
     year: number | null;
     reason: string;
     reason_short: string;
+    // ── 검증 메타 (서버 검증 파이프라인). 구버전 저장 데이터엔 없을 수 있어 옵셔널 ──
+    verified?: boolean;
+    source_url?: string | null;
+    external_ids?: Record<string, string> | null;
   }[];
 }
 

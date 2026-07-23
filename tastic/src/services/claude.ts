@@ -100,6 +100,8 @@ export async function recommendContent(
   return invokeFunction<RecommendContentRequest, RecommendContentResponse>(
     "recommend-content",
     request,
-    20_000
+    // 2단계 검증 파이프라인(web_search ~13s + format + 캐시대조 + deepseek 순위) + 콜드스타트 여유.
+    // verify-content(35s)와 동일 예산으로 정렬 — 서버가 끝나기 전에 클라가 먼저 포기하던 불일치 해소.
+    35_000
   );
 }
