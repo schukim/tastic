@@ -318,6 +318,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           id: string
+          intro_seen: boolean
           language: string | null
           nickname: string
           plan: string
@@ -327,6 +328,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           id: string
+          intro_seen?: boolean
           language?: string | null
           nickname: string
           plan?: string
@@ -336,6 +338,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           id?: string
+          intro_seen?: boolean
           language?: string | null
           nickname?: string
           plan?: string

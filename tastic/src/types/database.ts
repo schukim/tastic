@@ -21,6 +21,7 @@ export interface User {
   preferred_categories: ContentCategory[];
   language: Language;
   plan: UserPlan;
+  intro_seen: boolean;
   created_at: string;
 }
 

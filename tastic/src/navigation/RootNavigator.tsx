@@ -8,6 +8,7 @@ import { LoginScreen } from "../screens/Auth/LoginScreen";
 import { SignUpScreen } from "../screens/Auth/SignUpScreen";
 import { OnboardingScreen } from "../screens/Auth/OnboardingScreen";
 import { ProfileErrorScreen } from "../screens/Auth/ProfileErrorScreen";
+import { IntroTourScreen } from "../screens/Intro/IntroTourScreen";
 import { MainTabs } from "./MainTabs";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -42,6 +43,10 @@ export function RootNavigator() {
   // 분기 로직은 resolveAuthRoute 로 분리해 단위 테스트로 검증한다.
   const route = resolveAuthRoute({ isLoading, hasSession: !!session, profileStatus, user });
 
+  // 기능 가이드(계정당 최초 1회) — 프로필의 intro_seen 으로 판단한다.
+  // 계정에 저장되므로 기기를 바꿔도 이미 봤으면 다시 뜨지 않는다.
+  const showIntro = route === "Main" && user?.intro_seen === false;
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {route === "Loading" ? (
@@ -52,6 +57,8 @@ export function RootNavigator() {
         <Stack.Screen name="ProfileError" component={ProfileErrorScreen} />
       ) : route === "Onboarding" ? (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      ) : showIntro ? (
+        <Stack.Screen name="IntroTour" component={IntroTourScreen} />
       ) : (
         <Stack.Screen name="Main" component={MainTabs} />
       )}

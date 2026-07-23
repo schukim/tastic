@@ -49,6 +49,11 @@
     "save": "Get Started",
     "saveError": "Failed to save your profile. Please try again."
   },
+  "intro": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Get Started"
+  },
   "profileError": {
     "title": "Couldn't load your profile",
     "subtitle": "Check your connection and try again.",

@@ -339,18 +339,13 @@ export function RecommendScreen() {
           {/* ── Enhanced Results ── */}
           {results.length > 0 && (
             <Animated.View entering={FadeInDown.delay(100).duration(400)} className="px-7">
-              <View className="flex-row items-center justify-between mb-6">
-                <View>
-                  <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] uppercase tracking-[3px] font-semibold">
-                    {lang === "ko" ? "추천 결과" : "Recommendations"}
-                  </Text>
-                  <Text className="text-text dark:text-text-dark text-xl font-bold mt-1">
-                    {lang === "ko" ? `${results.length}편의 작품` : `${results.length} picks for you`}
-                  </Text>
-                </View>
-                <View className="w-8 h-8 rounded-2xl bg-primary/20 dark:bg-primary-dm/20 items-center justify-center">
-                  <Text className="text-primary dark:text-primary-dm font-bold text-lg">✨</Text>
-                </View>
+              <View className="mb-6">
+                <Text className="text-text-tertiary dark:text-text-dark-tertiary text-[13px] uppercase tracking-[3px] font-semibold">
+                  {lang === "ko" ? "추천 결과" : "Recommendations"}
+                </Text>
+                <Text className="text-text dark:text-text-dark text-xl font-bold mt-1">
+                  {lang === "ko" ? `${results.length}편의 작품` : `${results.length} picks for you`}
+                </Text>
               </View>
 
               {results.map((item, idx) => {
