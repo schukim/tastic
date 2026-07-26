@@ -9,6 +9,7 @@ import { NetworkBanner } from "./src/components/common/NetworkBanner";
 import { useAuth } from "./src/hooks/useAuth";
 import { useDeepLinkAuth } from "./src/hooks/useDeepLinkAuth";
 import { useNetwork } from "./src/hooks/useNetwork";
+import { useIntroGate } from "./src/hooks/useIntroGate";
 import { useTheme } from "./src/hooks/useTheme";
 import { initPurchases } from "./src/services/purchases";
 import * as Sentry from "@sentry/react-native";
@@ -46,6 +47,8 @@ function AppContent() {
   useDeepLinkAuth();
   // NetInfo 구독 → networkStore 갱신 (오프라인 배너 표시용)
   useNetwork();
+  // 기기 로컬 인트로 노출 여부 로드 (로그인 전 1회 가이드)
+  useIntroGate();
 
   return (
     <>

@@ -3,7 +3,20 @@ import type { Content, ConversationEntry } from "../types/database";
 
 const DRAFT_KEY = "tastic_interview_draft";
 const UNSAVED_REVIEWS_KEY = "tastic_unsaved_reviews";
+const INTRO_SEEN_KEY = "tastic_intro_seen";
 const DRAFT_EXPIRY_DAYS = 7;
+
+// ── Intro Tour (기능 가이드) ──
+// 노출 여부를 기기 로컬에 저장한다 — 계정이 아니라 "이 기기에서 앱을 처음 실행했는지"
+// 로 판단해, 로그인 전에 1회만 보여준다. 다른 계정으로 로그인해도 다시 뜨지 않는다.
+
+export async function getIntroSeen(): Promise<boolean> {
+  return (await AsyncStorage.getItem(INTRO_SEEN_KEY)) === "true";
+}
+
+export async function markIntroSeen(): Promise<void> {
+  await AsyncStorage.setItem(INTRO_SEEN_KEY, "true");
+}
 
 // 드래프트/미저장 평론은 userId 로 스코프한다 — 같은 기기에서 계정을 전환했을 때
 // 다른 계정의 인터뷰 내용이 노출되거나(프라이버시), 다른 계정 명의로

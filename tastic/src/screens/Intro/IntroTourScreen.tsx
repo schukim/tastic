@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { useAuthStore } from "../../stores/authStore";
-import { markIntroSeen } from "../../services/profile";
+import { useIntroStore } from "../../stores/introStore";
+import { markIntroSeen } from "../../utils/storage";
 
 // 앱 첫 실행 기능 가이드 — 마케팅 스크린샷(헤드라인·목업 내장)을 슬라이드로 재활용한다.
 // 이미지는 ko/en 두 벌이 있어 사용자 언어에 맞는 세트를 보여준다.
@@ -39,11 +39,12 @@ const DOT = "#D8D3CB"; // 비활성 도트
 const SUBTLE = "#9C9589"; // text.tertiary
 
 export function IntroTourScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
-  const user = useAuthStore((s) => s.user);
-  const lang: "ko" | "en" = user?.language === "en" ? "en" : "ko";
+  const { width } = useWindowDimensions();
+  const setSeen = useIntroStore((s) => s.setSeen);
+  // 로그인 전 화면이라 계정 언어가 없다 — 현재 i18n 언어(기기 로케일 기반)를 따른다.
+  const lang: "ko" | "en" = i18n.language?.startsWith("en") ? "en" : "ko";
   const slides = SLIDES[lang];
 
   const scrollRef = useRef<ScrollView>(null);
@@ -51,10 +52,11 @@ export function IntroTourScreen() {
   const isLast = index === slides.length - 1;
 
   const finish = useCallback(() => {
-    // markIntroSeen 이 authStore.user.intro_seen 을 즉시 true 로 바꿔
-    // RootNavigator 가 Main 으로 전환한다. 서버 반영 실패는 UX 를 막지 않는다.
+    // introStore 를 즉시 true 로 바꿔 RootNavigator 가 로그인(Auth)으로 전환하고,
+    // 기기 로컬에도 기록한다. 스토리지 기록 실패는 UX 를 막지 않는다(다음 실행에 재노출).
+    setSeen(true);
     markIntroSeen().catch(() => {});
-  }, []);
+  }, [setSeen]);
 
   const onScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -75,21 +77,25 @@ export function IntroTourScreen() {
   }, [isLast, index, width, finish]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: BG }}>
+    <View style={{ flex: 1, backgroundColor: BG, paddingTop: insets.top }}>
+      {/* 슬라이드 영역 — flex:1 로 하단 컨트롤 바 위 공간만 차지한다.
+          컨트롤 바가 이미지를 덮지 않으므로 이미지 아랫부분이 잘리지 않는다. */}
       <ScrollView
         ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onScrollEnd}
+        style={{ flex: 1 }}
       >
         {slides.map((src, i) => (
-          <Image
-            key={i}
-            source={src}
-            style={{ width, height }}
-            resizeMode="contain"
-          />
+          <View key={i} style={{ width, height: "100%" }}>
+            <Image
+              source={src}
+              style={{ width, flex: 1 }}
+              resizeMode="contain"
+            />
+          </View>
         ))}
       </ScrollView>
 
@@ -106,13 +112,9 @@ export function IntroTourScreen() {
         </Pressable>
       )}
 
-      {/* 하단 컨트롤 바 */}
+      {/* 하단 컨트롤 바 — 일반 흐름에 배치해 이미지와 겹치지 않게 한다 */}
       <View
         style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
           paddingBottom: insets.bottom + 20,
           paddingTop: 20,
           paddingHorizontal: 28,

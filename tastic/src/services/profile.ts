@@ -74,23 +74,3 @@ export async function loadProfile(userId: string): Promise<void> {
     void i18n.changeLanguage(data.language);
   }
 }
-
-/**
- * 기능 가이드(온보딩 투어)를 봤음을 계정에 기록한다.
- * 계정 단위 저장이라 기기를 바꿔도 다시 뜨지 않는다.
- * 로컬 authStore 를 먼저 낙관적으로 갱신해 라우팅이 즉시 반응하도록 하고,
- * 서버 반영은 뒤따른다(실패해도 UX 를 막지 않음 — 다음 로그인에 재노출될 뿐).
- */
-export async function markIntroSeen(): Promise<void> {
-  const { user, setUser } = useAuthStore.getState();
-  if (!user || user.intro_seen) return;
-
-  setUser({ ...user, intro_seen: true });
-
-  const { error } = await supabase
-    .from("users")
-    .update({ intro_seen: true })
-    .eq("id", user.id);
-
-  if (error) console.error("markIntroSeen failed:", error);
-}
