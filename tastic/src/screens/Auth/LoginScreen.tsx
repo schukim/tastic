@@ -15,6 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../../types/navigation";
 import { signIn, signInWithGoogle, signInWithApple } from "../../services/auth";
+import { useGuestStore } from "../../stores/guestStore";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "Login">;
 
@@ -26,6 +27,9 @@ export function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const resumeGuest = useGuestStore((s) => s.resumeGuest);
+  const cameFromGuest = useGuestStore((s) => s.cameFromGuest);
+  const hasPendingReview = useGuestStore((s) => s.hasPendingReview);
 
   // 로그인은 형식만 확인 — 비밀번호 길이는 강제하지 않는다(가입 정책이 바뀌어도
   // 기존 계정이 버튼 비활성으로 잠기지 않게). 최종 검증은 서버가 한다.
@@ -87,6 +91,25 @@ export function LoginScreen() {
           <View className="items-center mb-12">
             <Text className="text-primary text-4xl font-bold">{t("app.name")}</Text>
           </View>
+
+          {/* 체험 평론 보관 중 경고 — 체험 평론은 새로 만든 계정으로만 옮겨진다.
+              기존 계정으로 로그인하면 저장되지 않으므로 들어가기 전에 알려준다.
+              (조용히 사라지는 것이 가장 나쁜 결과다) */}
+          {hasPendingReview && (
+            <View className="bg-surface-secondary border border-surface-tertiary rounded-2xl p-4 mb-6">
+              <Text className="text-text text-[15px] font-semibold mb-1">
+                {t("guest.pendingOnLoginTitle")}
+              </Text>
+              <Text className="text-text-secondary text-[13px] leading-5 mb-3">
+                {t("guest.pendingOnLoginBody")}
+              </Text>
+              <Pressable onPress={() => navigation.navigate("SignUp")} hitSlop={6}>
+                <Text className="text-primary text-[15px] font-semibold">
+                  {t("guest.pendingOnLoginCta")}
+                </Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Email */}
           <View className="mb-4">
@@ -173,6 +196,20 @@ export function LoginScreen() {
               <Text className="text-primary text-[15px] font-semibold">{t("auth.signUp")}</Text>
             </Pressable>
           </View>
+
+          {/* 체험 '복귀'만 열어둔다 — 둘러보던 중 로그인하러 온 사람이 돌아갈 길.
+              여기서 체험을 새로 시작하는 입구는 두지 않는다: 로그인 화면에 오는 사람은
+              계정 보유자이고, 체험은 계정이 없는 사람을 위한 회원가입 퍼널이기 때문이다.
+              신규 진입로는 인트로 마지막 장에만 있다. */}
+          {cameFromGuest && (
+            <View className="items-center mt-6">
+              <Pressable onPress={resumeGuest} hitSlop={8}>
+                <Text className="text-text-secondary text-[15px] font-medium underline">
+                  {t("guest.backToBrowse")}
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

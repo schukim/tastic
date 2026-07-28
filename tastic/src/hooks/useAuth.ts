@@ -3,9 +3,36 @@ import { supabase } from "../services/supabase";
 import { useAuthStore } from "../stores/authStore";
 import { loadProfile } from "../services/profile";
 import { syncUnsavedReviews } from "../services/review";
+import { migrateGuestReview } from "../services/guestMigration";
+import { useGuestStore } from "../stores/guestStore";
+import { shouldClaimGuestReview } from "../utils/guestClaim";
+import { clearGuestTrial } from "../utils/guestStorage";
 import { identifyPurchasesUser, logOutPurchasesUser } from "../services/purchases";
 import { reconcileSubscription } from "../services/subscription";
 import * as Sentry from "@sentry/react-native";
+
+// 세션이 생겼을 때 게스트 체험을 마무리한다.
+//
+// 이전은 **갓 만들어진 계정에만** 한다. 게스트 체험은 "가입 전 사용자가 만들어 본 평론을
+// 새 계정으로 가져가는" 흐름이라, 이미 계정이 있는 사람이 체험 후 로그인한 경우에는
+// 그 계정에 꽂지 않는다(그 계정의 오늘 무료 1편이 본인도 모르게 소진되는 것도 막는다).
+// 이 경우 사용자는 로그인 화면에서 미리 안내를 보고 들어온다(LoginScreen).
+//
+// 이전에 실패하면 로컬 보관분은 남겨 다음 기회에 재시도한다.
+async function finishGuestTrial(user: { id: string; created_at?: string }) {
+  try {
+    if (shouldClaimGuestReview(user.created_at)) {
+      await migrateGuestReview(user.id);
+    } else {
+      // 기존 계정 로그인 — 체험은 여기서 종료하고 보관분을 정리한다.
+      await clearGuestTrial();
+    }
+  } catch (e) {
+    console.error("finishGuestTrial failed:", e);
+  } finally {
+    useGuestStore.getState().clearGuest();
+  }
+}
 
 export function useAuth() {
   const { setSession, setUser, setLoading } = useAuthStore();
@@ -26,6 +53,8 @@ export function useAuth() {
           void identifyPurchasesUser(session.user.id).then(() => reconcileSubscription());
           // 저장 실패로 로컬에 남은 평론이 있으면 재업로드 (실패해도 다음 기회에 재시도)
           syncUnsavedReviews(session.user.id).catch(() => {});
+          // 게스트 체험으로 만든 평론이 남아있으면 이 계정으로 이전
+          void finishGuestTrial(session.user);
           // 크래시 추적용 user id (PII 최소화 — id만)
           Sentry.setUser({ id: session.user.id });
         } else {
@@ -54,6 +83,8 @@ export function useAuth() {
             // RevenueCat appUserID를 맞춘 뒤(웹훅 매핑), 스토어 실제 구독 상태로 plan을 정합화.
             // iOS 만료 웹훅이 늦거나 유실돼도 앱이 스스로 만료를 반영한다(다운그레이드 전용).
             void identifyPurchasesUser(session.user.id).then(() => reconcileSubscription());
+            // 게스트로 둘러보다 로그인한 경우 — 보관 중인 평론을 이 계정으로 이전
+            void finishGuestTrial(session.user);
             Sentry.setUser({ id: session.user.id });
           } else {
             setUser(null);

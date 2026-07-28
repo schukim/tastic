@@ -20,6 +20,8 @@ import { fetchReviews } from "../../services/review";
 import { analyzeTaste } from "../../services/claude";
 import { checkUsageLimit } from "../../services/usage";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { useGuestStore } from "../../stores/guestStore";
+import { GuestGate } from "../../components/common/GuestGate";
 
 type Nav = BottomTabNavigationProp<MainTabParamList, "AnalysisTab">;
 
@@ -36,7 +38,7 @@ const LOADING_MESSAGES_EN = [
 
 const MIN_REVIEWS = 3;
 
-export function AnalysisScreen() {
+function AnalysisScreenContent() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
   const user = useAuthStore((s) => s.user);
@@ -402,4 +404,15 @@ export function AnalysisScreen() {
       />
     </SafeAreaView>
   );
+}
+
+// 계정 기반 탭 — 게스트에게는 "로그인하면 무엇이 생기는지"를 안내하는 빈 상태를 보여준다.
+// 본체를 조건부로 렌더하지 않고 래퍼로 감싸, 게스트일 때 계정 데이터를 조회하는
+// 훅이 아예 실행되지 않게 한다.
+export function AnalysisScreen() {
+  const isGuest = useGuestStore((s) => s.isGuest);
+  if (isGuest) {
+    return <GuestGate titleKey="guest.analysisTitle" bodyKey="guest.analysisBody" icon="📊" />;
+  }
+  return <AnalysisScreenContent />;
 }

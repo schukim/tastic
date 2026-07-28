@@ -28,6 +28,8 @@ import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { formatRelativeDate } from "../../utils/formatDate";
 import type { ContentCategory } from "../../types/database";
+import { useGuestStore } from "../../stores/guestStore";
+import { GuestGate } from "../../components/common/GuestGate";
 
 const CATEGORY_COLORS: Record<string, string> = {
   movie:       "#5C2E2E",
@@ -64,7 +66,7 @@ function formatReadableDate(dateStr: string, lang: string) {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-export function HistoryScreen() {
+function HistoryScreenContent() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const { isDark } = useTheme();
@@ -581,4 +583,15 @@ export function HistoryScreen() {
       )}
     </SafeAreaView>
   );
+}
+
+// 계정 기반 탭 — 게스트에게는 "로그인하면 무엇이 생기는지"를 안내하는 빈 상태를 보여준다.
+// 본체를 조건부로 렌더하지 않고 래퍼로 감싸, 게스트일 때 계정 데이터를 조회하는
+// 훅이 아예 실행되지 않게 한다.
+export function HistoryScreen() {
+  const isGuest = useGuestStore((s) => s.isGuest);
+  if (isGuest) {
+    return <GuestGate titleKey="guest.historyTitle" bodyKey="guest.historyBody" icon="📋" />;
+  }
+  return <HistoryScreenContent />;
 }

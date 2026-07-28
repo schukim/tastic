@@ -21,6 +21,8 @@ import { checkUsageLimit } from "../../services/usage";
 import { SkeletonCard } from "../../components/common/SkeletonCard";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { useGuestStore } from "../../stores/guestStore";
+import { GuestGate } from "../../components/common/GuestGate";
 
 interface RecommendItem {
   title: string;
@@ -51,7 +53,7 @@ const CATEGORY_ACCENT: Record<string, string> = {
   series:      "#4A2E5C",
 };
 
-export function RecommendScreen() {
+function RecommendScreenContent() {
   const { t } = useTranslation();
   const route = useRoute();
   const navigation = useNavigation();
@@ -438,4 +440,15 @@ export function RecommendScreen() {
       />
     </SafeAreaView>
   );
+}
+
+// 계정 기반 탭 — 게스트에게는 "로그인하면 무엇이 생기는지"를 안내하는 빈 상태를 보여준다.
+// 본체를 조건부로 렌더하지 않고 래퍼로 감싸, 게스트일 때 계정 데이터를 조회하는
+// 훅이 아예 실행되지 않게 한다.
+export function RecommendScreen() {
+  const isGuest = useGuestStore((s) => s.isGuest);
+  if (isGuest) {
+    return <GuestGate titleKey="guest.recommendTitle" bodyKey="guest.recommendBody" icon="💡" />;
+  }
+  return <RecommendScreenContent />;
 }

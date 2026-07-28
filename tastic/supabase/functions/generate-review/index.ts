@@ -1,10 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { enforceUsageLimit, authenticateUser, adminClient } from "../_shared/usage.ts";
+import { consumeGuestUsage, guestIdFrom } from "../_shared/guest.ts";
 import { callJsonLLM } from "../_shared/llm.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  // x-guest-id: 비로그인 체험(게스트) 식별 헤더 — _shared/guest.ts 참조
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-guest-id",
 };
 
 async function callLLM(prompt: string, temperature = 0.4, maxTokens = 2048) {
@@ -24,33 +26,55 @@ Deno.serve(async (req) => {
   try {
     const { content, conversation_history, language, interview_id, is_preview } = await req.json();
 
-    // refId(재생성 중복 카운트 방지)는 "본인 소유 인터뷰"일 때만 인정한다.
-    // 임의/타인 uuid 를 재사용해 free 일일 한도를 우회하는 것을 차단 —
-    // 검증 실패 시 refId=null 로 일반 카운트 경로를 태운다.
-    let refId: string | null = null;
-    if (interview_id) {
-      const auth = await authenticateUser(req, CORS, language === "en" ? "en" : "ko");
-      if (!auth.ok) return auth.response;
-      const { data: interview } = await adminClient()
-        .from("interviews")
-        .select("id")
-        .eq("id", interview_id)
-        .eq("user_id", auth.userId)
-        .maybeSingle();
-      if (interview) refId = interview_id;
-    }
+    // 게스트(비로그인 체험)는 세션이 없으므로 기기 UUID + 전역 상한 게이트를 탄다.
+    // 게스트에겐 인터뷰 DB 레코드가 없어 refId 개념도, 멤버십 전용 미리보기도 없다.
+    const guestId = await guestIdFrom(req);
+    let release: () => Promise<void> = async () => {};
 
-    // 미리보기는 멤버십 전용, 최종 생성은 free 하루 1편 제한.
-    // 같은 인터뷰(ref_id)의 재생성은 추가 카운트하지 않는다.
-    const gate = await enforceUsageLimit(req, "review", {
-      refId,
-      requireMembership: is_preview === true,
-      // 미리보기는 멤버십 확인만 하고 사용량을 소비하지 않는다
-      count: is_preview !== true,
-      language,
-      cors: CORS,
-    });
-    if (!gate.ok) return gate.response;
+    if (guestId) {
+      if (is_preview === true) {
+        return new Response(
+          JSON.stringify({
+            error: "membership_required",
+            message: language === "en"
+              ? "Review preview is a membership-only feature."
+              : "평론 미리보기는 멤버십 전용 기능이에요.",
+          }),
+          { status: 403, headers: { ...CORS, "Content-Type": "application/json" } },
+        );
+      }
+      const guestGate = await consumeGuestUsage(guestId, "review", CORS, language);
+      if (!guestGate.ok) return guestGate.response;
+    } else {
+      // refId(재생성 중복 카운트 방지)는 "본인 소유 인터뷰"일 때만 인정한다.
+      // 임의/타인 uuid 를 재사용해 free 일일 한도를 우회하는 것을 차단 —
+      // 검증 실패 시 refId=null 로 일반 카운트 경로를 태운다.
+      let refId: string | null = null;
+      if (interview_id) {
+        const auth = await authenticateUser(req, CORS, language === "en" ? "en" : "ko");
+        if (!auth.ok) return auth.response;
+        const { data: interview } = await adminClient()
+          .from("interviews")
+          .select("id")
+          .eq("id", interview_id)
+          .eq("user_id", auth.userId)
+          .maybeSingle();
+        if (interview) refId = interview_id;
+      }
+
+      // 미리보기는 멤버십 전용, 최종 생성은 free 하루 1편 제한.
+      // 같은 인터뷰(ref_id)의 재생성은 추가 카운트하지 않는다.
+      const gate = await enforceUsageLimit(req, "review", {
+        refId,
+        requireMembership: is_preview === true,
+        // 미리보기는 멤버십 확인만 하고 사용량을 소비하지 않는다
+        count: is_preview !== true,
+        language,
+        cors: CORS,
+      });
+      if (!gate.ok) return gate.response;
+      release = gate.release;
+    }
 
     let parsed: unknown;
     try {
@@ -124,7 +148,7 @@ ${conversationText}`;
 
       parsed = await callLLM(prompt, 0.4);
     } catch (e) {
-      await gate.release(); // 예약 이후 어떤 실패(입력·LLM)든 사용량 롤백
+      await release(); // 예약 이후 어떤 실패(입력·LLM)든 사용량 롤백 (게스트는 no-op)
       throw e;
     }
 

@@ -19,6 +19,9 @@ import { saveVerifiedWork } from "../../services/work";
 import { SkeletonCard } from "../../components/common/SkeletonCard";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
 import { useAuthStore } from "../../stores/authStore";
+import { useGuestStore } from "../../stores/guestStore";
+import { guestWorkToLocalWork } from "../../utils/guestWork";
+import type { GuestWork } from "../../utils/guestStorage";
 
 type Nav = NativeStackNavigationProp<ReviewStackParamList, "ContentConfirm">;
 type Route = RouteProp<ReviewStackParamList, "ContentConfirm">;
@@ -28,6 +31,8 @@ export function ContentConfirmScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
+  const isGuest = useGuestStore((s) => s.isGuest);
+  const setPendingWork = useGuestStore((s) => s.setPendingWork);
 
   const { title, creator: inputCreator, category, musicType } = route.params;
 
@@ -96,12 +101,46 @@ export function ContentConfirmScreen() {
   };
 
   const handleNext = async () => {
-    if (!user) return;
+    if (!user && !isGuest) return;
     setSaveError(null);
     setIsSaving(true);
     try {
       let contentData;
       const musicMeta = musicType ? { music_type: musicType } : {};
+
+      // 게스트는 서버에 작품을 만들지 않는다 — 메모리 Work 로 인터뷰만 진행하고,
+      // 실제 works 행은 로그인 후 이전 시점에 guestMigration 이 만든다.
+      if (isGuest) {
+        const candidate = !isManualMode && selectedIndex !== null ? candidates[selectedIndex] : null;
+        if (!isManualMode && !candidate) return;
+
+        const guestWork: GuestWork = candidate
+          ? {
+              title: candidate.title,
+              originalTitle: candidate.original_title ?? null,
+              category,
+              creator: candidate.creator ?? null,
+              year: candidate.year ?? null,
+              genre: candidate.genre ?? null,
+              metadata: { ...candidate.metadata, ...musicMeta },
+              verified: true,
+            }
+          : {
+              title,
+              category,
+              creator: manualCreator || null,
+              year: manualYear ? parseInt(manualYear, 10) : null,
+              metadata: musicMeta,
+              verified: false,
+            };
+
+        setPendingWork(guestWork);
+        navigation.navigate("Interview", { content: guestWorkToLocalWork(guestWork) });
+        return;
+      }
+
+      if (!user) return;
+
       if (isManualMode) {
         contentData = await createContent({
           userId: user.id,

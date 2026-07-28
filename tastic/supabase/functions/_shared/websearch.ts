@@ -12,7 +12,8 @@ export const OPENAI_URL = "https://api.openai.com/v1/responses";
 
 export const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  // x-guest-id: 비로그인 체험(게스트) 식별 헤더 — _shared/guest.ts 참조
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-guest-id",
 };
 
 // ── 카테고리별 신뢰 소스 ──

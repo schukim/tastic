@@ -29,6 +29,7 @@ import { useInterview } from "../../hooks/useInterview";
 import { loadDraft, clearDraft } from "../../utils/storage";
 import { generateReview } from "../../services/claude";
 import { useAuthStore } from "../../stores/authStore";
+import { useGuestStore } from "../../stores/guestStore";
 
 type Nav = NativeStackNavigationProp<ReviewStackParamList, "Interview">;
 type Route = RouteProp<ReviewStackParamList, "Interview">;
@@ -38,6 +39,7 @@ export function InterviewScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const user = useAuthStore((s) => s.user);
+  const isGuest = useGuestStore((s) => s.isGuest);
   const { content } = route.params;
 
   const {
@@ -194,7 +196,9 @@ export function InterviewScreen() {
   };
 
   const handleExitDiscard = async () => {
-    await clearDraft();
+    // 게스트는 드래프트 자체가 없다 — 지우면 로그아웃 상태로 남아있던 이전 계정의
+    // 드래프트를 대신 날려버리므로 건드리지 않는다.
+    if (!isGuest) await clearDraft();
     leaveScreen();
   };
 

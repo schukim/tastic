@@ -24,6 +24,8 @@ import type { ContentCategory } from "../../types/database";
 import { CategoryChip, CATEGORY_ICONS } from "../../components/common/CategoryChip";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { useAuthStore } from "../../stores/authStore";
+import { useGuestStore } from "../../stores/guestStore";
+import { GuestSignInDialog } from "../../components/common/GuestSignInDialog";
 import { useTheme } from "../../hooks/useTheme";
 import { loadDraft, clearDraft, type StoredDraft } from "../../utils/storage";
 import { toISODateString } from "../../utils/formatDate";
@@ -39,6 +41,8 @@ export function ReviewHomeScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<Nav>();
   const user = useAuthStore((s) => s.user);
+  const isGuest = useGuestStore((s) => s.isGuest);
+  const guestInterviewUsed = useGuestStore((s) => s.interviewUsed);
   const { isDark } = useTheme();
   const { height } = useWindowDimensions();
 
@@ -49,6 +53,8 @@ export function ReviewHomeScreen() {
   const [experienceDate] = useState(toISODateString(new Date()));
   const [isExpanded, setIsExpanded] = useState(false);
   const [showLimitDialog, setShowLimitDialog] = useState(false);
+  // 게스트 체험(1회) 소진 안내 — 로그인으로 유도
+  const [showGuestLimitDialog, setShowGuestLimitDialog] = useState(false);
   // 진행 중 인터뷰 드래프트 — 배너로 노출, 새 인터뷰 시작 시 덮어쓰기 경고
   const [draft, setDraft] = useState<StoredDraft | null>(null);
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
@@ -164,7 +170,19 @@ export function ReviewHomeScreen() {
   };
 
   const handleNext = async () => {
-    if (!isValid || !category || !user) return;
+    if (!isValid || !category) return;
+
+    // 게스트: 체험 1회만 허용. 서버 사용량(usage_logs)은 건드리지 않고 로컬로만 판단한다.
+    if (isGuest) {
+      if (guestInterviewUsed) {
+        setShowGuestLimitDialog(true);
+        return;
+      }
+      goToConfirm();
+      return;
+    }
+
+    if (!user) return;
     // 무료 플랜 하루 1편 사전 체크 (최종 검증은 서버사이드)
     const allowed = await checkUsageLimit(user.id, user.plan, "review");
     if (!allowed) {
@@ -234,7 +252,8 @@ export function ReviewHomeScreen() {
           {/* Greeting */}
           <Animated.View style={greetingStyle}>
             <Text className="text-text dark:text-text-dark text-2xl font-bold leading-9 mb-6">
-              {t("review.greeting", { name: user?.nickname ?? "" })}
+              {/* 게스트는 닉네임이 없어 "{{name}}님," 자리가 비어버린다 — 전용 문구 사용 */}
+              {isGuest ? t("guest.greeting") : t("review.greeting", { name: user?.nickname ?? "" })}
             </Text>
           </Animated.View>
 
@@ -332,6 +351,14 @@ export function ReviewHomeScreen() {
           { label: t("common.confirm"), onPress: () => setShowLimitDialog(false), variant: "primary" },
         ]}
         onClose={() => setShowLimitDialog(false)}
+      />
+
+      {/* 게스트 체험 1회 소진 — 계속하려면 로그인 */}
+      <GuestSignInDialog
+        visible={showGuestLimitDialog}
+        title={t("guest.trialUsedTitle")}
+        message={t("guest.trialUsedMessage")}
+        onClose={() => setShowGuestLimitDialog(false)}
       />
 
       {/* 새 인터뷰 시작 시 기존 드래프트 덮어쓰기 확인 */}

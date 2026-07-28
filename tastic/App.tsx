@@ -10,6 +10,7 @@ import { useAuth } from "./src/hooks/useAuth";
 import { useDeepLinkAuth } from "./src/hooks/useDeepLinkAuth";
 import { useNetwork } from "./src/hooks/useNetwork";
 import { useIntroGate } from "./src/hooks/useIntroGate";
+import { useGuestInit } from "./src/hooks/useGuestInit";
 import { useTheme } from "./src/hooks/useTheme";
 import { initPurchases } from "./src/services/purchases";
 import * as Sentry from "@sentry/react-native";
@@ -49,6 +50,8 @@ function AppContent() {
   useNetwork();
   // 기기 로컬 인트로 노출 여부 로드 (로그인 전 1회 가이드)
   useIntroGate();
+  // 게스트 기기 ID / 체험 사용 여부 로드 (비로그인 둘러보기)
+  useGuestInit();
 
   return (
     <>

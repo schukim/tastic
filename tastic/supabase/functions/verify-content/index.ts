@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { enforceRateLimit } from "../_shared/usage.ts";
+import { consumeGuestUsage, guestIdFrom } from "../_shared/guest.ts";
 import {
   buildSourceList,
   CORS,
@@ -261,10 +262,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 캐시 미스 → 실제 웹서치(OpenAI 비용) 직전에만 유저별 일일 상한 검사.
+    // 캐시 미스 → 실제 웹서치(OpenAI 비용) 직전에만 일일 상한 검사.
     // 캐시 히트는 비용이 없으므로 카운트하지 않는다.
-    const gate = await enforceRateLimit(req, "search", SEARCH_RATE_LIMIT_PER_DAY, CORS, language);
-    if (!gate.ok) return gate.response;
+    // 게스트(비로그인 체험)는 JWT 가 없으므로 기기 UUID + 전역 상한으로 별도 게이트를 탄다.
+    const guestId = await guestIdFrom(req);
+    if (guestId) {
+      const guestGate = await consumeGuestUsage(guestId, "search", CORS, language);
+      if (!guestGate.ok) return guestGate.response;
+    } else {
+      const gate = await enforceRateLimit(req, "search", SEARCH_RATE_LIMIT_PER_DAY, CORS, language);
+      if (!gate.ok) return gate.response;
+    }
 
     const creatorLine = creator ? `창작자 힌트: ${creator}\n` : "";
     const lang = language === "ko" ? "한국어" : "English";

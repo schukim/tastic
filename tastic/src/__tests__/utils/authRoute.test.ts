@@ -68,4 +68,44 @@ describe("resolveAuthRoute", () => {
       resolveAuthRoute({ isLoading: false, hasSession: true, profileStatus: "loaded", user: null })
     ).toBe("ProfileError");
   });
+
+  // ── 게스트(비로그인 체험) ──
+  // App Store 5.1.1(v): 가입 없이 인터뷰·평론 생성을 체험할 수 있어야 한다.
+
+  it("게스트는 세션이 없어도 Main 으로 들어간다", () => {
+    expect(
+      resolveAuthRoute({
+        isLoading: false,
+        hasSession: false,
+        profileStatus: "loading",
+        user: null,
+        isGuest: true,
+      })
+    ).toBe("Main");
+  });
+
+  it("게스트 플래그가 남아있어도 세션이 있으면 정상 인증 경로를 따른다", () => {
+    // 로그인 직후 useAuth 가 isGuest 를 내리기 전 한 프레임을 방어한다.
+    expect(
+      resolveAuthRoute({
+        isLoading: false,
+        hasSession: true,
+        profileStatus: "loaded",
+        user: userWith([]),
+        isGuest: true,
+      })
+    ).toBe("Onboarding");
+  });
+
+  it("게스트여도 부팅 로딩 중에는 Loading 이 우선한다", () => {
+    expect(
+      resolveAuthRoute({
+        isLoading: true,
+        hasSession: false,
+        profileStatus: "loading",
+        user: null,
+        isGuest: true,
+      })
+    ).toBe("Loading");
+  });
 });

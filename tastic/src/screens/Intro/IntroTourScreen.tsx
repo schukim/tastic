@@ -13,6 +13,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { useIntroStore } from "../../stores/introStore";
+import { useGuestStore } from "../../stores/guestStore";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { markIntroSeen } from "../../utils/storage";
 
 // 앱 첫 실행 기능 가이드 — 마케팅 스크린샷(헤드라인·목업 내장)을 슬라이드로 재활용한다.
@@ -36,13 +38,14 @@ const BG = "#F8F6F1"; // surface.DEFAULT
 const INK = "#221F1A"; // primary.DEFAULT
 const INK_TEXT = "#FDFCF9"; // surface.secondary — 버튼 위 텍스트
 const DOT = "#D8D3CB"; // 비활성 도트
-const SUBTLE = "#9C9589"; // text.tertiary
 
 export function IntroTourScreen() {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const setSeen = useIntroStore((s) => s.setSeen);
+  const enterGuest = useGuestStore((s) => s.enterGuest);
+  const [showBrowseConfirm, setShowBrowseConfirm] = useState(false);
   // 로그인 전 화면이라 계정 언어가 없다 — 현재 i18n 언어(기기 로케일 기반)를 따른다.
   const lang: "ko" | "en" = i18n.language?.startsWith("en") ? "en" : "ko";
   const slides = SLIDES[lang];
@@ -76,6 +79,26 @@ export function IntroTourScreen() {
     setIndex(next);
   }, [isLast, index, width, finish]);
 
+  // '먼저 둘러보기' — 가입 없이 Main 으로 진입한다(App Store 5.1.1(v) 대응).
+  // 회원가입은 이후 '저장' 시점에만 요구된다.
+  //
+  // 다만 바로 들여보내지 않고 계정 보유 여부를 먼저 확인한다. 체험은 계정이 없는 사람을
+  // 위한 회원가입 퍼널이고, 체험 평론은 새로 만든 계정에만 이전되므로
+  // (utils/guestClaim.ts) 계정 보유자가 들어오면 쓴 평론을 잃을 뿐이다.
+  // 로그인 전에는 서버에 계정 존재를 물어볼 수 없어 본인 확인에 의존한다.
+  const handleBrowsePress = useCallback(() => setShowBrowseConfirm(true), []);
+
+  const startGuest = useCallback(() => {
+    setShowBrowseConfirm(false);
+    enterGuest();
+    finish();
+  }, [enterGuest, finish]);
+
+  const goSignIn = useCallback(() => {
+    setShowBrowseConfirm(false);
+    finish();
+  }, [finish]);
+
   return (
     <View style={{ flex: 1, backgroundColor: BG, paddingTop: insets.top }}>
       {/* 슬라이드 영역 — flex:1 로 하단 컨트롤 바 위 공간만 차지한다.
@@ -99,18 +122,11 @@ export function IntroTourScreen() {
         ))}
       </ScrollView>
 
-      {/* Skip — 마지막 슬라이드 제외 */}
-      {!isLast && (
-        <Pressable
-          onPress={finish}
-          hitSlop={12}
-          style={{ position: "absolute", top: insets.top + 8, right: 20 }}
-        >
-          <Text style={{ color: SUBTLE, fontSize: 15, fontWeight: "600" }}>
-            {t("intro.skip")}
-          </Text>
-        </Pressable>
-      )}
+      {/* 건너뛰기 버튼은 두지 않는다.
+          건너뛰면 곧장 로그인 화면으로 나가는데, 게스트 진입로는 이 투어의 마지막 장에만
+          있다(로그인 화면은 계정 보유자용). 즉 건너뛴 사용자는 무가입 체험 경로를 영영
+          만나지 못하고, 그건 5.1.1(v) 리젝 사유를 그대로 재현하는 것이다.
+          세 장을 끝까지 보게 해서 '둘러보기 / 로그인' 선택을 반드시 거치게 한다. */}
 
       {/* 하단 컨트롤 바 — 일반 흐름에 배치해 이미지와 겹치지 않게 한다 */}
       <View
@@ -143,6 +159,32 @@ export function IntroTourScreen() {
           ))}
         </View>
 
+        {/* 마지막 장에서만 '먼저 둘러보기'(게스트) 를 함께 노출한다.
+            가입은 선택 사항이고, 콘텐츠 체험의 전제조건이 아님을 화면에서 보여주는 자리다.
+            계정 보유자를 걸러내는 안내는 이 버튼을 누른 직후 확인 모달이 전담한다 —
+            버튼 사이에 같은 내용을 미리 깔면 중복이고 두 버튼의 균형만 깨진다. */}
+        {isLast && (
+          <Pressable
+            onPress={handleBrowsePress}
+            android_ripple={{ color: "rgba(0,0,0,0.06)" }}
+            style={{
+              backgroundColor: "transparent",
+              borderWidth: 1.5,
+              borderColor: INK,
+              borderRadius: 18,
+              paddingVertical: 17,
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
+            <Text style={{ color: INK, fontSize: 16, fontWeight: "700" }}>
+              {t("intro.browseFirst")}
+            </Text>
+          </Pressable>
+        )}
+
         <Pressable
           onPress={handleNext}
           android_ripple={{ color: "rgba(255,255,255,0.15)" }}
@@ -156,10 +198,23 @@ export function IntroTourScreen() {
           }}
         >
           <Text style={{ color: INK_TEXT, fontSize: 16, fontWeight: "700" }}>
-            {isLast ? t("intro.start") : t("intro.next")}
+            {isLast ? t("intro.signIn") : t("intro.next")}
           </Text>
         </Pressable>
       </View>
+
+      {/* 체험 진입 전 계정 보유 확인 — 계정이 있는 사람을 로그인으로 되돌린다.
+          '계정 없음'을 고르면 가입 없이 그대로 체험이 시작된다(등록은 여전히 선택 사항). */}
+      <ConfirmDialog
+        visible={showBrowseConfirm}
+        title={t("guest.confirmTitle")}
+        message={t("guest.confirmMessage")}
+        actions={[
+          { label: t("guest.confirmHasAccount"), onPress: goSignIn, variant: "primary" },
+          { label: t("guest.confirmNoAccount"), onPress: startGuest },
+        ]}
+        onClose={() => setShowBrowseConfirm(false)}
+      />
     </View>
   );
 }

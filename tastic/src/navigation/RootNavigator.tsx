@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuthStore } from "../stores/authStore";
 import { useIntroStore } from "../stores/introStore";
+import { useGuestStore } from "../stores/guestStore";
 import { resolveAuthRoute } from "../utils/authRoute";
 import type { RootStackParamList, AuthStackParamList } from "../types/navigation";
 import { LoginScreen } from "../screens/Auth/LoginScreen";
@@ -18,8 +19,17 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthNav = createNativeStackNavigator<AuthStackParamList>();
 
 function AuthNavigator() {
+  // 게스트가 '저장하기'로 넘어온 경우엔 회원가입부터 보여준다 — 체험 평론은 새로 만든
+  // 계정으로만 이전되므로(utils/guestClaim.ts), 로그인 화면을 먼저 띄우면 사용자를
+  // 평론이 저장되지 않는 경로로 안내하는 셈이 된다.
+  // Auth 스택은 게스트 탈출 시점에 새로 마운트되므로 initialRouteName 이 매번 반영된다.
+  const authTarget = useGuestStore((s) => s.authTarget);
+
   return (
-    <AuthNav.Navigator screenOptions={{ headerShown: false }}>
+    <AuthNav.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={authTarget === "signUp" ? "SignUp" : "Login"}
+    >
       <AuthNav.Screen name="Login" component={LoginScreen} />
       <AuthNav.Screen name="SignUp" component={SignUpScreen} />
     </AuthNav.Navigator>
@@ -40,10 +50,11 @@ export function RootNavigator() {
   const isLoading = useAuthStore((s) => s.isLoading);
   const profileStatus = useAuthStore((s) => s.profileStatus);
   const introSeen = useIntroStore((s) => s.seen);
+  const isGuest = useGuestStore((s) => s.isGuest);
 
   // 가입/로그인 구분 없이 프로필이 비어있는 유저(소셜 첫 가입 등)는 온보딩으로 보낸다.
   // 분기 로직은 resolveAuthRoute 로 분리해 단위 테스트로 검증한다.
-  const route = resolveAuthRoute({ isLoading, hasSession: !!session, profileStatus, user });
+  const route = resolveAuthRoute({ isLoading, hasSession: !!session, profileStatus, user, isGuest });
 
   // 기능 가이드(기기당 최초 1회) — 로그인 이전, 앱을 처음 실행했을 때 노출한다.
   // 기기 로컬(AsyncStorage) 값이라 계정을 바꿔 로그인해도 다시 뜨지 않는다.

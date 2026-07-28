@@ -9,6 +9,7 @@ import {
   analyzeTaste,
   recommendContent,
 } from "../../services/claude";
+import { useGuestStore } from "../../stores/guestStore";
 
 // vi.hoisted()로 먼저 선언해야 vi.mock() 팩토리 안에서 참조 가능
 const { mockInvoke } = vi.hoisted(() => ({
@@ -222,5 +223,56 @@ describe("에러 파싱", () => {
     await expect(
       verifyContent({ title: "기생충", category: "movie", language: "ko" })
     ).rejects.toThrow("원본 에러 메시지");
+  });
+});
+
+// ── 게스트 헤더 ──
+// 게스트(비로그인 체험)는 JWT 가 없어 서버가 식별할 수 없으므로 기기 UUID 를
+// x-guest-id 로 보낸다. 로그인 상태에서 이 헤더가 새어나가면 서버가 플랜 한도 대신
+// 게스트 한도를 태우게 되므로(우회 경로), 절대 붙지 않아야 한다.
+describe("게스트 헤더(x-guest-id)", () => {
+  const GUEST_ID = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
+
+  beforeEach(() => {
+    useGuestStore.setState({ isGuest: false, guestId: null });
+  });
+
+  it("게스트 상태면 verify-content 에 x-guest-id 를 붙인다", async () => {
+    useGuestStore.setState({ isGuest: true, guestId: GUEST_ID });
+    mockInvoke.mockResolvedValueOnce({ data: { candidates: [] }, error: null });
+
+    await verifyContent({ title: "기생충", category: "movie", language: "ko" });
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "verify-content",
+      expect.objectContaining({ headers: { "x-guest-id": GUEST_ID } })
+    );
+  });
+
+  it("로그인 상태(isGuest=false)면 헤더를 붙이지 않는다", async () => {
+    useGuestStore.setState({ isGuest: false, guestId: GUEST_ID });
+    mockInvoke.mockResolvedValueOnce({ data: { candidates: [] }, error: null });
+
+    await verifyContent({ title: "기생충", category: "movie", language: "ko" });
+
+    expect(mockInvoke.mock.calls[0][1]).not.toHaveProperty("headers");
+  });
+
+  it("게스트지만 guestId 가 아직 로드되지 않았으면 헤더를 붙이지 않는다", async () => {
+    useGuestStore.setState({ isGuest: true, guestId: null });
+    mockInvoke.mockResolvedValueOnce({ data: { candidates: [] }, error: null });
+
+    await verifyContent({ title: "기생충", category: "movie", language: "ko" });
+
+    expect(mockInvoke.mock.calls[0][1]).not.toHaveProperty("headers");
+  });
+
+  it("게스트여도 추천(recommend-content)에는 헤더를 붙이지 않는다 — 계정 전용 기능", async () => {
+    useGuestStore.setState({ isGuest: true, guestId: GUEST_ID });
+    mockInvoke.mockResolvedValueOnce({ data: { recommendations: [] }, error: null });
+
+    await recommendContent({ user_prompt: "요즘 볼만한 영화", language: "ko" });
+
+    expect(mockInvoke.mock.calls[0][1]).not.toHaveProperty("headers");
   });
 });

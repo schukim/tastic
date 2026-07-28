@@ -50,9 +50,35 @@
     "saveError": "프로필 저장에 실패했습니다. 다시 시도해주세요."
   },
   "intro": {
-    "skip": "건너뛰기",
     "next": "다음",
-    "start": "시작하기"
+    "browseFirst": "먼저 둘러보기",
+    "signIn": "로그인 / 회원가입"
+  },
+  "guest": {
+    "signIn": "로그인 / 회원가입",
+    "later": "나중에",
+    "backToBrowse": "둘러보기 계속하기",
+    "saveTitle": "이 평론을 보관할까요?",
+    "saveMessage": "작성한 평론은 계정에 안전하게 저장되어, 다른 기기에서도 볼 수 있습니다. 계정을 만들면 지금 쓴 평론이 그대로 옮겨집니다.",
+    "trialUsedTitle": "체험은 1회까지 가능해요",
+    "trialUsedMessage": "계정을 만들면 평론을 계속 작성할 수 있고, 체험으로 쓴 평론도 그대로 옮겨집니다.",
+    "historyTitle": "아직 기록이 없어요",
+    "historyBody": "로그인하면 작성한 평론이 여기에 날짜별로 저장됩니다.",
+    "recommendTitle": "추천은 로그인 후 이용할 수 있어요",
+    "recommendBody": "평론이 쌓이면 취향에 맞는 작품을 카테고리를 넘나들며 추천해 드려요.",
+    "analysisTitle": "취향 분석은 로그인 후 이용할 수 있어요",
+    "analysisBody": "계정에 쌓인 평론을 바탕으로 당신의 취향을 이야기로 풀어드려요.",
+    "myTitle": "둘러보는 중이에요",
+    "myBody": "로그인하면 프로필과 설정, 구독을 관리할 수 있어요.",
+    "greeting": "오늘은 무엇을 감상하셨나요?",
+    "signUp": "회원가입하고 저장하기",
+    "pendingOnLoginTitle": "체험으로 쓴 평론이 있어요",
+    "pendingOnLoginBody": "체험 평론은 새로 만든 계정에만 옮겨집니다. 기존 계정으로 로그인하면 저장되지 않고 사라집니다.",
+    "pendingOnLoginCta": "회원가입하고 평론 지키기 →",
+    "confirmTitle": "계정이 있으신가요?",
+    "confirmMessage": "둘러보기는 계정이 없는 분을 위한 체험이에요.\n\n체험으로 쓴 평론은 새로 만든 계정에만 저장됩니다. 이미 계정이 있다면 로그인해 주세요 — 그래야 평론이 기존 기록과 함께 남습니다.",
+    "confirmHasAccount": "계정이 있어요 · 로그인하기",
+    "confirmNoAccount": "계정이 없어요 · 체험 시작"
   },
   "profileError": {
     "title": "프로필을 불러오지 못했어요",
@@ -204,7 +230,7 @@
     "privacy": "개인정보처리방침",
     "errorTitle": "결제",
     "purchaseFailed": "결제를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.",
- "pendingMessage": "결제는 완료됐어요. 멤버십 반영이 조금 지연되고 있어요. 잠시 후 앱을 다시 열거나 '구매 복원'을 눌러 주세요.",
+    "pendingMessage": "결제는 완료됐어요. 멤버십 반영이 조금 지연되고 있어요. 잠시 후 앱을 다시 열거나 '구매 복원'을 눌러 주세요.",
     "restoreNone": "복원할 구독이 없어요.",
     "unavailable": "지금은 결제를 시작할 수 없어요. 잠시 후 다시 시도해 주세요."
   },

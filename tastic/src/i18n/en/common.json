@@ -50,9 +50,35 @@
     "saveError": "Failed to save your profile. Please try again."
   },
   "intro": {
-    "skip": "Skip",
     "next": "Next",
-    "start": "Get Started"
+    "browseFirst": "Browse first",
+    "signIn": "Sign in / Sign up"
+  },
+  "guest": {
+    "signIn": "Sign in / Sign up",
+    "later": "Not now",
+    "backToBrowse": "Keep browsing",
+    "saveTitle": "Save this review?",
+    "saveMessage": "Your review is stored safely in your account, so you can read it on any device. Create an account and the review you just wrote comes with you.",
+    "trialUsedTitle": "The guest trial is one review",
+    "trialUsedMessage": "Create an account to keep writing reviews — the one you wrote as a guest comes with you.",
+    "historyTitle": "No records yet",
+    "historyBody": "Sign in and the reviews you write are saved here by date.",
+    "recommendTitle": "Recommendations need an account",
+    "recommendBody": "As your reviews add up, we recommend works across every category to match your taste.",
+    "analysisTitle": "Taste analysis needs an account",
+    "analysisBody": "We turn the reviews saved in your account into a story about your taste.",
+    "myTitle": "You're browsing as a guest",
+    "myBody": "Sign in to manage your profile, settings, and subscription.",
+    "greeting": "What did you experience today?",
+    "signUp": "Sign up and save",
+    "pendingOnLoginTitle": "You have a review from the trial",
+    "pendingOnLoginBody": "A trial review only transfers to a newly created account. If you sign in to an existing account, it will not be saved.",
+    "pendingOnLoginCta": "Sign up and keep the review →",
+    "confirmTitle": "Do you already have an account?",
+    "confirmMessage": "Browsing is a trial for people without an account.\n\nA review written during the trial is only saved to a newly created account. If you already have one, please sign in — that way your review is kept alongside your existing records.",
+    "confirmHasAccount": "I have an account · Sign in",
+    "confirmNoAccount": "I don't have one · Start trial"
   },
   "profileError": {
     "title": "Couldn't load your profile",
@@ -204,7 +230,7 @@
     "privacy": "Privacy Policy",
     "errorTitle": "Purchase",
     "purchaseFailed": "Couldn't complete the purchase. Please try again later.",
- "pendingMessage": "Your payment went through. Activating your membership is taking a moment — please reopen the app shortly or tap 'Restore Purchases'.",
+    "pendingMessage": "Your payment went through. Activating your membership is taking a moment — please reopen the app shortly or tap 'Restore Purchases'.",
     "restoreNone": "No subscription to restore.",
     "unavailable": "Purchases aren't available right now. Please try again later."
   },

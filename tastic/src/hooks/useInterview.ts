@@ -5,6 +5,7 @@ import { generateQuestion } from "../services/claude";
 import { createInterview, updateInterview } from "../services/review";
 import { saveDraft, clearDraft } from "../utils/storage";
 import { useAuthStore } from "../stores/authStore";
+import { useGuestStore } from "../stores/guestStore";
 import { getFirstQuestion } from "../prompts/firstQuestions";
 
 const MAX_RETRIES = 3;
@@ -15,6 +16,9 @@ const MEMBERSHIP_MAX_QUESTIONS = 10;
 
 export function useInterview(content: Content) {
   const user = useAuthStore((s) => s.user);
+  // 게스트(비로그인 체험)는 서버에 인터뷰/드래프트를 남기지 않는다 — 계정이 없어
+  // user_id 를 붙일 수 없고, 체험 중에는 어떤 유저 데이터도 만들지 않는 것이 원칙이다.
+  const isGuest = useGuestStore((s) => s.isGuest);
   // developer는 내부용 플랜 — 기능상 멤버십과 동일하게 동작 (UI 비노출)
   const isMembership = user?.plan === "membership" || user?.plan === "developer";
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
@@ -175,8 +179,10 @@ export function useInterview(content: Content) {
     if (interviewIdRef.current) {
       updateInterview(interviewIdRef.current, conversation, questionCount, "completed").catch(() => {});
     }
-    await clearDraft();
-  }, [conversation, questionCount]);
+    // 게스트는 드래프트를 만들지 않는다 — 여기서 지우면 로그아웃 상태로 남아있던
+    // 이전 계정의 드래프트를 대신 날려버린다.
+    if (!isGuest) await clearDraft();
+  }, [conversation, questionCount, isGuest]);
 
   // Restore from draft
   const restoreFromDraft = useCallback((

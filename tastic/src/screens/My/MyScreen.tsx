@@ -26,6 +26,8 @@ import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { MembershipPaywall } from "../../components/paywall/MembershipPaywall";
 import type { ContentCategory, Language, User } from "../../types/database";
 import i18n from "../../i18n";
+import { useGuestStore } from "../../stores/guestStore";
+import { GuestGate } from "../../components/common/GuestGate";
 
 const PRIVACY_POLICY_URL = "https://schukim.github.io/tastic/legal/privacy-policy.html";
 
@@ -33,7 +35,7 @@ const ALL_CATEGORIES: ContentCategory[] = [
   "movie", "music", "book", "art", "series",
 ];
 
-export function MyScreen() {
+function MyScreenContent() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
@@ -466,4 +468,15 @@ export function MyScreen() {
       />
     </SafeAreaView>
   );
+}
+
+// 계정 기반 탭 — 게스트에게는 "로그인하면 무엇이 생기는지"를 안내하는 빈 상태를 보여준다.
+// 본체를 조건부로 렌더하지 않고 래퍼로 감싸, 게스트일 때 계정 데이터를 조회하는
+// 훅이 아예 실행되지 않게 한다.
+export function MyScreen() {
+  const isGuest = useGuestStore((s) => s.isGuest);
+  if (isGuest) {
+    return <GuestGate titleKey="guest.myTitle" bodyKey="guest.myBody" icon="👤" />;
+  }
+  return <MyScreenContent />;
 }

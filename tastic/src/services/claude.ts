@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { useGuestStore } from "../stores/guestStore";
 import type {
   VerifyContentRequest,
   VerifyContentResponse,
@@ -22,14 +23,26 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// 게스트(비로그인 체험)는 세션이 없어 JWT 로 식별되지 않는다. 기기 로컬 UUID 를 보내
+// 서버가 게스트 사용량 상한을 걸 수 있게 한다(supabase/functions/_shared/guest.ts).
+// 로그인 상태에서는 절대 보내지 않는다 — 서버가 게스트 헤더를 받으면 플랜 한도 대신
+// 게스트 한도를 태우게 되므로(서버에서도 이중 방어하지만) 클라이언트도 정직하게 보낸다.
+function guestHeaders(): Record<string, string> | undefined {
+  const { isGuest, guestId } = useGuestStore.getState();
+  return isGuest && guestId ? { "x-guest-id": guestId } : undefined;
+}
+
 async function invokeFunction<TReq, TRes>(
   functionName: string,
   body: TReq,
-  timeoutMs: number
+  timeoutMs: number,
+  options?: { allowGuest?: boolean }
 ): Promise<TRes> {
+  const headers = options?.allowGuest ? guestHeaders() : undefined;
   const { data, error } = await withTimeout(
     supabase.functions.invoke(functionName, {
       body: body as Record<string, unknown>,
+      ...(headers ? { headers } : {}),
     }),
     timeoutMs
   );
@@ -60,7 +73,8 @@ export async function verifyContent(
     "verify-content",
     request,
     // 캐시 조회 + 웹서치(~13s) + 콜드스타트 여유. 캐시 히트 시엔 1~2초로 끝남.
-    35_000
+    35_000,
+    { allowGuest: true }
   );
 }
 
@@ -70,7 +84,8 @@ export async function generateQuestion(
   return invokeFunction<GenerateQuestionRequest, GenerateQuestionResponse>(
     "generate-question",
     request,
-    15_000
+    15_000,
+    { allowGuest: true }
   );
 }
 
@@ -80,7 +95,8 @@ export async function generateReview(
   return invokeFunction<GenerateReviewRequest, GenerateReviewResponse>(
     "generate-review",
     request,
-    30_000
+    30_000,
+    { allowGuest: true }
   );
 }
 

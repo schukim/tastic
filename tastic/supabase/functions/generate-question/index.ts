@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { callJsonLLM } from "../_shared/llm.ts";
 import { enforceRateLimit } from "../_shared/usage.ts";
+import { consumeGuestUsage, guestIdFrom } from "../_shared/guest.ts";
 
 // 유저별 질문 생성 일일 상한(비용 남용 방어). 정상 인터뷰는 6~10문항, 하루 수 회.
 const QUESTION_RATE_LIMIT_PER_DAY = 100;
@@ -9,7 +10,8 @@ const FREE_MAX_QUESTIONS = 5;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  // x-guest-id: 비로그인 체험(게스트) 식별 헤더 — _shared/guest.ts 참조
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-guest-id",
 };
 
 // 인터뷰 절대 상한 — 비용 안전장치.
@@ -228,13 +230,22 @@ Deno.serve(async (req) => {
   try {
     const { content, conversation_history, question_count, language } = await req.json();
 
-    // 유저별 일일 호출 상한 — 로그인 사용자가 질문 생성을 반복 호출해 LLM 비용을 유발하는 것을 방어.
-    const gate = await enforceRateLimit(req, "question", QUESTION_RATE_LIMIT_PER_DAY, CORS, language);
-    if (!gate.ok) return gate.response;
+    // 일일 호출 상한 — 질문 생성을 반복 호출해 LLM 비용을 유발하는 것을 방어.
+    // 게스트(비로그인 체험)는 JWT 가 없으므로 기기 UUID + 전역 상한 게이트를 탄다.
+    const guestId = await guestIdFrom(req);
+    let plan = "free";
+    if (guestId) {
+      const guestGate = await consumeGuestUsage(guestId, "question", CORS, language);
+      if (!guestGate.ok) return guestGate.response;
+    } else {
+      const gate = await enforceRateLimit(req, "question", QUESTION_RATE_LIMIT_PER_DAY, CORS, language);
+      if (!gate.ok) return gate.response;
+      plan = gate.plan;
+    }
 
     // 플랜별 문답 상한을 서버에서 강제(클라이언트 우회 방지).
-    // 무료: 5문답, 멤버십/개발자: MAX_QUESTIONS(10). 초과 시 즉시 종료.
-    const planCap = gate.plan === "free" ? FREE_MAX_QUESTIONS : MAX_QUESTIONS;
+    // 무료·게스트: 5문답, 멤버십/개발자: MAX_QUESTIONS(10). 초과 시 즉시 종료.
+    const planCap = plan === "free" ? FREE_MAX_QUESTIONS : MAX_QUESTIONS;
     if (question_count >= planCap) {
       return new Response(
         JSON.stringify({ question: "", question_type: "wrap_up", topic_label: "", should_end: true }),
