@@ -7,6 +7,7 @@ import { saveDraft, clearDraft } from "../utils/storage";
 import { useAuthStore } from "../stores/authStore";
 import { useGuestStore } from "../stores/guestStore";
 import { getFirstQuestion } from "../prompts/firstQuestions";
+import { resolveLlmLanguage } from "../utils/llmLanguage";
 
 const MAX_RETRIES = 3;
 // 무료 플랜: 5번째 답변 즉시 평론 자동 생성·세션 종료
@@ -54,14 +55,16 @@ export function useInterview(content: Content) {
     setError(null);
     try {
       let response: GenerateQuestionResponse;
+      // 게스트는 계정(users.language)이 없어 기기 언어를 따른다 — utils/llmLanguage.ts
+      const language = resolveLlmLanguage(user);
 
       if (qCount === 0) {
         // First question: pick from predefined category-specific list
-        const question = getFirstQuestion(content.category, content.metadata);
+        const question = getFirstQuestion(content.category, content.metadata, language);
         response = {
           question,
           question_type: "initial",
-          topic_label: "첫인상",
+          topic_label: language === "en" ? "First impression" : "첫인상",
         };
       } else {
         response = await generateQuestion({
@@ -75,7 +78,7 @@ export function useInterview(content: Content) {
           },
           conversation_history: conv,
           question_count: qCount,
-          language: user?.language ?? "ko",
+          language,
         });
       }
 

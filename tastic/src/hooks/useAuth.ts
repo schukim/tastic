@@ -6,7 +6,7 @@ import { syncUnsavedReviews } from "../services/review";
 import { migrateGuestReview } from "../services/guestMigration";
 import { useGuestStore } from "../stores/guestStore";
 import { shouldClaimGuestReview } from "../utils/guestClaim";
-import { clearGuestTrial } from "../utils/guestStorage";
+import { clearGuestSession, clearGuestTrial } from "../utils/guestStorage";
 import { identifyPurchasesUser, logOutPurchasesUser } from "../services/purchases";
 import { reconcileSubscription } from "../services/subscription";
 import * as Sentry from "@sentry/react-native";
@@ -30,6 +30,9 @@ async function finishGuestTrial(user: { id: string; created_at?: string }) {
   } catch (e) {
     console.error("finishGuestTrial failed:", e);
   } finally {
+    // 세션이 생긴 이상 게스트로 되돌아갈 일은 없다 — 이전 성공 여부와 무관하게
+    // '진행 중 체험' 표시를 지운다. (남겨두면 나중에 로그아웃했을 때 게스트로 복귀한다.)
+    await clearGuestSession().catch(() => {});
     useGuestStore.getState().clearGuest();
   }
 }

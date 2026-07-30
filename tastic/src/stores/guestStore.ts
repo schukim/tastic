@@ -11,6 +11,10 @@ import type { GuestWork } from "../utils/guestStorage";
 interface GuestState {
   // 지금 게스트로 앱을 쓰고 있는가 (세션 없이 Main 진입)
   isGuest: boolean;
+  // 부팅 시 기기 로컬 상태를 다 읽고 '게스트 복귀' 여부까지 판단했는가.
+  // false 인 동안 RootNavigator 는 로딩을 유지한다 — 이게 없으면 복귀 대상인 사용자에게
+  // 로그인 화면이 한 프레임 번쩍인 뒤 Main 으로 튀는 깜빡임이 생긴다.
+  bootstrapped: boolean;
   // 서버 게스트 사용량 상한 키 (기기 로컬 UUID). 부팅 시 주입.
   guestId: string | null;
   // 체험 인터뷰를 이미 1회 썼는가 (AsyncStorage 미러)
@@ -29,6 +33,7 @@ interface GuestState {
   enterGuest: () => void;
   exitGuestToAuth: (target: "login" | "signUp") => void;
   resumeGuest: () => void;
+  setBootstrapped: (done: boolean) => void;
   setGuestId: (id: string) => void;
   setInterviewUsed: (used: boolean) => void;
   setPendingWork: (work: GuestWork | null) => void;
@@ -39,6 +44,7 @@ interface GuestState {
 
 export const useGuestStore = create<GuestState>((set) => ({
   isGuest: false,
+  bootstrapped: false,
   guestId: null,
   interviewUsed: false,
   cameFromGuest: false,
@@ -51,6 +57,7 @@ export const useGuestStore = create<GuestState>((set) => ({
   // 보관 중인 평론은 AsyncStorage 에 있으므로 이 전환으로 유실되지 않는다.
   exitGuestToAuth: (authTarget) => set({ isGuest: false, cameFromGuest: true, authTarget }),
   resumeGuest: () => set({ isGuest: true, cameFromGuest: false }),
+  setBootstrapped: (bootstrapped) => set({ bootstrapped }),
   setGuestId: (guestId) => set({ guestId }),
   setInterviewUsed: (interviewUsed) => set({ interviewUsed }),
   setPendingWork: (pendingWork) => set({ pendingWork }),

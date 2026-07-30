@@ -17,6 +17,7 @@ import { generateReview } from "../../services/claude";
 import { createReview, linkInterviewToReview } from "../../services/review";
 import { saveUnsavedReview } from "../../utils/storage";
 import { markGuestInterviewUsed, saveGuestPendingReview } from "../../utils/guestStorage";
+import { resolveLlmLanguage } from "../../utils/llmLanguage";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
 import { GuestSignInDialog } from "../../components/common/GuestSignInDialog";
 import { useAuthStore } from "../../stores/authStore";
@@ -98,7 +99,8 @@ export function ReviewCompleteScreen() {
           genre: content.genre,
         },
         conversation_history: conversation,
-        language: user?.language ?? "ko",
+        // 게스트는 계정(users.language)이 없어 기기 언어를 따른다 — utils/llmLanguage.ts
+        language: resolveLlmLanguage(user),
         // 같은 인터뷰의 재생성은 사용량을 추가 차감하지 않도록 서버에 전달
         interview_id: interviewId || null,
       });

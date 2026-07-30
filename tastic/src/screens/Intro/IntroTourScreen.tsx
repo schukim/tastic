@@ -16,6 +16,7 @@ import { useIntroStore } from "../../stores/introStore";
 import { useGuestStore } from "../../stores/guestStore";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { markIntroSeen } from "../../utils/storage";
+import { markGuestSessionStarted } from "../../utils/guestStorage";
 
 // 앱 첫 실행 기능 가이드 — 마케팅 스크린샷(헤드라인·목업 내장)을 슬라이드로 재활용한다.
 // 이미지는 ko/en 두 벌이 있어 사용자 언어에 맞는 세트를 보여준다.
@@ -91,6 +92,9 @@ export function IntroTourScreen() {
   const startGuest = useCallback(() => {
     setShowBrowseConfirm(false);
     enterGuest();
+    // 체험 시작을 기기에 남긴다 — 평론을 만들기 전에 앱을 껐다 켜도 게스트로 되돌아온다
+    // (utils/guestRestore.ts). 인트로는 기기당 1회라 이 기록이 없으면 다시 들어올 길이 없다.
+    markGuestSessionStarted().catch(() => {});
     finish();
   }, [enterGuest, finish]);
 

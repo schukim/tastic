@@ -51,6 +51,8 @@ export function RootNavigator() {
   const profileStatus = useAuthStore((s) => s.profileStatus);
   const introSeen = useIntroStore((s) => s.seen);
   const isGuest = useGuestStore((s) => s.isGuest);
+  // 중단된 게스트 체험 복귀 판단이 끝나기 전까지는 라우트를 확정하지 않는다(useGuestInit).
+  const guestBootstrapped = useGuestStore((s) => s.bootstrapped);
 
   // 가입/로그인 구분 없이 프로필이 비어있는 유저(소셜 첫 가입 등)는 온보딩으로 보낸다.
   // 분기 로직은 resolveAuthRoute 로 분리해 단위 테스트로 검증한다.
@@ -61,7 +63,7 @@ export function RootNavigator() {
   // introSeen===null 은 아직 스토리지를 읽는 중이라 로딩으로 대기한다.
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {introSeen === null ? (
+      {introSeen === null || !guestBootstrapped ? (
         <Stack.Screen name="Loading" component={LoadingScreen} />
       ) : introSeen === false ? (
         <Stack.Screen name="IntroTour" component={IntroTourScreen} />

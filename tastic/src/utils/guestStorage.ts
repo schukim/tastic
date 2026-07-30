@@ -10,6 +10,7 @@ import type { ContentCategory, ConversationEntry } from "../types/database";
 const GUEST_ID_KEY = "tastic_guest_id";
 const GUEST_INTERVIEW_USED_KEY = "tastic_guest_interview_used";
 const GUEST_PENDING_REVIEW_KEY = "tastic_guest_pending_review";
+const GUEST_SESSION_KEY = "tastic_guest_session";
 
 /** 게스트가 체험 중 확정한 작품 — 아직 works 행이 없으므로 원본 메타데이터를 그대로 보관한다. */
 export interface GuestWork {
@@ -31,6 +32,18 @@ export interface GuestPendingReview {
   title: string | null;
   body: string;
   savedAt: string;
+  // 계정 이전(guestMigration)의 진행 상태. 이전은 works → reviews → 사용량 기록의
+  // 3단계인데 중간에 실패하면 로컬 보관분을 남겨 다음 로그인에 재시도한다. 그때 이미
+  // 만든 행을 다시 만들지 않도록 각 단계의 결과 id 를 여기 적어둔다.
+  //
+  // migratedUserId: 그 id 들이 어느 계정에서 만들어졌는지. 계정이 다르면 재사용하지
+  // 않는다 — 수동 입력 작품(is_verified=false)은 소유자만 읽을 수 있어(works RLS),
+  // 남의 work 행을 참조하는 평론은 히스토리에서 깨진 항목이 된다.
+  migratedUserId?: string;
+  migratedWorkId?: string;
+  migratedReviewId?: string;
+  // 사용량 기록(claim-guest-review)만 계속 실패할 때 무한 재시도를 막는 카운터
+  claimAttempts?: number;
 }
 
 // ── 게스트 기기 ID ──
@@ -43,6 +56,24 @@ export async function getOrCreateGuestId(): Promise<string> {
   const id = Crypto.randomUUID();
   await AsyncStorage.setItem(GUEST_ID_KEY, id);
   return id;
+}
+
+// ── 진행 중인 게스트 세션 ──
+// 게스트로 앱을 쓰던 중 앱이 종료되면 메모리 상태(isGuest)가 날아가는데, 인트로는 이미
+// 본 것으로 기록돼 있어 다시 '먼저 둘러보기'를 누를 방법이 없다. 그래서 인트로에서
+// 게스트를 시작한 사실을 기기에 남겨두고, 체험이 끝나기 전(평론 생성 전) 재실행이면
+// 게스트 모드로 되돌린다. 판단 로직은 utils/guestRestore.ts 참조.
+
+export async function markGuestSessionStarted(): Promise<void> {
+  await AsyncStorage.setItem(GUEST_SESSION_KEY, "true");
+}
+
+export async function getGuestSessionStarted(): Promise<boolean> {
+  return (await AsyncStorage.getItem(GUEST_SESSION_KEY)) === "true";
+}
+
+export async function clearGuestSession(): Promise<void> {
+  await AsyncStorage.removeItem(GUEST_SESSION_KEY);
 }
 
 // ── 체험 1회 제한 ──
@@ -80,7 +111,14 @@ export async function clearGuestPendingReview(): Promise<void> {
 /**
  * 이전이 끝난 뒤 게스트 흔적을 정리한다. 기기 ID(GUEST_ID_KEY)는 남겨둔다 —
  * 로그아웃 후 다시 둘러보기로 들어와도 서버 상한이 새 기기처럼 초기화되지 않게 하기 위함.
+ *
+ * 진행 중 세션 표시(GUEST_SESSION_KEY)도 함께 지운다 — 로그인/회원가입을 마친 뒤에는
+ * 앱을 재실행해도 게스트로 돌아가지 않아야 한다.
  */
 export async function clearGuestTrial(): Promise<void> {
-  await AsyncStorage.multiRemove([GUEST_PENDING_REVIEW_KEY, GUEST_INTERVIEW_USED_KEY]);
+  await AsyncStorage.multiRemove([
+    GUEST_PENDING_REVIEW_KEY,
+    GUEST_INTERVIEW_USED_KEY,
+    GUEST_SESSION_KEY,
+  ]);
 }

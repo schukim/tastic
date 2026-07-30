@@ -21,6 +21,7 @@ import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
 import { useAuthStore } from "../../stores/authStore";
 import { useGuestStore } from "../../stores/guestStore";
 import { guestWorkToLocalWork } from "../../utils/guestWork";
+import { resolveLlmLanguage } from "../../utils/llmLanguage";
 import type { GuestWork } from "../../utils/guestStorage";
 
 type Nav = NativeStackNavigationProp<ReviewStackParamList, "ContentConfirm">;
@@ -69,7 +70,8 @@ export function ContentConfirmScreen() {
         title,
         creator: inputCreator || undefined,
         category,
-        language: user?.language ?? "ko",
+        // 게스트는 계정(users.language)이 없어 기기 언어를 따른다 — utils/llmLanguage.ts
+        language: resolveLlmLanguage(user),
         skipCache,
       });
       setCandidates(response.candidates);
