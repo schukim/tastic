@@ -6,11 +6,13 @@ import {
   buildSourceList,
   CORS,
   formatStep,
+  searchQueries,
   searchStep,
   SOURCE_WHITELIST,
   STR_ARRAY,
   STR_OR_NULL,
   strictObject,
+  type Trace,
 } from "../_shared/websearch.ts";
 
 // 유저별 작품 검색 일일 상한(비용 남용 방어). 정상 사용자는 하루 수 건, 이 값은 abuse ceiling.
@@ -227,13 +229,165 @@ function buildResponseJsonSchema(category: string): Record<string, unknown> {
   });
 }
 
+// ── 검색어 변형 힌트 ──
+// 한국어 제목은 띄어쓰기 표기가 갈린다("싱어게인" vs "싱 어게인"). 모델에게 "변형해 보라"고
+// 말로 시키면 잘 안 하므로, 서버가 실제 문자열을 계산해 프롬프트에 박아 넣는다.
+function spacingVariants(title: string): string[] {
+  const t = title.trim();
+  const out = new Set<string>();
+  if (/\s/.test(t)) {
+    out.add(t.replace(/\s+/g, "")); // "싱 어게인" → "싱어게인"
+  } else if (/[가-힣]/.test(t) && t.length >= 3) {
+    // 공백 없는 한글 제목: 가능한 모든 분절 지점을 시도한다.
+    // 1글자 조각을 배제하면 안 된다 — "싱어게인" → "싱 어게인"이 바로 그 경우다.
+    for (let i = 1; i <= t.length - 1; i++) out.add(`${t.slice(0, i)} ${t.slice(i)}`);
+  }
+  out.delete(t);
+  return [...out].slice(0, 4);
+}
+
+function hasHangul(s: string): boolean {
+  return /[가-힣]/.test(s);
+}
+
+// ── 1단계 프롬프트 조립 ──
+// aliases 가 있으면(별칭 해석 패스 B) 원제 후보를 검색어로 함께 제시한다.
+function buildSearchPrompt(params: {
+  title: string;
+  creator?: string;
+  category: string;
+  sourceList: string;
+  metadataSchema: string;
+  aliases: string[];
+}): string {
+  const { title, creator, category, sourceList, metadataSchema, aliases } = params;
+  const creatorLine = creator ? `창작자 힌트: ${creator}\n` : "";
+  const variants = spacingVariants(title);
+
+  // 검색 전략을 "포기하지 말고"류의 권고가 아니라 번호가 매겨진 최소 실행 목록으로 준다.
+  const queryPlan = [
+    `① 제목 원문 그대로: "${title}"`,
+    variants.length ? `② 띄어쓰기 변형: ${variants.map((v) => `"${v}"`).join(", ")}` : null,
+    creator ? `③ 창작자 결합: "${title} ${creator}"` : `③ 창작자·연도 결합: "${title} ${category}"`,
+    hasHangul(title)
+      ? `④ 추정 원제/영문 표기: 이 작품의 원제나 영문 제목을 추정해 그것으로도 검색`
+      : `④ 한국어 표기: 이 작품의 한국어 제목을 추정해 그것으로도 검색`,
+    aliases.length ? `⑤ 확인된 원제 후보(우선 사용): ${aliases.map((a) => `"${a}"`).join(", ")}` : null,
+  ].filter(Boolean).join("\n");
+
+  const sourceBlock = sourceList
+    ? `\nweb_search는 아래 신뢰 소스 도메인으로만 검색되도록 이미 제한되어 있다(별도로 site: 를 붙이지 말 것).
+
+검색 실행 규칙 (반드시 지킬 것):
+- 아래 검색어 계획을 순서대로 실행하되, **최소 2회 이상 서로 다른 질의로 검색**해야 한다. 1회 검색으로 끝내지 마라.
+- 첫 질의에서 결과가 나와도, 그것이 다른 작품일 수 있으므로 최소 한 번은 다른 형태로 교차 확인하라.
+- 핵심 정보(창작자·발표 연도)는 가능하면 2개 이상의 소스에서 교차 확인하라.
+
+검색어 계획:
+${queryPlan}
+
+검색 대상 신뢰 소스 (${category}):
+${sourceList}
+`
+    : "";
+
+  const aliasNote = aliases.length
+    ? `\n참고: 사전 조사에서 이 제목의 원제/다른 표기가 다음으로 확인되었다 — ${aliases.join(", ")}. 이 표기를 우선 검색어로 사용하라.\n`
+    : "";
+
+  return `너는 문화 콘텐츠 식별 전문가다.
+web_search를 사용해 아래 작품을 조사하라.
+
+규칙:
+- 창작자 힌트가 있으면 해당 창작자의 작품을 우선 탐색
+- 동일 제목의 작품이 여러 개 있으면 최대 5개까지 조사
+- 확신할 수 없는 정보는 "불명"으로 표시 (추측 금지)
+- 작품을 전혀 찾을 수 없으면 "식별 불가"라고 분명히 밝혀라
+${sourceBlock}${aliasNote}
+조사가 끝나면 각 후보에 대해 아래 항목을 사실 위주로 정리해 보고하라(서술 형식은 자유):
+제목 / 원제 / 창작자 / 발표 연도 / 장르 / 확신도(high·medium·low)
+그리고 카테고리별 특성:
+${metadataSchema}
+
+제목: ${title}
+카테고리: ${category}
+${creatorLine}`;
+}
+
+// ── 별칭(원제) 해석 패스 ──
+// 화이트리스트 검색이 실패하는 대표 원인은 "한국어 제목으로는 신뢰 소스에 안 걸리는" 경우다.
+// 여기서는 도메인 필터를 풀고(나무위키·네이버 등 도달 허용) **원제 문자열만** 알아낸다.
+// 알아낸 원제로 다시 화이트리스트 검색을 돌리므로, 사실 확정은 여전히 신뢰 소스에서만 이뤄진다.
+// 환각 방어선(2단계 strict JSON)도 그대로다 — 이 패스의 산출물은 검색어일 뿐 사실이 아니다.
+async function resolveAliases(
+  title: string,
+  category: string,
+  creator: string | undefined,
+  country: string | undefined,
+): Promise<{ aliases: string[]; trace: Trace | null }> {
+  try {
+    const variants = spacingVariants(title);
+    const prompt = `아래 작품의 **다른 표기(원제·영문 제목·정식 표기)만** 알아내라. 줄거리·평가·상세 정보는 필요 없다.
+
+제목: ${title}
+카테고리: ${category}
+${creator ? `창작자 힌트: ${creator}\n` : ""}${variants.length ? `참고: 띄어쓰기 변형 표기 — ${variants.join(", ")}\n` : ""}
+web_search로 검색해 다음을 찾아라:
+- 이 한국어 제목에 대응하는 원제(외국 작품이면 원어 제목)
+- 영문 표기 / 로마자 표기
+- 국내 정식 명칭이 따로 있다면 그것
+- 띄어쓰기·표기가 다른 공식 명칭
+
+찾은 표기들을 나열해 보고하라. 확실하지 않으면 나열하지 마라.`;
+
+    // 도메인 필터 없음(빈 배열) — 별칭 해석 전용. 짧은 질의라 출력 토큰을 줄인다.
+    const { findings, trace } = await searchStep(prompt, [], {
+      country,
+      maxOutputTokens: 768,
+    });
+
+    const { parsed } = await formatStep(
+      `아래 조사 결과에서 이 작품의 다른 표기(원제·영문 제목·정식 표기)만 문자열 배열로 뽑아라.
+
+규칙:
+- 조사 결과에 실제로 등장한 표기만 넣을 것. 추측·번역 생성 금지
+- 원래 입력 제목("${title}")과 동일한 문자열은 넣지 말 것
+- 확실한 표기가 없으면 빈 배열([])
+- 최대 4개
+
+조사 결과:
+"""
+${findings}
+"""`,
+      strictObject({ aliases: STR_ARRAY }),
+      trace,
+      "title_aliases",
+    );
+
+    const raw = (parsed as { aliases?: unknown })?.aliases;
+    const aliases = Array.isArray(raw)
+      ? [...new Set(
+          raw
+            .filter((a): a is string => typeof a === "string")
+            .map((a) => a.trim())
+            .filter((a) => a.length > 0 && a.toLowerCase() !== title.trim().toLowerCase()),
+        )].slice(0, 4)
+      : [];
+    return { aliases, trace };
+  } catch (e) {
+    // 별칭 패스는 보조 경로다 — 실패해도 전체를 죽이지 않고 1패스 결과를 그대로 쓴다.
+    console.error("verify-content alias pass failed:", e);
+    return { aliases: [], trace: null };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: { ...CORS } });
   }
 
   try {
-    const { title, creator, category, language, skipCache } = await req.json();
+    const { title, creator, category, language, skipCache, retry } = await req.json();
     const t0 = Date.now();
 
     // ── 0단계: 글로벌 캐시 조회 ──
@@ -274,48 +428,23 @@ Deno.serve(async (req) => {
       if (!gate.ok) return gate.response;
     }
 
-    const creatorLine = creator ? `창작자 힌트: ${creator}\n` : "";
     const lang = language === "ko" ? "한국어" : "English";
     const metadataSchema = buildMetadataSchema(category);
     const sourceList = buildSourceList(category);
     // 검색을 강제 제한할 도메인 (allowed_domains 필터). 모델이 임의로 site:로 더 좁히지 못하게 한다.
     const allowedDomains = (SOURCE_WHITELIST[category] ?? []).map((s) => s.domain);
+    // 한국어 사용자는 KR 로케일로 검색 — 국내 개봉명·방송명이 상위로 올라온다.
+    const country = language === "ko" ? "KR" : undefined;
 
-    // ── 1단계 프롬프트: 자유 조사 (형식 강제 없음) ──
-    // web_search 자체가 아래 도메인으로 제한되므로, 프롬프트에선 site: 지정 대신 검색어 다변화를 유도한다.
-    const sourceBlock = sourceList
-      ? `\nweb_search는 아래 신뢰 소스 도메인으로만 검색되도록 이미 제한되어 있다(별도로 site: 를 붙이지 말 것).
-한 번의 검색으로 못 찾으면 포기하지 말고 검색어를 바꿔 여러 번 시도하라:
-원제·영문 표기, 창작자명 단독, 로마자 표기 등 다양한 형태로 검색하라.
-핵심 정보(창작자·발표 연도)는 가능하면 2개 이상의 소스에서 교차 확인하라.
+    // 조사(1단계) → 정형화(2단계) 한 바퀴. 별칭 패스에서 원제를 얻으면 같은 함수를 다시 돈다.
+    const runPass = async (aliases: string[]) => {
+      const searchPrompt = buildSearchPrompt({
+        title, creator, category, sourceList, metadataSchema, aliases,
+      });
+      const { findings, trace } = await searchStep(searchPrompt, allowedDomains, { country });
 
-검색 대상 신뢰 소스 (${category}):
-${sourceList}
-`
-      : "";
-
-    const searchPrompt = `너는 문화 콘텐츠 식별 전문가다.
-web_search를 사용해 아래 작품을 조사하라.
-
-규칙:
-- 창작자 힌트가 있으면 해당 창작자의 작품을 우선 탐색
-- 동일 제목의 작품이 여러 개 있으면 최대 5개까지 조사
-- 확신할 수 없는 정보는 "불명"으로 표시 (추측 금지)
-- 작품을 전혀 찾을 수 없으면 "식별 불가"라고 분명히 밝혀라
-${sourceBlock}
-조사가 끝나면 각 후보에 대해 아래 항목을 사실 위주로 정리해 보고하라(서술 형식은 자유):
-제목 / 원제 / 창작자 / 발표 연도 / 장르 / 확신도(high·medium·low)
-그리고 카테고리별 특성:
-${metadataSchema}
-
-제목: ${title}
-카테고리: ${category}
-${creatorLine}`;
-
-    const { findings, trace } = await searchStep(searchPrompt, allowedDomains);
-
-    // ── 2단계 프롬프트: 조사 결과를 strict JSON으로 정형화 ──
-    const formatPrompt = `아래 "조사 결과"를 content_candidates JSON 스키마에 맞춰 변환하라.
+      // ── 2단계 프롬프트: 조사 결과를 strict JSON으로 정형화 ──
+      const formatPrompt = `아래 "조사 결과"를 content_candidates JSON 스키마에 맞춰 변환하라.
 
 규칙:
 - 조사 결과에 근거해서만 채울 것. 조사 결과에 없는 정보를 추측·창작하지 말 것
@@ -334,22 +463,59 @@ ${findings}
 
 원본 입력 — 제목: ${title} / 카테고리: ${category}`;
 
-    const { parsed } = await formatStep(formatPrompt, buildResponseJsonSchema(category), trace);
-    trace.ms = Date.now() - t0; // 두 단계 합산
+      const { parsed } = await formatStep(formatPrompt, buildResponseJsonSchema(category), trace);
+      return { parsed, trace, findings };
+    };
+
+    let { parsed, trace, findings } = await runPass([]);
+    let aliases: string[] = [];
+    let aliasAttempted = false;
+
+    // ── 별칭 해석 2패스 ──
+    // 1패스가 빈손이거나, 사용자가 '재검색'을 눌러 retry=true 로 왔을 때만 추가 비용을 쓴다.
+    const firstCount = (parsed as { candidates?: unknown[] })?.candidates?.length ?? 0;
+    if (firstCount === 0 || retry === true) {
+      aliasAttempted = true;
+      const resolved = await resolveAliases(title, category, creator, country);
+      aliases = resolved.aliases;
+      if (aliases.length > 0) {
+        try {
+          const second = await runPass(aliases);
+          const secondCount = (second.parsed as { candidates?: unknown[] })?.candidates?.length ?? 0;
+          // 2패스가 실제로 후보를 찾았을 때만 교체한다 — 빈손이면 1패스 결과를 지키는 게 낫다.
+          if (secondCount > 0) {
+            parsed = second.parsed;
+            trace = second.trace;
+            findings = second.findings;
+          }
+        } catch (e) {
+          console.error("verify-content alias re-search failed:", e);
+        }
+      }
+    }
+
+    trace.ms = Date.now() - t0; // 전체 합산
 
     console.log("verify-content trace:", JSON.stringify({
       title, category,
       ms: trace.ms,
       search_count: trace.search_count,
+      // 실제로 던진 검색 질의 — 실패 원인 분석에 가장 필요한 정보
+      queries: searchQueries(trace),
       cited_domains: trace.cited_domains,
-      candidate_count: parsed?.candidates?.length ?? 0,
+      candidate_count: (parsed as { candidates?: unknown[] })?.candidates?.length ?? 0,
+      alias_attempted: aliasAttempted,
+      aliases,
+      retry: retry === true,
       format_status: trace.format_status,
       incomplete_reason: trace.incomplete_reason,
+      findings_head: (findings ?? "").slice(0, 300),
     }));
 
-    return new Response(JSON.stringify({ ...parsed, _debug: trace }), {
-      headers: { ...CORS, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ ...parsed, _debug: { ...trace, aliases, alias_attempted: aliasAttempted } }),
+      { headers: { ...CORS, "Content-Type": "application/json" } },
+    );
   } catch (error) {
     const trace = (error as { trace?: unknown }).trace ?? { error: String(error) };
     console.error("verify-content error:", error, JSON.stringify(trace));

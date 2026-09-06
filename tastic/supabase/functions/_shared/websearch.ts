@@ -22,9 +22,12 @@ export const CORS = {
 export const SOURCE_WHITELIST: Record<string, { name: string; domain: string }[]> = {
   movie: [
     { name: "KMDb 한국영화DB", domain: "kmdb.or.kr" },
+    // 영화관입장권통합전산망 — 국내 공식 개봉명과 원제를 함께 싣는다. 한국어 제목 해석에 가장 강한 소스.
+    { name: "영화진흥위원회 KOBIS", domain: "kobis.or.kr" },
     { name: "TMDB", domain: "themoviedb.org" },
     { name: "IMDb", domain: "imdb.com" },
     { name: "왓챠피디아", domain: "pedia.watcha.com" },
+    { name: "다음영화", domain: "movie.daum.net" },
     { name: "Letterboxd", domain: "letterboxd.com" },
     { name: "위키피디아", domain: "wikipedia.org" },
   ],
@@ -32,6 +35,7 @@ export const SOURCE_WHITELIST: Record<string, { name: string; domain: string }[]
     { name: "TMDB", domain: "themoviedb.org" },
     { name: "IMDb", domain: "imdb.com" },
     { name: "왓챠피디아", domain: "pedia.watcha.com" },
+    { name: "다음영화", domain: "movie.daum.net" },
     { name: "위키피디아", domain: "wikipedia.org" },
   ],
   music: [
@@ -162,15 +166,60 @@ export function textOf(message: any): string | null {
   return item?.text ?? null;
 }
 
+// 트레이스에서 검색 질의를 뽑는다 — "무엇을 검색했는지"를 로그로 남기기 위한 진단용.
+//
+// 실측 주의(2026-09): gpt-4.1 + tool_choice:"required" 조합에서는 action.query /
+// action.queries[0] 이 **우리가 보낸 프롬프트 전문**(4KB 이상)이다. 모델이 키워드
+// 질의를 따로 만들지 않고 입력을 그대로 검색 백엔드에 넘긴다. 그래서
+//   ① 원문 그대로 로깅하면 요청마다 4KB 로그 스팸이 되고,
+//   ② search_count 는 프롬프트로 몇 번 호출했는지일 뿐 "검색어를 몇 개 썼는지"가 아니다.
+// → 앞부분만 잘라서 남긴다. 잘린 앞부분만으로도 어느 패스(1패스/별칭 패스)가 돌았는지는
+//   프롬프트 서두가 달라 구분되므로 진단 목적은 달성된다.
+const QUERY_LOG_MAX = 200;
+
+export function searchQueries(trace: Trace, maxLen = QUERY_LOG_MAX): string[] {
+  const seen = new Set<string>();
+  for (const s of trace.searches) {
+    // deno-lint-ignore no-explicit-any
+    const a = (s as any)?.action;
+    const raw = typeof a?.query === "string"
+      ? a.query
+      : Array.isArray(a?.queries) && typeof a.queries[0] === "string"
+      ? a.queries[0]
+      : null;
+    if (!raw) continue;
+    const short = raw.length > maxLen ? `${raw.slice(0, maxLen)}…(+${raw.length - maxLen}자)` : raw;
+    seen.add(short.replace(/\s+/g, " "));
+  }
+  return [...seen].slice(0, 5);
+}
+
+export interface SearchStepOptions {
+  // web_search 로케일 편향. ISO 국가코드("KR")를 주면 국내 개봉명·방송명이 상위로 올라온다.
+  // 한국어 제목 해석의 성공률을 좌우하므로 language==="ko" 경로에서 반드시 넘긴다.
+  country?: string;
+  // 짧은 보조 질의(별칭 해석 패스)는 출력 토큰을 줄여 비용·지연을 아낀다.
+  maxOutputTokens?: number;
+}
+
 // ── 1단계: 탐색 ──
 // GA web_search로 조사한다. allowed_domains 필터로 검색을 신뢰 소스(화이트리스트)로 강제 제한한다.
+// allowedDomains 를 빈 배열로 주면 필터 없이 넓게 검색한다(별칭 해석 패스 전용 —
+// 나무위키·네이버 등에 도달할 수 있으나, 사실 확정은 여전히 화이트리스트 패스에서만 한다).
 // temperature 0으로 변동성 최소화.
-export async function searchStep(prompt: string, allowedDomains: string[]) {
+export async function searchStep(
+  prompt: string,
+  allowedDomains: string[],
+  opts: SearchStepOptions = {},
+) {
   const t0 = Date.now();
   // 도메인이 있으면 그 도메인들로 검색을 제한(강제), 없으면 필터 없이 넓게 검색.
-  const webSearch = allowedDomains.length
+  const webSearch: Record<string, unknown> = allowedDomains.length
     ? { type: "web_search", filters: { allowed_domains: allowedDomains } }
     : { type: "web_search" };
+  if (opts.country) {
+    webSearch.user_location = { type: "approximate", country: opts.country };
+  }
   const res = await fetch(OPENAI_URL, {
     method: "POST",
     headers: {
@@ -184,7 +233,7 @@ export async function searchStep(prompt: string, allowedDomains: string[]) {
       tool_choice: "required",
       input: prompt,
       temperature: 0,
-      max_output_tokens: 2048,
+      max_output_tokens: opts.maxOutputTokens ?? 2048,
     }),
   });
   const data = await res.json();

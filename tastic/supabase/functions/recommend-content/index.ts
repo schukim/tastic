@@ -251,7 +251,10 @@ ${tasteProfile.join("\n") || "(아직 없음)"}
 이미 감상한 작품:
 ${historyText}`;
 
-      const { findings, trace } = await searchStep(searchPrompt, allowedDomains);
+      // 한국어 사용자는 KR 로케일로 검색 — 국내 유통명·개봉명이 상위로 올라와 추천 정확도가 오른다.
+      const { findings, trace } = await searchStep(searchPrompt, allowedDomains, {
+        country: language === "ko" ? "KR" : undefined,
+      });
       // 이번 검색이 실제로 인용한 출처 URL/도메인 — 후보 근거 대조의 기준(지어낸 URL 차단).
       const citedDomains = new Set(trace.cited_domains);
       const citationList = trace.citations.slice(0, 24).map((c) => `- ${c.url}`).join("\n");

@@ -73,6 +73,9 @@ export function ContentConfirmScreen() {
         // 게스트는 계정(users.language)이 없어 기기 언어를 따른다 — utils/llmLanguage.ts
         language: resolveLlmLanguage(user),
         skipCache,
+        // 재검색이면 서버에 별칭(원제) 해석 패스를 강제해 다른 검색어로 다시 훑게 한다.
+        // 이게 없으면 같은 질의 → 같은 결과라 버튼이 사실상 무의미하다.
+        retry: skipCache,
       });
       setCandidates(response.candidates);
       setCacheHit(response._debug?.cache_hit === true);

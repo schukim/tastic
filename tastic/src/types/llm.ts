@@ -8,6 +8,9 @@ export interface VerifyContentRequest {
   language: "ko" | "en";
   // true면 글로벌 캐시를 건너뛰고 웹서치 강제('재검색' 버튼)
   skipCache?: boolean;
+  // true면 서버가 별칭(원제) 해석 패스를 강제한다. 재검색이 매번 같은 결과를 내지 않도록
+  // 하는 장치 — 1패스가 후보를 찾았더라도 원제로 다시 훑는다.
+  retry?: boolean;
 }
 
 export interface ContentCandidate {
@@ -34,6 +37,9 @@ export interface VerifyContentDebug {
   status?: string | null;
   incomplete_reason?: string | null;
   format_status?: string | null;
+  // 별칭(원제) 해석 패스가 실행됐는지와, 찾아낸 다른 표기들
+  alias_attempted?: boolean;
+  aliases?: string[];
 }
 
 export interface VerifyContentResponse {
