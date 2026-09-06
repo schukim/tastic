@@ -450,6 +450,7 @@ export type Database = {
           p_check_hard: boolean
           p_check_period: boolean
           p_day_start: string
+          p_grace_limit?: number
           p_hard_limit: number
           p_period_limit: number
           p_period_start: string

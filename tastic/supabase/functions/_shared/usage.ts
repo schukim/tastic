@@ -19,6 +19,17 @@ const FREE_LIMITS: Record<GatedAction, LimitRule> = {
   analysis: { max: 1, period: "week" },
 };
 
+// 온보딩 그레이스 — 계정 생애 최초 N건은 free 기간 한도를 면제한다.
+// 분석·추천이 평론 3편에서 열리는데 하루 1편이면 3일차에야 앱의 절반을 처음 본다.
+// 첫날에 3편을 써서 전 기능을 체험할 수 있도록 review 에만 3을 준다.
+// (추천·분석은 첫 1회가 그날 바로 가능하므로 그레이스가 필요 없다.)
+// 클라이언트 src/services/usage.ts 의 FREE_GRACE 와 반드시 동일해야 한다.
+const FREE_GRACE: Record<GatedAction, number> = {
+  review: 3,
+  recommendation: 0,
+  analysis: 0,
+};
+
 // 비공개 hard limit: free·membership 공통 액션별 하루 20회 (KST 자정 초기화).
 // 초과 응답은 일반 한도 초과와 동일 문구 — 존재를 사용자에게 노출하지 않는다.
 const HARD_LIMIT_PER_DAY = 20;
@@ -112,6 +123,8 @@ export async function enforceRateLimit(
     p_check_hard: true,
     p_day_start: periodStart("day").toISOString(),
     p_hard_limit: maxPerDay,
+    // abuse ceiling 경로 — 플랜 한도 자체를 안 보므로 그레이스도 무관
+    p_grace_limit: 0,
   });
   if (error) {
     console.error("enforceRateLimit consume_usage failed:", error);
@@ -244,6 +257,8 @@ export async function enforceUsageLimit(
     p_check_hard: checkHard,
     p_day_start: periodStart("day").toISOString(),
     p_hard_limit: HARD_LIMIT_PER_DAY,
+    // 그레이스는 free 의 기간 한도만 면제한다 — hard limit 은 위에서 그대로 적용됨
+    p_grace_limit: checkPeriod ? FREE_GRACE[action] : 0,
   });
   if (error) {
     console.error("consume_usage rpc failed:", error);

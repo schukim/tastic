@@ -29,7 +29,7 @@ import { GuestSignInDialog } from "../../components/common/GuestSignInDialog";
 import { useTheme } from "../../hooks/useTheme";
 import { loadDraft, clearDraft, type StoredDraft } from "../../utils/storage";
 import { toISODateString } from "../../utils/formatDate";
-import { checkUsageLimit } from "../../services/usage";
+import { checkUsageLimit, getRemainingGrace, FREE_GRACE } from "../../services/usage";
 
 type Nav = NativeStackNavigationProp<ReviewStackParamList, "ReviewHome">;
 
@@ -58,6 +58,8 @@ export function ReviewHomeScreen() {
   // 진행 중 인터뷰 드래프트 — 배너로 노출, 새 인터뷰 시작 시 덮어쓰기 경고
   const [draft, setDraft] = useState<StoredDraft | null>(null);
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+  // 온보딩 그레이스(첫 3편 일일 한도 면제) 잔여 편수 — 0이면 배너 미노출
+  const [graceLeft, setGraceLeft] = useState(0);
 
   const titleRef = useRef<TextInput>(null);
 
@@ -140,8 +142,16 @@ export function ReviewHomeScreen() {
   // 인터뷰에서 '저장하고 나가기'로 돌아온 경우에도 보이도록 포커스마다 드래프트 확인
   useFocusEffect(
     useCallback(() => {
-      if (user) loadDraft(user.id).then(setDraft);
-      else setDraft(null);
+      if (user) {
+        loadDraft(user.id).then(setDraft);
+        // 온보딩 그레이스 잔여분 — 남아 있을 때만 배너로 노출한다.
+        // 분석·추천이 3편에서 열린다는 사실을 첫 화면에서 알리는 것이 목적이라,
+        // 소진(0) 이후에는 조용히 사라진다.
+        getRemainingGrace(user.id, user.plan, "review").then(setGraceLeft);
+      } else {
+        setDraft(null);
+        setGraceLeft(0);
+      }
     }, [user])
   );
 
@@ -219,6 +229,20 @@ export function ReviewHomeScreen() {
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
           style={containerStyle}
         >
+          {/* 온보딩 그레이스 배너 — 첫 3편은 하루 제한 없이 쓸 수 있음을 알린다 */}
+          {graceLeft > 0 && (
+            <View className="bg-primary/10 dark:bg-primary-dm/15 border border-primary/25 dark:border-primary-dm/30 rounded-2xl px-4 py-3 mb-6">
+              <Text className="text-text dark:text-text-dark text-[14px] font-semibold mb-0.5">
+                {t("review.grace.bannerTitle", { total: FREE_GRACE.review })}
+              </Text>
+              <Text className="text-text-secondary dark:text-text-dark-secondary text-[13px] leading-5">
+                {graceLeft === 1
+                  ? t("review.grace.bannerBodyLast")
+                  : t("review.grace.bannerBody", { remaining: graceLeft })}
+              </Text>
+            </View>
+          )}
+
           {/* 진행 중 인터뷰 배너 */}
           {draft && (
             <View className="bg-surface-secondary dark:bg-surface-dark-secondary border border-surface-tertiary dark:border-surface-dark-border rounded-2xl p-4 mb-6">

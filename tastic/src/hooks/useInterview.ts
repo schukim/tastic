@@ -10,9 +10,13 @@ import { getFirstQuestion } from "../prompts/firstQuestions";
 import { resolveLlmLanguage } from "../utils/llmLanguage";
 
 const MAX_RETRIES = 3;
-// 무료 플랜: 5번째 답변 즉시 평론 자동 생성·세션 종료
-const FREE_MAX_QUESTIONS = 5;
-// 멤버십: 6번째 질문 이상 진행 가능 — 비용 안전 상한만 둠
+// 무료 플랜: 6번째 답변 즉시 평론 자동 생성·세션 종료.
+// 5→6: 인터뷰 아크가 심화→전환→심화로 바뀌어(서버 generate-question TURN_ROLE)
+// 두 번째 축까지 파려면 6턴이 필요하다. 서버 FREE_MAX_QUESTIONS 와 반드시 일치.
+// 멤버십의 '미리보기/계속하기' 분기점도 이 값을 따른다 — 마무리(결) 턴까지 끝난
+// 지점이라야 미리보기가 완성된 평론이 된다.
+export const FREE_MAX_QUESTIONS = 6;
+// 멤버십: 7번째 질문 이상 진행 가능 — 비용 안전 상한만 둠
 const MEMBERSHIP_MAX_QUESTIONS = 10;
 
 export function useInterview(content: Content) {
@@ -29,7 +33,7 @@ export function useInterview(content: Content) {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isInterviewComplete, setIsInterviewComplete] = useState(false);
-  // 멤버십: 5문답 이후 '미리보기/계속하기' 선택 대기 상태
+  // 멤버십: 무료 상한 도달 이후 '미리보기/계속하기' 선택 대기 상태
   const [awaitingChoice, setAwaitingChoice] = useState(false);
   const interviewIdRef = useRef<string | null>(null);
 
@@ -82,7 +86,7 @@ export function useInterview(content: Content) {
         });
       }
 
-      // Only honor should_end after the user has answered at least 5 questions
+      // Only honor should_end after the user has answered the free-plan quota
       if (response.should_end && qCount >= FREE_MAX_QUESTIONS) {
         setIsInterviewComplete(true);
         setRetryCount(0);
@@ -127,7 +131,7 @@ export function useInterview(content: Content) {
       updateInterview(interviewIdRef.current, updatedConv, newCount).catch(() => {});
     }
 
-    // 플랜별 상한: 무료는 5문답 즉시 종료, 멤버십은 안전 상한까지
+    // 플랜별 상한: 무료는 상한 도달 시 즉시 종료, 멤버십은 안전 상한까지
     const maxQuestions = isMembership ? MEMBERSHIP_MAX_QUESTIONS : FREE_MAX_QUESTIONS;
     if (newCount >= maxQuestions) {
       setIsInterviewComplete(true);
@@ -146,7 +150,7 @@ export function useInterview(content: Content) {
       });
     }
 
-    // 멤버십: 5문답부터는 자동 진행하지 않고 미리보기/계속하기 선택을 기다린다
+    // 멤버십: 무료 상한부터는 자동 진행하지 않고 미리보기/계속하기 선택을 기다린다
     if (isMembership && newCount >= FREE_MAX_QUESTIONS) {
       setAwaitingChoice(true);
       return null;
@@ -210,7 +214,7 @@ export function useInterview(content: Content) {
       });
     }
 
-    // 5문답 이후 답변까지 마친 드래프트 복원: 플랜에 따라 선택 대기 / 즉시 종료
+    // 무료 상한 이후 답변까지 마친 드래프트 복원: 플랜에 따라 선택 대기 / 즉시 종료
     const lastEntry = savedConversation[savedConversation.length - 1];
     if (lastEntry?.role === "user" && savedQuestionCount >= FREE_MAX_QUESTIONS) {
       if (isMembership && savedQuestionCount < MEMBERSHIP_MAX_QUESTIONS) {

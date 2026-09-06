@@ -165,6 +165,11 @@
       "bannerTitle": "Interview in progress",
       "overwriteTitle": "You have an interview in progress",
       "overwriteMessage": "Starting a new one will discard your '{{title}}' interview."
+    },
+    "grace": {
+      "bannerTitle": "Your first {{total}} reviews — no daily limit",
+      "bannerBody": "{{remaining}} more to unlock taste analysis and recommendations.",
+      "bannerBodyLast": "1 more to unlock taste analysis and recommendations."
     }
   },
   "history": {
@@ -190,7 +195,7 @@
   },
   "analysis": {
     "empty": "No taste analysis yet. Shall we analyze your taste?",
-    "needMore": "Need more reviews for analysis. (Current {{current}} / Min 3)",
+    "needMore": "Write 3 reviews to unlock taste analysis.\nYour first 3 have no daily limit.",
     "analyzeButton": "Analyze My Taste",
     "reanalyze": "Re-analyze",
     "profileTitle": "{{name}}'s Taste Profile",
@@ -218,7 +223,7 @@
     "benefitAnalysisName": "Unlimited taste analysis",
     "benefitQuestionName": "Unlimited interview questions",
     "tagFreeDaily": "1/day",
-    "tagFreeSession": "5/session",
+    "tagFreeSession": "6/session",
     "tagUnlimited": "Unlimited",
     "perMonth": "/ mo",
     "priceFallback": "₩3,300",

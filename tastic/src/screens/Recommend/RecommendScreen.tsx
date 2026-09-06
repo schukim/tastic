@@ -146,8 +146,8 @@ function RecommendScreenContent() {
             </Text>
             <Text className="text-text-secondary dark:text-text-dark-secondary text-lg text-center leading-7 mb-10 font-medium">
               {lang === "ko"
-                ? `평론 ${3 - (reviewCount ?? 0)}편만 더 작성하면\n취향 기반 추천을 받을 수 있어요`
-                : `Write ${3 - (reviewCount ?? 0)} more review${3 - (reviewCount ?? 0) > 1 ? 's' : ''} to\nunlock personalized recommendations`}
+                ? `평론 ${3 - (reviewCount ?? 0)}편만 더 작성하면\n취향 기반 추천을 받을 수 있어요\n처음 3편은 하루 제한 없이 쓸 수 있어요`
+                : `Write ${3 - (reviewCount ?? 0)} more review${3 - (reviewCount ?? 0) > 1 ? 's' : ''} to\nunlock personalized recommendations\nYour first 3 have no daily limit`}
             </Text>
 
             <View className="w-full mb-3">

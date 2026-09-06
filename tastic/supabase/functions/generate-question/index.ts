@@ -6,7 +6,9 @@ import { consumeGuestUsage, guestIdFrom } from "../_shared/guest.ts";
 // 유저별 질문 생성 일일 상한(비용 남용 방어). 정상 인터뷰는 6~10문항, 하루 수 회.
 const QUESTION_RATE_LIMIT_PER_DAY = 100;
 // 무료 플랜 문답 상한 — 클라이언트 useInterview.ts FREE_MAX_QUESTIONS 와 일치(서버 강제).
-const FREE_MAX_QUESTIONS = 5;
+// 5→6: 5턴이면 전환 턴(3턴)에서 새로 연 축에 후속 질문을 붙일 자리가 없어
+// 두 번째 축이 한 문답짜리로 끝났다. 아크 한 바퀴(아래 TURN_ROLE)를 다 돌리려면 6턴이 필요하다.
+const FREE_MAX_QUESTIONS = 6;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -19,18 +21,48 @@ const CORS = {
 // (무료 플랜은 클라이언트에서 5문답에 종료되어 이 상한에 도달하지 않는다.)
 const MAX_QUESTIONS = 10;
 
-// 턴 역할 재설계 노트: 기존에는 2~4턴이 전부 동일한 "탐색"이라 질문이 국소 최적
-// (직전 답변에서 흥미로운 것 하나)만 반복하며 비슷해지고, 평론에 긴장을 만드는
-// '마찰'(아쉬움·어긋남) 재료를 뽑는 자리가 없었다. → 각 턴을 평론 기승전결의
-// 재료 수집 단계로 매핑: 1턴(기·첫인상, 클라이언트 캐시) → 2~3턴(승·전개) →
-// 4턴(전·마찰) → 5턴(결·정리). question_type은 전술(어떻게 묻는가)로 직교 유지.
+// 턴 역할 재설계 노트:
+// (1차) 2~4턴이 전부 동일한 "탐색"이라 질문이 국소 최적(직전 답변에서 흥미로운 것 하나)만
+//   반복했고, 평론에 긴장을 만드는 '마찰'(아쉬움·어긋남) 재료를 뽑는 자리가 없었다.
+// (2차) 그래도 2·3턴 역할 문구가 글자 그대로 같아 모델이 두 턴 모두 deep 을 골랐다.
+//   실사용 궤적이 "첫인상 → 꼬리 → 꼬리 → 꼬리 → 마무리"가 되어 축 하나만 판 단편적인
+//   평론이 나온다는 피드백으로 이어졌다. → 3턴을 "모델이 판단"에서 "무조건 전환"으로 바꾸고,
+//   전환한 축을 4턴에서 다시 파도록 심화-전환-심화로 배치했다. 축이 최소 두 개는 열린다.
+// question_type 은 전술(어떻게 묻는가)로 직교 유지.
 const TURN_ROLE: Record<number, string> = {
-  2: "전개(승) — 감상의 중심축을 찾아 넓히고 파는 단계. deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
-  3: "전개(승) — 감상의 중심축을 찾아 넓히고 파는 단계. deep(깊이)/bridge(작품 연결)/wide(넓이) 중 사용자 답변과 작품 정보에 따라 판단. should_end는 반드시 false",
-  4: "마찰(전) — 아쉬움·기대와 어긋난 점·의외였던 점을 캐는 단계. 아래 '마찰 턴 지침' 섹션을 반드시 따를 것. should_end는 반드시 false",
-  5: "정리(결) — 이 작품에서 결국 가장 남은 것 하나를 묻는 마무리 질문(wrap_up). 감상의 연결·정리는 평론 생성이 맡으므로 사용자에게 '정리해보라'고 요구하지 말 것. 이 답변이 평론의 마지막 문단 재료가 된다. should_end는 반드시 false",
-  6: "보강 — 아래 추가 질문 조건 섹션 참고",
+  2: "심화(승) — 1턴 첫인상에서 드러난 축을 한 걸음 판다. question_type 은 deep 또는 bridge 중 하나여야 하며, topic_label 은 1턴의 축을 유지한다. 여기서 새 축으로 넓히지 마라(전환은 3턴의 역할이다). should_end는 반드시 false",
+  3: "전환(승) — 지금까지 다룬 축을 닫고, 아직 열지 않은 축을 새로 연다. question_type 은 반드시 wide 이고, topic_label 은 아래 '이미 다룬 축'에 없는 새 라벨이어야 한다. 아래 '전환 턴 지침' 섹션을 반드시 따를 것. should_end는 반드시 false",
+  4: "심화(승) — 3턴에서 새로 연 축을 한 걸음 판다. question_type 은 deep 또는 bridge 중 하나여야 하며, topic_label 은 3턴의 축을 유지한다. 첫인상 축으로 되돌아가지 마라. should_end는 반드시 false",
+  5: "마찰(전) — 아쉬움·기대와 어긋난 점·의외였던 점을 캐는 단계. 아래 '마찰 턴 지침' 섹션을 반드시 따를 것. should_end는 반드시 false",
+  6: "정리(결) — 이 작품에서 결국 가장 남은 것 하나를 묻는 마무리 질문(wrap_up). 감상의 연결·정리는 평론 생성이 맡으므로 사용자에게 '정리해보라'고 요구하지 말 것. 이 답변이 평론의 마지막 문단 재료가 된다. should_end는 반드시 false",
+  7: "보강 — 아래 추가 질문 조건 섹션 참고",
 };
+
+// wide(전환) 턴에서 고를 수 있는 축 후보. 프롬프트 본문의 "카테고리별 질문 관점"과
+// 같은 목록이지만, 여기서는 이미 다룬 축을 빼고 "남은 후보"를 명시 주입하는 데 쓴다.
+// 라벨만 나열해 두면 모델이 직전 답변에 다시 끌려가므로, 남은 축을 눈앞에 보여준다.
+const CATEGORY_AXES: Record<string, string[]> = {
+  movie: ["연출", "촬영/미장센", "서사 구조", "캐릭터", "사운드/음악", "사회적 맥락"],
+  series: ["연출", "촬영/미장센", "서사 구조", "캐릭터", "사운드/음악", "사회적 맥락"],
+  music: ["사운드 텍스처", "가사", "감정 곡선", "트랙 간 흐름", "청취 맥락"],
+  book: ["문체", "서사 시점", "캐릭터 심리", "주제의식", "읽기 경험"],
+  art: ["매체/기법", "시각 요소", "공간감", "작가 의도에 대한 개인 해석"],
+};
+
+// 축 라벨은 모델이 자유롭게 짓기 때문에 정확히 일치하지 않는다.
+// 공백·구분자를 지운 뒤 양방향 부분일치로 "사실상 같은 축"을 판정한다.
+function normalizeAxis(label: string): string {
+  return label.toLowerCase().replace(/[\s/·,()]/g, "");
+}
+
+function overlapsCovered(axis: string, coveredLabels: string[]): boolean {
+  const a = normalizeAxis(axis);
+  if (!a) return false;
+  return coveredLabels.some((c) => {
+    const n = normalizeAxis(c);
+    return n.length > 0 && (n.includes(a) || a.includes(n));
+  });
+}
 
 // first_questions는 인터뷰 첫 질문 캐시(클라이언트용)라 작품 정보가 아님 — 프롬프트에서 제외
 const METADATA_EXCLUDE_KEYS = new Set(["first_questions"]);
@@ -55,12 +87,24 @@ function buildPrompt(
   content: { title: string; category: string; creator: string | null; year: number | null; genre: string | null; metadata: Record<string, unknown> },
   conversationText: string,
   askedQuestionsText: string,
+  coveredLabels: string[],
   questionCount: number,
   language: string,
 ): string {
   const turnNumber = questionCount + 1;
-  // 6번째 이후(멤버십 연장)는 "조건부 추가" 역할을 유지 — 소진되면 자연 종료되도록 유도
-  const turnRole = TURN_ROLE[turnNumber] ?? (turnNumber >= 6 ? TURN_ROLE[6] : TURN_ROLE[2]);
+  // 7번째 이후(멤버십 연장)는 "조건부 추가" 역할을 유지 — 소진되면 자연 종료되도록 유도
+  const turnRole = TURN_ROLE[turnNumber] ?? (turnNumber >= 7 ? TURN_ROLE[7] : TURN_ROLE[2]);
+
+  // 축 탐색 상태 — 전환 턴이 실제로 새 축을 열도록 "이미 다룬 축"과 "남은 후보"를 분리해 보여준다.
+  const axes = CATEGORY_AXES[content.category] ?? [];
+  const remainingAxes = axes.filter((a) => !overlapsCovered(a, coveredLabels));
+  const axisSection = `\n## 축 탐색 상태\n- 이미 다룬 축: ${coveredLabels.length > 0 ? coveredLabels.join(", ") : "(없음)"}\n- 아직 열지 않은 축 후보: ${remainingAxes.length > 0 ? remainingAxes.join(", ") : "(후보 소진 — 작품 고유 요소에서 새 축을 직접 만들 것)"}\n`;
+
+  // 전환 턴 전용 지침 — 이 턴에만 주입해 프롬프트 집중도를 유지한다.
+  const transitionSection =
+    turnNumber === 3
+      ? `\n## 전환 턴 지침 (이번 턴)\n지금까지의 축은 충분히 다뤘다. 이번 턴의 임무는 **감상의 다른 면을 새로 여는 것**이다.\n1. 위 "아직 열지 않은 축 후보" 중 이 작품과 사용자의 답변 톤에 가장 잘 맞는 축을 하나 고른다. 후보가 소진됐으면 작품 정보(keywords, creator_style 등)에서 아직 언급되지 않은 요소로 새 축을 만든다.\n2. 직전 답변을 이어받는 질문을 만들지 마라. 직전 답변의 키워드에 붙는 순간 그건 전환이 아니라 꼬리질문이다. 이번 턴만은 (a)직전 답변 키워드가 아니라 (b)작품의 고유 요소에 근거해도 된다.\n3. 전환은 매끄러워야 한다. 화제를 바꾸는 티를 내지 말고("그럼 다른 이야기인데요" 같은 접속 금지), 새 축의 질문을 그냥 던져라.\n4. topic_label 은 새로 연 축의 이름으로 짧게 붙인다. "이미 다룬 축"과 같거나 사실상 같은 뜻이면 실패다.\n`
+      : "";
 
   const musicScopeSection =
     content.category === "music"
@@ -76,12 +120,12 @@ function buildPrompt(
   // 저부담 원칙과의 양립: "아쉬웠던 부분이 있었나요?"는 호불호(겪은 것)를 묻는
   // 질문이라 한 문장으로 답할 수 있다. 아쉬움의 '원인 분석'을 시키는 게 금지다.
   const frictionSection =
-    turnNumber === 4
+    turnNumber === 5
       ? `\n## 마찰 턴 지침 (이번 턴)\n평론에 긴장을 만드는 재료 — 아쉬움, 기대와 어긋난 점, 의외였던 점 — 를 이번 턴에 캔다.\n1. 이전 답변에 이미 부정적·유보적 신호("좀 늘어졌어요", "기대만큼은 아니었어요", "~는 잘 모르겠어요")가 있으면: 그 지점을 deep으로 판다. 원인 분석이 아니라 그 느낌이 가장 강했던 순간·부분으로 좁힌다.\n2. 신호가 없으면: 가볍게 새로 연다. 기본형은 사실 주장이 없는 "기대와 달랐던 점이나 아쉬웠던 부분도 있었나요?". 작품의 고유 요소나 평판("후반부는 호불호가 갈리던데" 등)에 붙이는 것은 그 사실이 "작품 사실의 출처 제한"을 만족할 때만 — 평판·반응을 지어내지 마라.\n3. 강요하지 않는다. 사용자가 전부 만족했다면 "없었다"고 답해도 되는 열린 형태로 묻는다. 아쉬움을 유도하거나 전제하지 마라.\n`
       : "";
 
   const extraTurnSection =
-    questionCount >= 5
+    questionCount >= FREE_MAX_QUESTIONS
       ? `\n## 추가 질문 (${turnNumber}번째) — 사용자가 인터뷰를 이어가길 직접 선택함\n사용자가 '계속하기'를 눌러 질문을 더 받기를 원한다. 기본은 질문을 생성하는 것이다. 아래 우선순위로 판단하라:\n1. 평론 재료 중 가장 얇은 단계를 보강하라. 특히 마찰 재료(아쉬움·기대와 어긋난 점)가 대화에 아직 없으면 그것을 먼저 캔다 (마찰 턴 지침과 동일한 방식 — 저부담·비강요).\n2. 직전 답변에 아직 짚지 않은 키워드·감정·장면이 남아 있으면 그것을 판다.\n3. 아직 다루지 않은 관점(위 카테고리별 질문 관점의 미탐색 축)으로 넓힌다.\n감상이 정말로 소진되어 남은 질문이 이미 한 이야기의 반복밖에 없을 때만 should_end: true를 반환하라.\n`
       : "";
 
@@ -93,8 +137,11 @@ function buildPrompt(
 
 ## 인터뷰의 목적지 (모든 질문의 출발점)
 이 인터뷰가 끝나면 답변들은 기승전결이 있는 평론 한 편으로 재구성된다. 인터뷰는 그 재료를 단계적으로 수집한다:
-기(1턴)=첫인상 → 승(2~3턴)=감상의 중심축 전개 → 전(4턴)=마찰(아쉬움·기대와의 어긋남) → 결(5턴)=가장 남은 것.
+기(1턴)=첫인상 → 승(2턴)=첫인상 축 심화 → 승(3턴)=다른 축으로 전환 → 승(4턴)=새 축 심화 → 전(5턴)=마찰(아쉬움·기대와의 어긋남) → 결(6턴)=가장 남은 것.
 매 질문은 "직전 답변에서 무엇이 흥미로운가"가 아니라 "평론에 아직 없는 재료가 무엇인가"에서 출발하라. 단, 이 구조를 사용자에게 드러내지 마라 — 사용자에게는 자연스러운 대화여야 한다.
+
+## 축을 반드시 두 개 이상 열 것 (이번 개편의 핵심)
+한 축만 파고들면 평론이 단편적이 된다. 인터뷰 전체에서 서로 다른 감상의 축이 최소 두 개는 열려야 하고, 각 축은 한 번씩 더 깊어져야 한다. 그래서 심화 → 전환 → 심화의 순서가 턴 역할로 고정돼 있다. 현재 턴의 역할이 '전환'이면, 직전 답변이 아무리 흥미로워도 파지 말고 새 축을 열어라.
 
 ## 타겟 유저
 별점은 남기지만 글로 쓰는 건 낯선 미들 유저. "말하고 싶은데 어떻게 시작할지 모르겠는" 사람들. 평론가가 아닌 감상자를 위한 질문이어야 한다.
@@ -108,7 +155,7 @@ function buildPrompt(
 
 ## 현재 턴: ${turnNumber}번째 질문
 역할: ${turnRole}
-${frictionSection}${extraTurnSection}
+${axisSection}${transitionSection}${frictionSection}${extraTurnSection}
 ## 질문 재료 — 작품 정보 활용 (가장 중요)
 하단 "작품 정보"의 creator_style(창작자 고유 스타일), keywords(작품 고유 키워드), synopsis 등은 질문을 이 작품에 특화시키기 위한 재료다.
 - 매 질문은 (a) 직전 답변의 구체적 키워드, (b) 작품의 고유 요소, 둘 중 최소 하나에 기반해야 한다. 둘을 연결하면 가장 좋은 질문이 된다.
@@ -144,7 +191,7 @@ ${frictionSection}${extraTurnSection}
 
 ## topic_label 규칙
 - deep/bridge: 직전 질문과 동일한 topic_label을 유지
-- wide: 새 주제를 나타내는 짧은 라벨 (예: "공간의 대비", "사운드", "캐릭터")
+- wide: 새 주제를 나타내는 짧은 라벨 (예: "공간의 대비", "사운드", "캐릭터"). 위 "이미 다룬 축"에 있는 라벨이나 그것과 사실상 같은 뜻의 라벨은 쓸 수 없다
 
 ## 카테고리별 질문 관점 (wide 전환 시 참고)
 - 영화/시리즈: 연출, 촬영/미장센, 서사 구조, 캐릭터, 사운드/음악, 사회적 맥락
@@ -194,7 +241,8 @@ ${musicScopeSection}${bookScopeSection}
 ⑤ 사용자가 깊은 분석 없이, 감상을 떠올리는 것만으로 가볍게 답할 수 있는가?
 ⑥ 이 질문은 현재 턴의 역할(위 "현재 턴" 섹션)을 수행하는가?
 ⑦ 질문에 작품 사실이 담겨 있다면, 그 사실이 "작품 정보" 섹션 또는 확실한 훈련 지식에 근거하는가? (하나라도 지어낸 사실이면 탈락 — 사실을 빼고 열린 각도로 다시 만들어라)
-일곱 가지 모두 통과해야만 질문을 확정한다.
+⑧ 이번 턴이 '전환' 역할이면, question_type이 wide이고 topic_label이 "이미 다룬 축"과 실제로 다른가? 심화 역할이면, 파야 할 축을 그대로 유지하고 있는가? (역할과 어긋나면 탈락)
+여덟 가지 모두 통과해야만 질문을 확정한다.
 
 ${language === "ko" ? "한국어" : "English"}로 질문을 생성하라.
 
@@ -244,7 +292,7 @@ Deno.serve(async (req) => {
     }
 
     // 플랜별 문답 상한을 서버에서 강제(클라이언트 우회 방지).
-    // 무료·게스트: 5문답, 멤버십/개발자: MAX_QUESTIONS(10). 초과 시 즉시 종료.
+    // 무료·게스트: FREE_MAX_QUESTIONS(6), 멤버십/개발자: MAX_QUESTIONS(10). 초과 시 즉시 종료.
     const planCap = plan === "free" ? FREE_MAX_QUESTIONS : MAX_QUESTIONS;
     if (question_count >= planCap) {
       return new Response(
@@ -276,9 +324,37 @@ Deno.serve(async (req) => {
             .join("\n")
         : "(없음)";
 
-    const prompt = buildPrompt(content, conversationText, askedQuestionsText, question_count, language);
+    // 이미 다룬 축 — 전환 턴이 새 축을 열도록 프롬프트에 명시 주입한다.
+    const coveredLabels = [
+      ...new Set(
+        askedQuestions
+          .map((e: { topic_label?: string }) => (e.topic_label ?? "").trim())
+          .filter((l: string) => l.length > 0),
+      ),
+    ] as string[];
+
+    const prompt = buildPrompt(
+      content,
+      conversationText,
+      askedQuestionsText,
+      coveredLabels,
+      question_count,
+      language,
+    );
     // 클라이언트 타임아웃 15초 — 콜드스타트·전송 여유를 남기고 12초
     const parsed = await callJsonLLM(prompt, { temperature: 0.7, maxTokens: 512, timeoutMs: 12_000 });
+
+    // 전환 턴(3턴) 준수 여부 관측 — 재생성은 하지 않는다(12초 예산 안에 재시도가 들어가지 않음).
+    // 이 로그로 프롬프트 강제만으로 축이 실제 갈라지는지 확인한 뒤 재시도 도입을 판단한다.
+    if (question_count + 1 === 3) {
+      const result = parsed as { question_type?: string; topic_label?: string };
+      const label = (result?.topic_label ?? "").trim();
+      if (result?.question_type !== "wide" || overlapsCovered(label, coveredLabels)) {
+        console.warn(
+          `[generate-question] transition turn not honored: type=${result?.question_type} label=${label} covered=${coveredLabels.join("|")}`,
+        );
+      }
+    }
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...CORS, "Content-Type": "application/json" },

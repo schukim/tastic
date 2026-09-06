@@ -25,7 +25,7 @@ import type { GenerateReviewResponse } from "../../types/llm";
 import { QuestionCard } from "../../components/common/QuestionCard";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { CATEGORY_ICONS } from "../../components/common/CategoryChip";
-import { useInterview } from "../../hooks/useInterview";
+import { useInterview, FREE_MAX_QUESTIONS } from "../../hooks/useInterview";
 import { loadDraft, clearDraft } from "../../utils/storage";
 import { generateReview } from "../../services/claude";
 import { useAuthStore } from "../../stores/authStore";
@@ -99,9 +99,9 @@ export function InterviewScreen() {
       if (draft && draft.content.id === content.id) {
         restoreFromDraft(draft.conversation, draft.questionCount, draft.interviewId);
         // If last entry is a user answer, fetch next question
-        // (5문답 이후는 훅이 플랜에 따라 선택 대기/종료 처리하므로 자동 진행하지 않음)
+        // (무료 상한 이후는 훅이 플랜에 따라 선택 대기/종료 처리하므로 자동 진행하지 않음)
         const lastEntry = draft.conversation[draft.conversation.length - 1];
-        if (lastEntry?.role === "user" && draft.questionCount < 5) {
+        if (lastEntry?.role === "user" && draft.questionCount < FREE_MAX_QUESTIONS) {
           fetchQuestion(draft.conversation, draft.questionCount);
         }
       } else {
@@ -111,7 +111,7 @@ export function InterviewScreen() {
     })();
   }, [initialized, content.id, user, initInterview, fetchQuestion, restoreFromDraft]);
 
-  // 인터뷰 종료(무료 5문답 도달, 멤버십 상한/should_end) 시 평론 생성 화면으로 이동
+  // 인터뷰 종료(무료 상한 도달, 멤버십 상한/should_end) 시 평론 생성 화면으로 이동
   useEffect(() => {
     if (!isInterviewComplete) return;
     (async () => {
@@ -328,7 +328,7 @@ export function InterviewScreen() {
 
         {/* Bottom: Answer input + action buttons */}
         <View className="px-6 pb-4 pt-2 border-t border-surface-tertiary">
-          {/* 멤버십: 5문답 이후 미리보기/계속하기 선택 (무료는 자동 생성·종료) */}
+          {/* 멤버십: 무료 상한 도달 이후 미리보기/계속하기 선택 (무료는 자동 생성·종료) */}
           {awaitingChoice && canPreview && (
             <View className="flex-row mb-3 gap-3">
               <Pressable

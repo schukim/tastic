@@ -16,8 +16,8 @@ import { adminClient } from "./usage.ts";
 // 아무것도 쓰지 않으므로(로컬 Work 로 인터뷰만 진행) 여기 없다.
 export type GuestAction = "search" | "question" | "review";
 
-// 기기당 일일 상한. 정상 체험은 1회(검색 1~3 + 질문 4 + 평론 1~2)로 끝나므로
-// 재시도·재검색 여유를 준 값이다.
+// 기기당 일일 상한. 정상 체험은 1회(검색 1~3 + 질문 5 + 평론 1~2)로 끝나므로
+// 재시도·재검색 여유를 준 값이다. (질문은 6문답 중 1턴이 클라이언트 캐시라 5회 호출)
 const GUEST_DEVICE_LIMITS: Record<GuestAction, number> = {
   search: 8,
   question: 15,

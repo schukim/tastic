@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
       p_check_hard: false,
       p_day_start: periodStart("day").toISOString(),
       p_hard_limit: 0,
+      p_grace_limit: 0,
     });
 
     if (error) {
