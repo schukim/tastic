@@ -18,6 +18,19 @@ import {
 // 유저별 작품 검색 일일 상한(비용 남용 방어). 정상 사용자는 하루 수 건, 이 값은 abuse ceiling.
 const SEARCH_RATE_LIMIT_PER_DAY = 40;
 
+// ── 시간 예산 ──
+// 클라이언트 타임아웃은 35초(src/services/claude.ts). 콜드스타트·네트워크 전송 여유를
+// 남겨 28초를 서버 전체 예산으로 잡는다. 별칭 패스는 "있으면 좋은" 보조 경로이므로,
+// 예산이 모자라면 시작하지 않고 1패스 결과를 그대로 돌려준다 —
+// 클라이언트가 타임아웃으로 아무것도 못 받는 것보다 낫다.
+const TOTAL_BUDGET_MS = 28_000;
+// 별칭 해석(원제 문자열만 알아내는 짧은 질의) 상한. 실측 ~6초.
+const ALIAS_RESOLVE_BUDGET_MS = 9_000;
+// 찾은 원제로 화이트리스트 검색을 다시 도는 2패스 상한. 실측 ~11초.
+const ALIAS_RESEARCH_BUDGET_MS = 13_000;
+// 응답 직렬화·전송 몫으로 남겨두는 여유.
+const RESPONSE_RESERVE_MS = 1_500;
+
 // 글로벌 콘텐츠 캐시: 동일/유사 작품을 다른 유저가 검색하면 웹서치를 스킵하고
 // 기존 신뢰 작품(works.is_verified=true 또는 외부 ingestion)의 메타데이터를 재사용한다.
 // service_role로 RLS를 우회해 전체 카탈로그를 조회한다.
@@ -324,7 +337,11 @@ async function resolveAliases(
   category: string,
   creator: string | undefined,
   country: string | undefined,
-): Promise<{ aliases: string[]; trace: Trace | null }> {
+  budgetMs: number,
+): Promise<{ aliases: string[]; trace: Trace | null; timedOut: boolean }> {
+  // 조사·정형화 두 호출로 예산을 나눈다. 조사가 무겁고 정형화는 짧다.
+  const searchMs = Math.max(3_000, Math.round(budgetMs * 0.7));
+  const formatMs = Math.max(2_000, budgetMs - searchMs);
   try {
     const variants = spacingVariants(title);
     const prompt = `아래 작품의 **다른 표기(원제·영문 제목·정식 표기)만** 알아내라. 줄거리·평가·상세 정보는 필요 없다.
@@ -344,6 +361,7 @@ web_search로 검색해 다음을 찾아라:
     const { findings, trace } = await searchStep(prompt, [], {
       country,
       maxOutputTokens: 768,
+      timeoutMs: searchMs,
     });
 
     const { parsed } = await formatStep(
@@ -362,6 +380,7 @@ ${findings}
       strictObject({ aliases: STR_ARRAY }),
       trace,
       "title_aliases",
+      { timeoutMs: formatMs },
     );
 
     const raw = (parsed as { aliases?: unknown })?.aliases;
@@ -373,11 +392,12 @@ ${findings}
             .filter((a) => a.length > 0 && a.toLowerCase() !== title.trim().toLowerCase()),
         )].slice(0, 4)
       : [];
-    return { aliases, trace };
+    return { aliases, trace, timedOut: false };
   } catch (e) {
-    // 별칭 패스는 보조 경로다 — 실패해도 전체를 죽이지 않고 1패스 결과를 그대로 쓴다.
-    console.error("verify-content alias pass failed:", e);
-    return { aliases: [], trace: null };
+    // 별칭 패스는 보조 경로다 — 실패해도(타임아웃 포함) 전체를 죽이지 않고 1패스 결과를 그대로 쓴다.
+    const timedOut = (e as Error)?.name === "TimeoutError" || (e as Error)?.name === "AbortError";
+    console.error(`verify-content alias pass ${timedOut ? "timed out" : "failed"}:`, e);
+    return { aliases: [], trace: null, timedOut };
   }
 }
 
@@ -436,12 +456,21 @@ Deno.serve(async (req) => {
     // 한국어 사용자는 KR 로케일로 검색 — 국내 개봉명·방송명이 상위로 올라온다.
     const country = language === "ko" ? "KR" : undefined;
 
+    // 남은 시간 예산. 1패스가 오래 걸리면 보조 경로를 아예 시작하지 않기 위한 기준.
+    const remainingMs = () => TOTAL_BUDGET_MS - (Date.now() - t0) - RESPONSE_RESERVE_MS;
+
     // 조사(1단계) → 정형화(2단계) 한 바퀴. 별칭 패스에서 원제를 얻으면 같은 함수를 다시 돈다.
-    const runPass = async (aliases: string[]) => {
+    // budgetMs 를 주면 두 호출에 나눠 상한을 건다(1패스는 상한 없이 — 이게 본 경로다).
+    const runPass = async (aliases: string[], budgetMs?: number) => {
+      const searchMs = budgetMs ? Math.max(3_000, Math.round(budgetMs * 0.7)) : undefined;
+      const formatMs = budgetMs ? Math.max(2_000, budgetMs - (searchMs ?? 0)) : undefined;
       const searchPrompt = buildSearchPrompt({
         title, creator, category, sourceList, metadataSchema, aliases,
       });
-      const { findings, trace } = await searchStep(searchPrompt, allowedDomains, { country });
+      const { findings, trace } = await searchStep(searchPrompt, allowedDomains, {
+        country,
+        timeoutMs: searchMs,
+      });
 
       // ── 2단계 프롬프트: 조사 결과를 strict JSON으로 정형화 ──
       const formatPrompt = `아래 "조사 결과"를 content_candidates JSON 스키마에 맞춰 변환하라.
@@ -463,33 +492,61 @@ ${findings}
 
 원본 입력 — 제목: ${title} / 카테고리: ${category}`;
 
-      const { parsed } = await formatStep(formatPrompt, buildResponseJsonSchema(category), trace);
+      const { parsed } = await formatStep(
+        formatPrompt, buildResponseJsonSchema(category), trace, "content_candidates",
+        { timeoutMs: formatMs },
+      );
       return { parsed, trace, findings };
     };
 
     let { parsed, trace, findings } = await runPass([]);
     let aliases: string[] = [];
     let aliasAttempted = false;
+    // 진단용 — 별칭 패스가 왜 결과에 반영되지 않았는지 로그로 구분한다.
+    let aliasOutcome: "not_needed" | "no_budget" | "timeout" | "no_aliases" | "no_result" | "applied" =
+      "not_needed";
 
     // ── 별칭 해석 2패스 ──
     // 1패스가 빈손이거나, 사용자가 '재검색'을 눌러 retry=true 로 왔을 때만 추가 비용을 쓴다.
     const firstCount = (parsed as { candidates?: unknown[] })?.candidates?.length ?? 0;
     if (firstCount === 0 || retry === true) {
-      aliasAttempted = true;
-      const resolved = await resolveAliases(title, category, creator, country);
-      aliases = resolved.aliases;
-      if (aliases.length > 0) {
-        try {
-          const second = await runPass(aliases);
-          const secondCount = (second.parsed as { candidates?: unknown[] })?.candidates?.length ?? 0;
-          // 2패스가 실제로 후보를 찾았을 때만 교체한다 — 빈손이면 1패스 결과를 지키는 게 낫다.
-          if (secondCount > 0) {
-            parsed = second.parsed;
-            trace = second.trace;
-            findings = second.findings;
+      // 예산이 별칭 해석분도 안 되면 시작하지 않는다. 반쯤 하다 끊기면 시간만 버리고
+      // 클라이언트 타임아웃을 유발한다 — 1패스 결과를 그대로 주는 편이 항상 낫다.
+      if (remainingMs() < ALIAS_RESOLVE_BUDGET_MS) {
+        aliasOutcome = "no_budget";
+      } else {
+        aliasAttempted = true;
+        const resolved = await resolveAliases(
+          title, category, creator, country,
+          Math.min(ALIAS_RESOLVE_BUDGET_MS, remainingMs()),
+        );
+        aliases = resolved.aliases;
+        if (resolved.timedOut) {
+          aliasOutcome = "timeout";
+        } else if (aliases.length === 0) {
+          aliasOutcome = "no_aliases";
+        } else if (remainingMs() < 5_000) {
+          // 원제는 찾았지만 재검색을 돌릴 시간이 없다.
+          aliasOutcome = "no_budget";
+        } else {
+          const budget = Math.min(ALIAS_RESEARCH_BUDGET_MS, remainingMs());
+          try {
+            const second = await runPass(aliases, budget);
+            const secondCount = (second.parsed as { candidates?: unknown[] })?.candidates?.length ?? 0;
+            // 2패스가 실제로 후보를 찾았을 때만 교체한다 — 빈손이면 1패스 결과를 지키는 게 낫다.
+            if (secondCount > 0) {
+              parsed = second.parsed;
+              trace = second.trace;
+              findings = second.findings;
+              aliasOutcome = "applied";
+            } else {
+              aliasOutcome = "no_result";
+            }
+          } catch (e) {
+            const t = (e as Error)?.name === "TimeoutError" || (e as Error)?.name === "AbortError";
+            aliasOutcome = t ? "timeout" : "no_result";
+            console.error(`verify-content alias re-search ${t ? "timed out" : "failed"}:`, e);
           }
-        } catch (e) {
-          console.error("verify-content alias re-search failed:", e);
         }
       }
     }
@@ -505,6 +562,7 @@ ${findings}
       cited_domains: trace.cited_domains,
       candidate_count: (parsed as { candidates?: unknown[] })?.candidates?.length ?? 0,
       alias_attempted: aliasAttempted,
+      alias_outcome: aliasOutcome,
       aliases,
       retry: retry === true,
       format_status: trace.format_status,
@@ -513,7 +571,10 @@ ${findings}
     }));
 
     return new Response(
-      JSON.stringify({ ...parsed, _debug: { ...trace, aliases, alias_attempted: aliasAttempted } }),
+      JSON.stringify({
+        ...parsed,
+        _debug: { ...trace, aliases, alias_attempted: aliasAttempted, alias_outcome: aliasOutcome },
+      }),
       { headers: { ...CORS, "Content-Type": "application/json" } },
     );
   } catch (error) {

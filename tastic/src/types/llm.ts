@@ -40,6 +40,14 @@ export interface VerifyContentDebug {
   // 별칭(원제) 해석 패스가 실행됐는지와, 찾아낸 다른 표기들
   alias_attempted?: boolean;
   aliases?: string[];
+  // 별칭 패스 결과 — 반영됨/불필요/예산부족/타임아웃/별칭없음/후보없음
+  alias_outcome?:
+    | "not_needed"
+    | "no_budget"
+    | "timeout"
+    | "no_aliases"
+    | "no_result"
+    | "applied";
 }
 
 export interface VerifyContentResponse {

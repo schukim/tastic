@@ -200,6 +200,9 @@ export interface SearchStepOptions {
   country?: string;
   // 짧은 보조 질의(별칭 해석 패스)는 출력 토큰을 줄여 비용·지연을 아낀다.
   maxOutputTokens?: number;
+  // 이 호출의 상한(ms). 넘기면 fetch 를 실제로 abort 한다 — 응답을 버리고 기다리는 게 아니라
+  // OpenAI 연결 자체를 끊는다. 보조 경로(별칭 패스)가 전체 예산을 먹지 않게 하는 장치.
+  timeoutMs?: number;
 }
 
 // ── 1단계: 탐색 ──
@@ -235,6 +238,7 @@ export async function searchStep(
       temperature: 0,
       max_output_tokens: opts.maxOutputTokens ?? 2048,
     }),
+    signal: opts.timeoutMs ? AbortSignal.timeout(opts.timeoutMs) : undefined,
   });
   const data = await res.json();
   const trace = buildTrace(data, Date.now() - t0, res.ok);
@@ -250,7 +254,13 @@ export async function searchStep(
 // 툴 없이, Structured Outputs(strict json_schema)로만 호출한다.
 // 디코더가 스키마 밖 토큰을 생성할 수 없으므로 산문 출력이 원천 불가능하고,
 // "못 찾음"은 구조적으로 빈 배열이 된다.
-export async function formatStep(prompt: string, schema: Record<string, unknown>, trace: Trace, schemaName = "content_candidates") {
+export async function formatStep(
+  prompt: string,
+  schema: Record<string, unknown>,
+  trace: Trace,
+  schemaName = "content_candidates",
+  opts: { timeoutMs?: number } = {},
+) {
   const res = await fetch(OPENAI_URL, {
     method: "POST",
     headers: {
@@ -266,6 +276,7 @@ export async function formatStep(prompt: string, schema: Record<string, unknown>
         format: { type: "json_schema", name: schemaName, strict: true, schema },
       },
     }),
+    signal: opts.timeoutMs ? AbortSignal.timeout(opts.timeoutMs) : undefined,
   });
   const data = await res.json();
   trace.format_status = data?.status ?? null;
