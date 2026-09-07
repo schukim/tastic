@@ -175,19 +175,23 @@ export function LoginScreen() {
 
           {/* Social Login */}
           <Pressable
-            className="border border-surface-tertiary rounded-xl py-3.5 items-center mb-3"
+            className={`border border-surface-tertiary rounded-xl py-3.5 items-center ${
+              Platform.OS === "ios" ? "mb-3" : "mb-8"
+            }`}
             onPress={() => handleSocialLogin("google")}
             disabled={loading}
           >
             <Text className="text-text font-medium text-base">{t("auth.socialGoogle")}</Text>
           </Pressable>
-          <Pressable
-            className="border border-surface-tertiary rounded-xl py-3.5 items-center mb-8"
-            onPress={() => handleSocialLogin("apple")}
-            disabled={loading}
-          >
-            <Text className="text-text font-medium text-base">{t("auth.socialApple")}</Text>
-          </Pressable>
+          {Platform.OS === "ios" && (
+            <Pressable
+              className="border border-surface-tertiary rounded-xl py-3.5 items-center mb-8"
+              onPress={() => handleSocialLogin("apple")}
+              disabled={loading}
+            >
+              <Text className="text-text font-medium text-base">{t("auth.socialApple")}</Text>
+            </Pressable>
+          )}
 
           {/* Sign Up Link */}
           <View className="flex-row justify-center">
