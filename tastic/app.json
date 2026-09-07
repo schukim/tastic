@@ -2,7 +2,7 @@
   "expo": {
     "name": "tastic",
     "slug": "tastic",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -27,8 +27,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.taewoo.tastic",
-      "versionCode": 7
+      "package": "com.taewoo.tastic"
     },
     "web": {
       "favicon": "./assets/favicon.png"
